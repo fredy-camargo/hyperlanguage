@@ -1,0 +1,11 @@
+# Python Virtual Environment
+.venv/
+__pycache__/
+*.pyc
+
+# Local Student State (Private Data)
+.harness/memory/state.json
+
+# Logs and system generated files
+*.log
+.gemini/

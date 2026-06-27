@@ -46,10 +46,7 @@ def main():
     # 5. Run Feedback Agent
     run_script(os.path.join(AGENTS_DIR, "feedback_agent.py"))
     
-    # 6. Run Git Agent (Version Control)
-    run_script(os.path.join(AGENTS_DIR, "git_agent.py"))
-    
-    # 7. Run termination hook
+    # 6. Run termination hook
     run_script(os.path.join(HOOKS_DIR, "after_agent.py"))
     
     print("\nOrchestrator: Session completed successfully. State preserved.")

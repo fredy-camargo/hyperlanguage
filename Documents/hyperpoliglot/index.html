@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperpolyglot Harness - El Método Mikel</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Aplicación PWA local-first para el aprendizaje de idiomas con el Método Mikel. Sin servidores, Text-To-Speech nativo y LLM con tu propia API key (BYOK).">
+  
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  
+  <!-- Main Styles -->
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- App Container -->
+  <div id="app" class="app-layout">
+    
+    <!-- Onboarding Overlay (Hidden if profile exists) -->
+    <div id="onboarding-screen" class="modal-overlay hidden">
+      <div class="modal-card onboarding-card">
+        <div class="card-header text-center">
+          <span class="material-symbols-rounded icon-hero text-primary">translate</span>
+          <h1>Hyperpolyglot Harness</h1>
+          <p class="subtitle text-secondary">Tu entorno local-first para dominar idiomas con el Método Mikel</p>
+        </div>
+        
+        <form id="onboarding-form" class="form-container">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profile-first-name">Nombre</label>
+              <input type="text" id="profile-first-name" required placeholder="Ej. Mikel">
+            </div>
+            <div class="form-group">
+              <label for="profile-last-name">Apellido</label>
+              <input type="text" id="profile-last-name" required placeholder="Ej. Hyperpolyglot">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="profile-email">Correo Electrónico</label>
+            <input type="email" id="profile-email" required placeholder="correo@ejemplo.com">
+          </div>
+          
+          <div class="form-group">
+            <label for="profile-l1">Idioma Nativo (L1)</label>
+            <select id="profile-l1">
+              <option value="Español" selected>Español</option>
+              <option value="Inglés">Inglés</option>
+              <option value="Portugués">Portugués</option>
+              <option value="Francés">Francés</option>
+              <option value="Alemán">Alemán</option>
+              <option value="Italiano">Italiano</option>
+            </select>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-full btn-lg">
+            <span>Comenzar Aventura</span>
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Navigation Rail / Sidebar (For Desktop/Laptops) -->
+    <aside class="sidebar-nav">
+      <div class="sidebar-header">
+        <span class="material-symbols-rounded text-primary">translate</span>
+        <span class="logo-text">Hyperpolyglot</span>
+      </div>
+      
+      <nav class="nav-links">
+        <a href="#learn" class="nav-link active" data-tab="learn">
+          <span class="material-symbols-rounded">play_circle</span>
+          <span class="nav-label">Aprender (Karaoke)</span>
+        </a>
+        <a href="#practice" class="nav-link" data-tab="practice">
+          <span class="material-symbols-rounded">fitness_center</span>
+          <span class="nav-label">Practicar (Recall)</span>
+        </a>
+        <a href="#generate" class="nav-link" data-tab="generate">
+          <span class="material-symbols-rounded">psychology</span>
+          <span class="nav-label">Generar Islas</span>
+        </a>
+        <a href="#settings" class="nav-link" data-tab="settings">
+          <span class="material-symbols-rounded">settings</span>
+          <span class="nav-label">Configuración</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <span class="user-avatar" id="user-avatar-char">U</span>
+          <div class="user-info">
+            <span class="user-name" id="user-display-name">Usuario</span>
+            <span class="user-level text-secondary">Nivel Profesional</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Content -->
+    <main class="main-content">
+      
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <h2 id="view-title">Aprender (Karaoke)</h2>
+        <div class="top-bar-actions">
+          <div class="theme-switch-container">
+            <button id="theme-btn" class="icon-btn" title="Cambiar tema">
+              <span class="material-symbols-rounded" id="theme-icon">dark_mode</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <div class="workspace-area">
+        
+        <!-- Tab: Learn (Karaoke Loop Engine) -->
+        <section id="tab-learn" class="tab-panel">
+          <div class="panel-layout">
+            <div class="panel-main">
+              <!-- Karaoke Player Card -->
+              <div class="card player-card">
+                <div class="player-header">
+                  <div class="island-badge">
+                    <span class="material-symbols-rounded">grid_view</span>
+                    <span id="player-island-name">Isla Activa</span>
+                  </div>
+                  <div class="target-lang-badge" id="player-lang-badge">Inglés</div>
+                </div>
+                
+                <div class="karaoke-display">
+                  <!-- L1 Text (Native Language) -->
+                  <div class="karaoke-translation text-secondary" id="karaoke-l1">
+                    Selecciona o genera una isla para comenzar a practicar.
+                  </div>
+                  
+                  <!-- L2 Text (Target Language with word-level highlight) -->
+                  <div class="karaoke-text" id="karaoke-l2">
+                    <!-- Words will be dynamic spans -->
+                    <span class="placeholder-text">Choose a language island or technical list from the sidebar.</span>
+                  </div>
+                </div>
+                
+                <!-- Player Controls -->
+                <div class="player-controls">
+                  <div class="controls-row">
+                    <button class="icon-btn btn-sec" id="btn-prev-sentence" title="Anterior">
+                      <span class="material-symbols-rounded">skip_previous</span>
+                    </button>
+                    <button class="btn btn-primary btn-round btn-lg" id="btn-play-pause" title="Reproducir Bucle">
+                      <span class="material-symbols-rounded" id="play-pause-icon">play_arrow</span>
+                    </button>
+                    <button class="icon-btn btn-sec" id="btn-next-sentence" title="Siguiente">
+                      <span class="material-symbols-rounded">skip_next</span>
+                    </button>
+                  </div>
+                  
+                  <div class="controls-settings">
+                    <div class="settings-group">
+                      <label for="tts-speed">Velocidad</label>
+                      <input type="range" id="tts-speed" min="0.5" max="1.5" step="0.1" value="0.9">
+                      <span id="speed-val">0.9x</span>
+                    </div>
+                    
+                    <div class="toggle-container">
+                      <label class="switch">
+                        <input type="checkbox" id="toggle-infinite-phrase">
+                        <span class="slider"></span>
+                      </label>
+                      <span class="toggle-label">Bucle de Frase</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="panel-sidebar">
+              <!-- Island Selector Card -->
+              <div class="card sidebar-card">
+                <h3>Tus Islas Lingüísticas</h3>
+                <p class="text-secondary small">Selecciona una colección para reproducir en el Karaoke Loop.</p>
+                <div class="island-list" id="island-selector-list">
+                  <!-- Dynamic Islands -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Practice (Recall Loop) -->
+        <section id="tab-practice" class="tab-panel hidden">
+          <div class="panel-layout">
+            <div class="panel-main">
+              <!-- Recall Prompt Card -->
+              <div class="card recall-card">
+                <div class="recall-header">
+                  <span class="badge badge-accent">Traducción Activa</span>
+                  <div class="sentence-index" id="recall-index">0 / 0</div>
+                </div>
+                
+                <div class="recall-prompt">
+                  <p class="small text-secondary">Traduce al idioma objetivo:</p>
+                  <h2 id="recall-prompt-l1">No hay ejercicios activos.</h2>
+                  <p class="domain-tag" id="recall-domain">Contexto: Finanzas</p>
+                </div>
+                
+                <div class="recall-form-group">
+                  <textarea id="recall-user-input" placeholder="Escribe tu traducción aquí..." rows="3"></textarea>
+                </div>
+                
+                <div class="recall-actions">
+                  <button class="btn btn-secondary" id="btn-recall-hint">
+                    <span class="material-symbols-rounded">help</span>
+                    <span>Pista</span>
+                  </button>
+                  <button class="btn btn-primary" id="btn-recall-submit">
+                    <span class="material-symbols-rounded">check</span>
+                    <span>Validar Intento</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Feedback Result Card (Hidden by default) -->
+              <div class="card feedback-card hidden" id="recall-feedback-card">
+                <div class="feedback-header">
+                  <h3 id="feedback-title">Resultado de Evaluación</h3>
+                  <span class="accuracy-score" id="feedback-score">100%</span>
+                </div>
+                
+                <div class="feedback-comparison">
+                  <div class="compare-group">
+                    <span class="label text-secondary">Tu intento:</span>
+                    <p class="text-attempt" id="feedback-user-attempt">...</p>
+                  </div>
+                  <div class="compare-group">
+                    <span class="label text-success">Traducción Correcta:</span>
+                    <p class="text-correct" id="feedback-correct-answer">...</p>
+                  </div>
+                </div>
+                
+                <div class="feedback-actions">
+                  <button class="btn btn-primary btn-full" id="btn-recall-next">
+                    <span>Siguiente Ejercicio</span>
+                    <span class="material-symbols-rounded">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="panel-sidebar">
+              <!-- Performance Metrics Card -->
+              <div class="card sidebar-card">
+                <h3>Métricas de Sesión</h3>
+                <div class="metrics-grid">
+                  <div class="metric-box">
+                    <span class="metric-num" id="metric-sessions">0</span>
+                    <span class="metric-lbl">Sesiones</span>
+                  </div>
+                  <div class="metric-box">
+                    <span class="metric-num" id="metric-accuracy">0%</span>
+                    <span class="metric-lbl">Precisión</span>
+                  </div>
+                </div>
+                <div class="progress-bar-container">
+                  <span class="small text-secondary">Meta de Maestría Diario</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Generate (LLM-Powered or Manual Context Generation) -->
+        <section id="tab-generate" class="tab-panel hidden">
+          <!-- Mode Selector Tabs (Material 3 style) -->
+          <div class="sub-tabs-container">
+            <button class="sub-tab-btn active" id="btn-mode-ai" data-mode="ai">
+              <span class="material-symbols-rounded">smart_toy</span>
+              <span>Generar con IA (BYOK)</span>
+            </button>
+            <button class="sub-tab-btn" id="btn-mode-manual" data-mode="manual">
+              <span class="material-symbols-rounded">edit_note</span>
+              <span>Crear Manualmente</span>
+            </button>
+          </div>
+
+          <!-- Sub-Panel: AI Generator -->
+          <div class="card gen-card" id="panel-gen-ai">
+            <div class="gen-header">
+              <span class="material-symbols-rounded text-primary icon-lg">psychology</span>
+              <div>
+                <h3>Generar Contexto con Inteligencia Artificial</h3>
+                <p class="text-secondary">Personaliza la creación de una nueva Isla de Idioma contextualizada mediante la IA.</p>
+              </div>
+            </div>
+            
+            <form id="gen-island-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="gen-island-name">Nombre de la Isla</label>
+                  <input type="text" id="gen-island-name" placeholder="Ej. Auditoría de Cuentas / IFRS 17" required>
+                </div>
+                <div class="form-group">
+                  <label for="gen-target-lang">Idioma Objetivo (L2)</label>
+                  <select id="gen-target-lang">
+                    <option value="Inglés" selected>Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Español">Español</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="gen-island-category">Tema / Categoría</label>
+                  <select id="gen-island-category">
+                    <option value="Finanzas Corporativas / Normas IFRS 17" selected>Finanzas Corporativas / Contabilidad IFRS 17</option>
+                    <option value="Ciencia de Datos / Analytics / SQL y Python">Ciencia de Datos / Analytics / Python</option>
+                    <option value="Ingeniería de Software / Programación general">Ingeniería de Software / Programación</option>
+                    <option value="Negocios Generales y Corporativo">Negocios Generales y Corporativo</option>
+                    <option value="Viajes y Turismo">Viajes y Turismo</option>
+                    <option value="Conversación Diaria y Vida Social">Conversación Diaria y Vida Social</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="gen-sentence-count">Cantidad de Oraciones</label>
+                  <input type="number" id="gen-sentence-count" min="3" max="20" value="10" required>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="gen-word-list">Lista de Vocabulario Objetivo (Separadas por comas)</label>
+                <textarea id="gen-word-list" placeholder="Ej. reconcile, forecast, variance, audit, parse, database" rows="3" required></textarea>
+                <span class="input-helper">El modelo creará las oraciones utilizando estas palabras en el tema y cantidad seleccionados.</span>
+              </div>
+              
+              <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-generate">
+                <span class="material-symbols-rounded">smart_toy</span>
+                <span>Generar Isla con IA</span>
+              </button>
+            </form>
+            
+            <!-- Loading Indicator -->
+            <div class="loading-container hidden" id="gen-loading">
+              <div class="spinner"></div>
+              <p>Llamando directamente a tu proveedor de IA (BYOK)... Generando oraciones técnicas de alta fidelidad...</p>
+            </div>
+            
+            <!-- Generator Results Preview -->
+            <div class="gen-preview hidden" id="gen-preview-area">
+              <h3>Oraciones Generadas Exitosamente</h3>
+              <div class="preview-list" id="gen-preview-sentences">
+                <!-- Spans with generated data -->
+              </div>
+              <button class="btn btn-accent btn-full" id="btn-save-generated">
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar e Iniciar Práctica en Karaoke</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-Panel: Manual Creator -->
+          <div class="card gen-card hidden" id="panel-gen-manual">
+            <div class="gen-header">
+              <span class="material-symbols-rounded text-primary icon-lg">edit_note</span>
+              <div>
+                <h3>Crear Isla Manualmente</h3>
+                <p class="text-secondary">Escribe tus propias oraciones personalizadas y organízalas en una Isla Lingüística.</p>
+              </div>
+            </div>
+            
+            <form id="manual-island-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="manual-island-name">Nombre de la Isla</label>
+                  <input type="text" id="manual-island-name" placeholder="Ej. Mis Oraciones de Negocios" required>
+                </div>
+                <div class="form-group">
+                  <label for="manual-target-lang">Idioma Objetivo (L2)</label>
+                  <select id="manual-target-lang">
+                    <option value="Inglés" selected>Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Español">Español</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+              </div>
+
+              <hr class="divider">
+
+              <div class="manual-add-row">
+                <div class="form-group">
+                  <label for="manual-sentence-l1">Oración en Idioma Nativo (L1)</label>
+                  <input type="text" id="manual-sentence-l1" placeholder="Ej. Necesitamos revisar el presupuesto de este trimestre.">
+                </div>
+                <div class="form-group margin-top-sm">
+                  <label for="manual-sentence-l2">Oración en Idioma Objetivo (L2)</label>
+                  <input type="text" id="manual-sentence-l2" placeholder="Ej. We need to review the budget for this quarter.">
+                </div>
+                <div class="form-group margin-top-sm">
+                  <label for="manual-sentence-word">Palabra Objetivo (Opcional)</label>
+                  <input type="text" id="manual-sentence-word" placeholder="Ej. budget">
+                </div>
+                <button type="button" class="btn btn-secondary margin-top-md" id="btn-add-manual-sentence">
+                  <span class="material-symbols-rounded">add</span>
+                  <span>Añadir Oración a la Lista</span>
+                </button>
+              </div>
+
+              <!-- Manual Sentences List Table -->
+              <div class="manual-list-preview hidden" id="manual-list-preview-area">
+                <h4>Oraciones en esta Isla (<span id="manual-sentences-count">0</span>)</h4>
+                <div class="table-container">
+                  <table class="manual-table">
+                    <thead>
+                      <tr>
+                        <th>Nativo (L1)</th>
+                        <th>Objetivo (L2)</th>
+                        <th>Palabra</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="manual-sentences-list-body">
+                      <!-- Dynamic Rows -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <button type="button" class="btn btn-primary btn-lg btn-full margin-top-md" id="btn-save-manual-island" disabled>
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar Isla Creada</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Tab: Settings (BYOK Config) -->
+        <section id="tab-settings" class="tab-panel hidden">
+          <div class="card settings-card">
+            <h3>Configuración de Proveedor de Inteligencia Artificial (BYOK)</h3>
+            <p class="text-secondary small">Esta aplicación opera bajo una arquitectura de coste cero. No almacenamos tus llaves. Las llamadas a las APIs de IA se realizan directamente desde tu navegador a través de HTTPS.</p>
+            
+            <form id="settings-form" class="form-container">
+              <div class="form-group">
+                <label for="api-provider">Proveedor de LLM</label>
+                <select id="api-provider">
+                  <option value="openai" selected>OpenAI (ChatGPT)</option>
+                  <option value="google">Google Gemini</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="api-key">Clave de API (API Key)</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="api-key" placeholder="sk-..." required>
+                  <button type="button" class="icon-btn small-btn" id="btn-toggle-key-visibility" title="Mostrar/Ocultar">
+                    <span class="material-symbols-rounded">visibility</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="api-url">Base URL del Endpoint (Opcional)</label>
+                <input type="text" id="api-url" placeholder="https://api.openai.com/v1">
+                <span class="input-helper">Déjalo en blanco para usar la URL oficial por defecto del proveedor seleccionado.</span>
+              </div>
+              
+              <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar Configuración de API</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Profile Management Card -->
+          <div class="card settings-card margin-top">
+            <h3>Perfil de Usuario Local</h3>
+            <p class="text-secondary small">Tus datos personales y de progreso residen localmente en el almacenamiento aislado de tu navegador.</p>
+            
+            <form id="profile-edit-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-first-name">Nombre</label>
+                  <input type="text" id="edit-first-name" required>
+                </div>
+                <div class="form-group">
+                  <label for="edit-last-name">Apellido</label>
+                  <input type="text" id="edit-last-name" required>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-email">Correo Electrónico</label>
+                <input type="email" id="edit-email" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-l1">Idioma Nativo (L1)</label>
+                <select id="edit-l1">
+                  <option value="Español">Español</option>
+                  <option value="Inglés">Inglés</option>
+                  <option value="Portugués">Portugués</option>
+                  <option value="Francés">Francés</option>
+                  <option value="Alemán">Alemán</option>
+                  <option value="Italiano">Italiano</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn btn-secondary">
+                <span class="material-symbols-rounded">save</span>
+                <span>Actualizar Datos de Perfil</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+      </div>
+    </main>
+    
+    <!-- Mobile Bottom Navigation Bar (Fills viewport in iOS/Android) -->
+    <nav class="mobile-nav">
+      <a href="#learn" class="mobile-nav-link active" data-tab="learn">
+        <span class="material-symbols-rounded">play_circle</span>
+        <span class="mobile-nav-label">Karaoke</span>
+      </a>
+      <a href="#practice" class="mobile-nav-link" data-tab="practice">
+        <span class="material-symbols-rounded">fitness_center</span>
+        <span class="mobile-nav-label">Recall</span>
+      </a>
+      <a href="#generate" class="mobile-nav-link" data-tab="generate">
+        <span class="material-symbols-rounded">psychology</span>
+        <span class="mobile-nav-label">Generar</span>
+      </a>
+      <a href="#settings" class="mobile-nav-link" data-tab="settings">
+        <span class="material-symbols-rounded">settings</span>
+        <span class="mobile-nav-label">Ajustes</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
