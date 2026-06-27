@@ -1,0 +1,123 @@
+{
+  "high_frequency_verbs": [
+    {
+      "meaning": "pronosticar",
+      "mastery": 0,
+      "verb": "forecast"
+    },
+    {
+      "meaning": "conciliar",
+      "mastery": 0,
+      "verb": "reconcile"
+    },
+    {
+      "meaning": "imputar / atribuir",
+      "mastery": 0,
+      "verb": "impute"
+    },
+    {
+      "meaning": "analizar sintÃ¡cticamente / procesar",
+      "mastery": 0,
+      "verb": "parse"
+    },
+    {
+      "meaning": "auditar",
+      "mastery": 0,
+      "verb": "audit"
+    }
+  ],
+  "spaced_repetition": {
+    "queue": [],
+    "history": []
+  },
+  "student_profile": {
+    "native_language": "Spanish",
+    "domain": "Corporate Finance / IFRS 17 Accounting / Advanced Data Analytics",
+    "name": "Professional",
+    "target_language": "English"
+  },
+  "learning_metrics": {
+    "sessions_completed": 2,
+    "last_active": "2026-06-26T20:50:50.268647",
+    "accuracy_rate": 1.0
+  },
+  "agent_states": {
+    "feedback_agent": {},
+    "island_agent": {},
+    "orchestrator": {},
+    "mnemonic_agent": {},
+    "recall_agent": {
+      "last_attempt": null
+    },
+    "git_agent": {}
+  },
+  "language_islands": [
+    {
+      "id": "li_001",
+      "l1": "Los ajustes de transición bajo IFRS 17 afectarán las ganancias acumuladas iniciales.",
+      "l2": "Transition adjustments under IFRS 17 will impact the opening retained earnings.",
+      "domain": "IFRS 17",
+      "review_count": 0,
+      "mastery": 0.0
+    },
+    {
+      "id": "li_002",
+      "l1": "Necesitamos conciliar el libro mayor con el sistema de flujo de caja antes de la auditoría.",
+      "l2": "We need to reconcile the general ledger with the cash flow system prior to the audit.",
+      "domain": "Corporate Finance",
+      "review_count": 1,
+      "mastery": 0.25
+    },
+    {
+      "id": "li_003",
+      "l1": "El script de Python procesa los datos financieros utilizando concurrencia para optimizar el rendimiento.",
+      "l2": "The Python script parses the financial data using concurrency to optimize performance.",
+      "domain": "Data Analytics",
+      "review_count": 1,
+      "mastery": 0.25
+    },
+    {
+      "id": "li_004",
+      "l1": "Debemos imputar los gastos indirectos a los grupos de contratos de seguros correspondientes.",
+      "l2": "We must impute indirect expenses to the corresponding groups of insurance contracts.",
+      "domain": "IFRS 17",
+      "review_count": 0,
+      "mastery": 0.0
+    },
+    {
+      "id": "li_005",
+      "l1": "Pronosticar los flujos de efectivo netos requiere un modelo robusto de análisis de varianza.",
+      "l2": "Forecasting net cash flows requires a robust variance analysis model.",
+      "domain": "Corporate Finance",
+      "review_count": 0,
+      "mastery": 0.0
+    }
+  ],
+  "mnemonic_associations": [
+    {
+      "word": "forecast",
+      "mnemonic": "Imagina un gato con un telescopio gigante parado sobre un gran bloque de hielo (cast/castillo) tratando de 'pronosticar' si va a llover monedas de oro.",
+      "association_image": "Cat on an icy castle predicting gold coin rain"
+    },
+    {
+      "word": "reconcile",
+      "mnemonic": "Visualiza dos columnas de números furiosos peleándose a puñetazos en un cuadrilátero, hasta que llega un árbitro vestido de monje budista y los abraza para 'conciliarlos'.",
+      "association_image": "Buddhist monk referee hugging angry numbers in a boxing ring"
+    },
+    {
+      "word": "impute",
+      "mnemonic": "Imagínate a un programador acusando con el dedo a un duendecillo verde y travieso que tiene una etiqueta que dice 'costo indirecto', imputándole a él toda la culpa de los desfases de IFRS 17.",
+      "association_image": "Programmer pointing at a little green elf labeled indirect cost"
+    },
+    {
+      "word": "parse",
+      "mnemonic": "Imagina un enorme robot de cocina triturando y analizando sintácticamente una montaña de rollos de contabilidad antiguos para convertirlos en una sopa de gráficos limpios y ordenados.",
+      "association_image": "Food processor robot slicing balance sheets into clean charts"
+    },
+    {
+      "word": "audit",
+      "mnemonic": "Un sabueso gigante con lentes de lectura y una lupa dorada, revisando obsesivamente las huellas de un ratón de oficina que intentó desviar centavos de la cuenta de resultados.",
+      "association_image": "Giant bloodhound with reading glasses investigating tiny tracks on spreadsheets"
+    }
+  ]
+}
