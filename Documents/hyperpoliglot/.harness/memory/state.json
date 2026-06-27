@@ -37,8 +37,8 @@
     "target_language": "English"
   },
   "learning_metrics": {
-    "sessions_completed": 3,
-    "last_active": "2026-06-26T21:55:17.488390",
+    "sessions_completed": 4,
+    "last_active": "2026-06-26T22:02:33.962596",
     "accuracy_rate": 1.0
   },
   "agent_states": {
@@ -51,10 +51,10 @@
     },
     "git_agent": {
       "status": "success",
-      "last_commit": "Auto-commit: update state.json - 2026-06-26 21:55:16",
+      "last_commit": "Auto-commit: update state.json - 2026-06-26 22:02:33",
       "push_status": "auth_failed",
       "push_message": "Push skipped due to SSH auth failure: Authentication failed: Host key verification failed.",
-      "timestamp": "2026-06-26T21:55:17.419260"
+      "timestamp": "2026-06-26T22:02:33.888637"
     }
   },
   "language_islands": [
@@ -63,8 +63,8 @@
       "l1": "Los ajustes de transición bajo IFRS 17 afectarán las ganancias acumuladas iniciales.",
       "l2": "Transition adjustments under IFRS 17 will impact the opening retained earnings.",
       "domain": "IFRS 17",
-      "review_count": 1,
-      "mastery": 0.25
+      "review_count": 2,
+      "mastery": 0.5
     },
     {
       "id": "li_002",
