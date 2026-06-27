@@ -1,3 +1,0 @@
-# requirements.txt
-# No external library is strictly required as the agents use Python's built-in modules (json, os, sys, time, random).
-# If parsing/validation dependencies are needed in the future, list them here.
