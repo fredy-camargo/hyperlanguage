@@ -211,43 +211,47 @@ function renderIslandSelectors() {
     item.style.display = 'flex';
     item.style.alignItems = 'center';
     item.style.justifyContent = 'space-between';
+    item.style.cursor = 'pointer';
     
     item.innerHTML = `
-      <div class="island-info" style="flex-grow: 1; cursor: pointer;">
+      <div class="island-info" style="flex-grow: 1;">
         <div class="island-title font-semibold">${escapeHtml(island.name)}</div>
         <div class="island-meta text-secondary small">${island.sentences.length} oraciones • ${escapeHtml(island.language)}</div>
       </div>
       <div class="island-actions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 4px; border-radius: 4px; display: inline-flex; align-items: center; transition: background-color 0.2s;">
+        <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(211, 47, 47, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
           <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
         </button>
         <span class="material-symbols-rounded text-primary" style="cursor: pointer;">play_arrow</span>
       </div>
     `;
     
-    const infoEl = item.querySelector('.island-info');
-    const playEl = item.querySelector('.text-primary');
     const deleteEl = item.querySelector('.btn-delete-island');
     
-    const selectHandler = () => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-delete-island')) {
+        return;
+      }
       stopTTS();
       currentIslandIndex = index;
       currentSentenceIndex = 0;
       renderIslandSelectors();
       loadCurrentSentence();
-    };
-    
-    infoEl.addEventListener('click', selectHandler);
-    if (playEl) playEl.addEventListener('click', selectHandler);
+    });
     
     deleteEl.addEventListener('click', (e) => {
       e.stopPropagation();
       if (confirm(`¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`)) {
         stopTTS();
         appState.islands.splice(index, 1);
-        if (currentIslandIndex >= appState.islands.length) {
+        
+        // Ajustar el índice activo de forma coherente
+        if (currentIslandIndex > index) {
+          currentIslandIndex--;
+        } else if (currentIslandIndex >= appState.islands.length) {
           currentIslandIndex = Math.max(0, appState.islands.length - 1);
         }
+        
         currentSentenceIndex = 0;
         saveAppState();
         renderIslandSelectors();
@@ -263,6 +267,8 @@ function loadCurrentSentence() {
   const island = appState.islands[currentIslandIndex];
   populateVoicesDropdown();
   if (!island || island.sentences.length === 0) {
+    document.getElementById('player-island-name').textContent = "Ninguna Isla";
+    document.getElementById('player-lang-badge').textContent = "N/A";
     document.getElementById('karaoke-l1').textContent = "Crea una isla lingüística para comenzar.";
     document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada.</span>';
     return;
@@ -318,6 +324,7 @@ function loadCurrentSentence() {
 const audioCache = {};
 let openAiAudioElement = null;
 let wordHighlightTimings = [];
+window.browserHighlightAnimationFrameId = null;
 
 const OPENAI_VOICES = [
   { id: 'alloy', name: 'Alloy (Neutral)' },
@@ -364,8 +371,24 @@ function playTTS() {
     currentUtterance.voice = matchedVoice;
   }
   
+  let boundaryFired = false;
+  let speechStartTime = null;
+  
+  currentUtterance.onstart = () => {
+    speechStartTime = performance.now();
+    
+    // Iniciar fallback si onboundary no se dispara en 350ms
+    setTimeout(() => {
+      if (isPlaying && !boundaryFired && speechStartTime) {
+        console.warn("La síntesis de voz no disparó eventos 'onboundary'. Activando resaltado temporal estimado.");
+        startBrowserSpeechTimerHighlighting(speechStartTime, sentence.l2, speed);
+      }
+    }, 350);
+  };
+  
   // Karaoke: Resaltado en tiempo real con onboundary
   currentUtterance.onboundary = (event) => {
+    boundaryFired = true;
     if (event.name === 'word') {
       const charIndex = event.charIndex;
       highlightWord(charIndex);
@@ -373,6 +396,7 @@ function playTTS() {
   };
   
   currentUtterance.onend = () => {
+    cleanupBrowserSpeechHighlight();
     clearHighlights();
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
@@ -380,10 +404,8 @@ function playTTS() {
     // Control de bucles y avance
     const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
     if (repeatPhrase) {
-      // Repetir la misma frase
       setTimeout(playTTS, 600);
     } else {
-      // Avanzar a la siguiente oración
       setTimeout(() => {
         advanceSentence(1);
         playTTS();
@@ -393,6 +415,7 @@ function playTTS() {
   
   currentUtterance.onerror = (e) => {
     console.error("Error en la reproducción de síntesis de voz:", e);
+    cleanupBrowserSpeechHighlight();
     clearHighlights();
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
@@ -401,7 +424,63 @@ function playTTS() {
   window.speechSynthesis.speak(currentUtterance);
 }
 
-let highlightAnimationFrameId = null;
+function startBrowserSpeechTimerHighlighting(startTime, textL2, rate) {
+  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
+  if (wordSpans.length === 0) return;
+  
+  const wordCount = wordSpans.length;
+  // Estimación de la duración a una velocidad promedio de 135 palabras por minuto a ritmo 1.0x
+  const estimatedDurationMs = ((wordCount * 60) / (135 * rate)) * 1000;
+  
+  const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
+  const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
+  
+  let cumulativeTime = 0;
+  const timings = Array.from(wordSpans).map((span, index) => {
+    const len = wordLengths[index];
+    const wordDuration = (len / totalChars) * estimatedDurationMs;
+    const start = cumulativeTime;
+    const end = cumulativeTime + wordDuration;
+    cumulativeTime = end;
+    return { start, end, index };
+  });
+  
+  const updateHighlight = () => {
+    if (!isPlaying) {
+      cleanupBrowserSpeechHighlight();
+      return;
+    }
+    
+    const elapsed = performance.now() - startTime;
+    const currentTiming = timings.find(t => elapsed >= t.start && elapsed <= t.end);
+    
+    if (currentTiming) {
+      const span = wordSpans[currentTiming.index];
+      if (span && !span.classList.contains('active')) {
+        clearHighlights();
+        span.classList.add('active');
+      }
+    } else if (elapsed > estimatedDurationMs) {
+      clearHighlights();
+    }
+    
+    window.browserHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  };
+  
+  if (window.browserHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
+  }
+  window.browserHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+}
+
+function cleanupBrowserSpeechHighlight() {
+  if (window.browserHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
+    window.browserHighlightAnimationFrameId = null;
+  }
+}
+
+window.highlightAnimationFrameId = null;
 
 async function playOpenAITTS(sentence, speed) {
   const text = sentence.l2;
@@ -488,9 +567,9 @@ async function playOpenAITTS(sentence, speed) {
 }
 
 function stopOpenAiAudio() {
-  if (highlightAnimationFrameId) {
-    cancelAnimationFrame(highlightAnimationFrameId);
-    highlightAnimationFrameId = null;
+  if (window.highlightAnimationFrameId) {
+    cancelAnimationFrame(window.highlightAnimationFrameId);
+    window.highlightAnimationFrameId = null;
   }
   if (openAiAudioElement) {
     openAiAudioElement.pause();
@@ -542,19 +621,19 @@ function setupOpenAiAudioHighlighting(audio, textL2) {
       }
     }
     
-    highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
   };
 
   audio.addEventListener('play', () => {
-    if (highlightAnimationFrameId) {
-      cancelAnimationFrame(highlightAnimationFrameId);
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
     }
-    highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
   });
 
   audio.addEventListener('ended', () => {
-    if (highlightAnimationFrameId) {
-      cancelAnimationFrame(highlightAnimationFrameId);
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
     }
     clearHighlights();
     isPlaying = false;
@@ -572,8 +651,8 @@ function setupOpenAiAudioHighlighting(audio, textL2) {
   });
   
   audio.addEventListener('error', (e) => {
-    if (highlightAnimationFrameId) {
-      cancelAnimationFrame(highlightAnimationFrameId);
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
     }
     console.error("OpenAI Audio playing error:", e);
     clearHighlights();
@@ -1374,9 +1453,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const island = appState.islands[currentIslandIndex];
     if (!island) return;
     if (confirm(`¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`)) {
+      const deletedIndex = currentIslandIndex;
       stopTTS();
-      appState.islands.splice(currentIslandIndex, 1);
-      currentIslandIndex = Math.max(0, appState.islands.length - 1);
+      appState.islands.splice(deletedIndex, 1);
+      
+      // Ajustar el índice activo de forma coherente
+      if (currentIslandIndex >= appState.islands.length) {
+        currentIslandIndex = Math.max(0, appState.islands.length - 1);
+      }
+      
       currentSentenceIndex = 0;
       saveAppState();
       document.getElementById('edit-island-screen').classList.add('hidden');

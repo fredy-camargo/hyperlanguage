@@ -18,6 +18,8 @@
   --md-sys-color-on-surface: 220, 25%, 15%;
   --md-sys-color-on-surface-variant: 220, 15%, 35%;
   --md-sys-color-outline: 220, 15%, 85%;
+  --md-sys-color-error: 0, 75%, 55%;
+  --md-sys-color-error-rgb: 0, 75%, 55%;
   
   /* Fonts */
   --font-title: 'Outfit', sans-serif;
@@ -59,6 +61,8 @@
   --md-sys-color-on-surface: 215, 15%, 90%;
   --md-sys-color-on-surface-variant: 215, 10%, 70%;
   --md-sys-color-outline: 215, 10%, 20%;
+  --md-sys-color-error: 0, 85%, 65%;
+  --md-sys-color-error-rgb: 0, 85%, 65%;
 }
 
 /* System Theme Handling */
@@ -80,6 +84,8 @@
     --md-sys-color-on-surface: 215, 15%, 90%;
     --md-sys-color-on-surface-variant: 215, 10%, 70%;
     --md-sys-color-outline: 215, 10%, 20%;
+    --md-sys-color-error: 0, 85%, 65%;
+    --md-sys-color-error-rgb: 0, 85%, 65%;
   }
 }
 
