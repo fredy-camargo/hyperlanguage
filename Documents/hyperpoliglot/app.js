@@ -222,14 +222,15 @@ function renderIslandSelectors() {
         <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(211, 47, 47, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
           <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
         </button>
-        <span class="material-symbols-rounded text-primary" style="cursor: pointer;">play_arrow</span>
+        <span class="material-symbols-rounded text-primary btn-play-island" style="cursor: pointer;" title="Reproducir Isla">play_arrow</span>
       </div>
     `;
     
     const deleteEl = item.querySelector('.btn-delete-island');
+    const playEl = item.querySelector('.btn-play-island');
     
     item.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-delete-island')) {
+      if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island')) {
         return;
       }
       stopTTS();
@@ -237,6 +238,16 @@ function renderIslandSelectors() {
       currentSentenceIndex = 0;
       renderIslandSelectors();
       loadCurrentSentence();
+    });
+    
+    playEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stopTTS();
+      currentIslandIndex = index;
+      currentSentenceIndex = 0;
+      renderIslandSelectors();
+      loadCurrentSentence();
+      playTTS();
     });
     
     deleteEl.addEventListener('click', (e) => {
@@ -266,13 +277,30 @@ function renderIslandSelectors() {
 function loadCurrentSentence() {
   const island = appState.islands[currentIslandIndex];
   populateVoicesDropdown();
+  
+  const progressText = document.getElementById('player-progress-text');
+  const progressPercent = document.getElementById('player-progress-percentage');
+  const progressFill = document.getElementById('player-progress-fill');
+  
   if (!island || island.sentences.length === 0) {
     document.getElementById('player-island-name').textContent = "Ninguna Isla";
     document.getElementById('player-lang-badge').textContent = "N/A";
     document.getElementById('karaoke-l1').textContent = "Crea una isla lingüística para comenzar.";
     document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada.</span>';
+    
+    if (progressText) progressText.textContent = "Frase 0 de 0";
+    if (progressPercent) progressPercent.textContent = "0%";
+    if (progressFill) progressFill.style.width = "0%";
     return;
   }
+  
+  const currentNum = currentSentenceIndex + 1;
+  const totalNum = island.sentences.length;
+  const percent = Math.round((currentNum / totalNum) * 100);
+  
+  if (progressText) progressText.textContent = `Frase ${currentNum} de ${totalNum}`;
+  if (progressPercent) progressPercent.textContent = `${percent}%`;
+  if (progressFill) progressFill.style.width = `${percent}%`;
   
   const sentence = island.sentences[currentSentenceIndex];
   document.getElementById('player-island-name').textContent = island.name;

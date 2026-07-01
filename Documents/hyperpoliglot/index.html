@@ -163,6 +163,17 @@
                   </div>
                 </div>
                 
+                <!-- Progress Bar & Sentence Counter -->
+                <div class="player-progress-container" style="margin: 8px 24px 16px 24px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface-variant));">
+                    <span id="player-progress-text">Frase 0 de 0</span>
+                    <span id="player-progress-percentage">0%</span>
+                  </div>
+                  <div class="player-progress-bar" style="width: 100%; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
+                    <div id="player-progress-fill" style="width: 0%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                  </div>
+                </div>
+                
                 <!-- Player Controls -->
                 <div class="player-controls">
                   <div class="controls-row">
