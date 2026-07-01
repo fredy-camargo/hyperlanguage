@@ -133,7 +133,21 @@
                     <span class="material-symbols-rounded">grid_view</span>
                     <span id="player-island-name">Isla Activa</span>
                   </div>
-                  <div class="target-lang-badge" id="player-lang-badge">Inglés</div>
+                  <div class="player-actions-toolbar">
+                    <div id="export-loading-indicator" class="export-progress hidden">
+                      <span class="material-symbols-rounded spin">sync</span>
+                      <span id="export-progress-text">Exportando...</span>
+                    </div>
+                    <button class="btn btn-text btn-sm" id="btn-edit-active-island" title="Editar frases de esta isla" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">edit</span>
+                      <span>Editar</span>
+                    </button>
+                    <button class="btn btn-text btn-sm" id="btn-export-active-island" title="Exportar esta isla a MP3" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">download</span>
+                      <span>Exportar MP3</span>
+                    </button>
+                    <div class="target-lang-badge" id="player-lang-badge">Inglés</div>
+                  </div>
                 </div>
                 
                 <div class="karaoke-display">
@@ -165,12 +179,30 @@
                   
                   <div class="controls-settings">
                     <div class="settings-group">
-                      <label for="tts-speed">Velocidad</label>
-                      <input type="range" id="tts-speed" min="0.5" max="1.5" step="0.1" value="0.9">
-                      <span id="speed-val">0.9x</span>
+                      <div class="speed-label-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <label for="tts-speed">Velocidad</label>
+                        <button type="button" class="badge-btn" id="btn-speed-reset" title="Restablecer a velocidad normal (1.0x)" style="background: hsl(var(--md-sys-color-primary-container)); color: hsl(var(--md-sys-color-on-primary-container)); border: none; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; cursor: pointer;">1.0x</button>
+                      </div>
+                      <input type="range" id="tts-speed" min="0.5" max="2.0" step="0.05" value="1.0" style="width: 100%;">
+                      <span id="speed-val">1.0x</span>
                     </div>
                     
-                    <div class="toggle-container">
+                    <div class="settings-group">
+                      <label for="tts-engine">Motor de Voz</label>
+                      <select id="tts-engine" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <option value="browser" selected>Navegador (Gratis)</option>
+                        <option value="openai">OpenAI (Premium)</option>
+                      </select>
+                    </div>
+
+                    <div class="settings-group">
+                      <label for="tts-voice">Seleccionar Voz</label>
+                      <select id="tts-voice" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <!-- Dinámico -->
+                      </select>
+                    </div>
+
+                    <div class="toggle-container" style="align-self: center;">
                       <label class="switch">
                         <input type="checkbox" id="toggle-infinite-phrase">
                         <span class="slider"></span>
@@ -482,6 +514,17 @@
                 <span class="input-helper">Déjalo en blanco para usar la URL oficial por defecto del proveedor seleccionado.</span>
               </div>
               
+              <div class="form-group">
+                <label for="api-tts-key">Clave de OpenAI para Voz Premium (TTS) (Opcional)</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="api-tts-key" placeholder="sk-...">
+                  <button type="button" class="icon-btn small-btn" id="btn-toggle-tts-key-visibility" title="Mostrar/Ocultar">
+                    <span class="material-symbols-rounded">visibility</span>
+                  </button>
+                </div>
+                <span class="input-helper">Si seleccionaste Google Gemini o Anthropic como tu proveedor principal pero quieres usar las voces ultra-naturales de OpenAI y exportar a MP3, introduce aquí una clave de OpenAI. Si tu proveedor principal es OpenAI, puedes dejarlo vacío y usaremos tu clave principal.</span>
+              </div>
+              
               <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-rounded">save</span>
                 <span>Guardar Configuración de API</span>
@@ -555,6 +598,72 @@
     </nav>
 
   </div>
+
+  <!-- Modal overlay for editing active island -->
+  <div id="edit-island-screen" class="modal-overlay hidden">
+    <div class="modal-card edit-island-card" style="max-width: 850px; width: 95%; max-height: 90vh; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline)); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 12px; margin-bottom: 16px;">
+        <h2 id="edit-island-title-heading" style="margin: 0; font-size: 20px;">Editar Isla Lingüística</h2>
+        <button class="icon-btn small-btn" id="btn-close-edit-island" title="Cerrar" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      
+      <div class="form-container" style="display: flex; flex-direction: column; gap: 16px; flex-grow: 1; overflow-y: auto; padding-right: 8px;">
+        <div class="form-group">
+          <label for="edit-island-name-input" style="font-weight: 600; margin-bottom: 6px; display: block;">Nombre de la Isla</label>
+          <input type="text" id="edit-island-name-input" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: inherit; color: inherit;">
+        </div>
+        
+        <div class="sentences-editor-section" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+          <h3 style="margin: 0; font-size: 16px;">Oraciones de la Isla (<span id="edit-island-sentences-count">0</span>)</h3>
+          
+          <div class="sentences-list-container" style="border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; overflow-y: auto; max-height: 250px; background: hsl(var(--md-sys-color-surface-container-low));">
+            <table class="sentences-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+              <thead>
+                <tr style="background: hsl(var(--md-sys-color-surface-container)); border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant));">
+                  <th style="padding: 10px; font-weight: 600;">L1 (Nativo / Español)</th>
+                  <th style="padding: 10px; font-weight: 600;">L2 (Objetivo)</th>
+                  <th style="padding: 10px; font-weight: 600; width: 150px;">Palabra Clave</th>
+                  <th style="padding: 10px; font-weight: 600; width: 80px; text-align: center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="edit-island-sentences-list">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="add-sentence-inline" style="background: hsl(var(--md-sys-color-surface-container-high)); padding: 16px; border-radius: 12px; border: 1px dashed hsl(var(--md-sys-color-outline));">
+            <h4 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Añadir Nueva Frase</h4>
+            <div class="inline-fields" style="display: grid; grid-template-columns: 1fr 1fr 150px auto; gap: 10px; align-items: center;">
+              <input type="text" id="add-sentence-l1" placeholder="Ej. El script procesa datos." style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <input type="text" id="add-sentence-l2" placeholder="Ej. The script parses data." style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <input type="text" id="add-sentence-word" placeholder="Ej. parses" style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <button type="button" class="btn btn-secondary" id="btn-add-edit-sentence" style="padding: 8px 16px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border: none; background: hsl(var(--md-sys-color-secondary-container)); color: hsl(var(--md-sys-color-on-secondary-container)); font-weight: 600;">
+                <span class="material-symbols-rounded" style="font-size: 18px;">add</span>
+                <span>Añadir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 12px; margin-top: 10px;">
+          <button type="button" class="btn-danger-text" id="btn-delete-island-modal" style="padding: 10px 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
+            <span>Eliminar Isla</span>
+          </button>
+          <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-sec" id="btn-cancel-edit-island" style="padding: 10px 20px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer; font-weight: 600;">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-save-edit-island-changes" style="padding: 10px 20px; border-radius: 8px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-weight: 600;">Guardar Cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSZip for exporting MP3s to ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <!-- Main JavaScript File -->
   <script src="app.js"></script>

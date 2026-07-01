@@ -1090,3 +1090,87 @@ input:checked + .slider:before {
     font-size: 24px;
   }
 }
+
+/* Nuevos Estilos para Mejoras del Arnés */
+.spin {
+  animation: spin 1.2s linear infinite;
+  display: inline-block;
+}
+
+.player-actions-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.export-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: hsl(var(--md-sys-color-primary));
+  font-weight: 500;
+}
+
+/* Estilos de la tabla de edición */
+.sentences-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sentences-table th, 
+.sentences-table td {
+  padding: 12px;
+  border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant));
+  text-align: left;
+}
+
+.sentences-table td input {
+  width: 100%;
+  border: 1px solid hsl(var(--md-sys-color-outline));
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 14px;
+  background: hsl(var(--md-sys-color-surface));
+  color: inherit;
+}
+
+.sentences-table td input:focus {
+  outline: 2px solid hsl(var(--md-sys-color-primary));
+  border-color: transparent;
+}
+
+.btn-danger-text {
+  background: none;
+  border: none;
+  color: hsl(var(--md-sys-color-error));
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.btn-danger-text:hover {
+  background-color: hsla(var(--md-sys-color-error-rgb), 0.1);
+  text-decoration: none;
+}
+
+@media (max-width: 768px) {
+  .inline-fields {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  
+  .edit-island-card {
+    width: 95% !important;
+    height: 95% !important;
+    max-height: 95vh !important;
+  }
+}
+

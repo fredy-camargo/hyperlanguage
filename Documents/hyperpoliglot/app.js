@@ -7,7 +7,11 @@ const DEFAULT_STATE = {
     theme: 'system',
     apiProvider: 'openai',
     apiKey: '',
-    apiUrl: ''
+    apiUrl: '',
+    apiTtsKey: '',
+    ttsEngine: 'browser',
+    ttsVoiceBrowser: '',
+    ttsVoiceOpenAI: 'alloy'
   },
   islands: [
     {
@@ -42,6 +46,12 @@ function loadAppState() {
       if (!appState.islands) appState.islands = [...DEFAULT_STATE.islands];
       if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
       if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
+      
+      // Asegurar claves específicas nuevas
+      if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
+      if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'browser';
+      if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
+      if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
     } catch (e) {
       console.error("Error cargando estado local:", e);
       appState = { ...DEFAULT_STATE };
@@ -198,26 +208,60 @@ function renderIslandSelectors() {
   appState.islands.forEach((island, index) => {
     const item = document.createElement('div');
     item.className = `island-item ${index === currentIslandIndex ? 'active' : ''}`;
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'space-between';
+    
     item.innerHTML = `
-      <div class="island-info">
+      <div class="island-info" style="flex-grow: 1; cursor: pointer;">
         <div class="island-title font-semibold">${escapeHtml(island.name)}</div>
         <div class="island-meta text-secondary small">${island.sentences.length} oraciones • ${escapeHtml(island.language)}</div>
       </div>
-      <span class="material-symbols-rounded text-primary">play_arrow</span>
+      <div class="island-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 4px; border-radius: 4px; display: inline-flex; align-items: center; transition: background-color 0.2s;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+        </button>
+        <span class="material-symbols-rounded text-primary" style="cursor: pointer;">play_arrow</span>
+      </div>
     `;
-    item.addEventListener('click', () => {
+    
+    const infoEl = item.querySelector('.island-info');
+    const playEl = item.querySelector('.text-primary');
+    const deleteEl = item.querySelector('.btn-delete-island');
+    
+    const selectHandler = () => {
       stopTTS();
       currentIslandIndex = index;
       currentSentenceIndex = 0;
       renderIslandSelectors();
       loadCurrentSentence();
+    };
+    
+    infoEl.addEventListener('click', selectHandler);
+    if (playEl) playEl.addEventListener('click', selectHandler);
+    
+    deleteEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`)) {
+        stopTTS();
+        appState.islands.splice(index, 1);
+        if (currentIslandIndex >= appState.islands.length) {
+          currentIslandIndex = Math.max(0, appState.islands.length - 1);
+        }
+        currentSentenceIndex = 0;
+        saveAppState();
+        renderIslandSelectors();
+        loadCurrentSentence();
+      }
     });
+    
     container.appendChild(item);
   });
 }
 
 function loadCurrentSentence() {
   const island = appState.islands[currentIslandIndex];
+  populateVoicesDropdown();
   if (!island || island.sentences.length === 0) {
     document.getElementById('karaoke-l1').textContent = "Crea una isla lingüística para comenzar.";
     document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada.</span>';
@@ -271,6 +315,19 @@ function loadCurrentSentence() {
   });
 }
 
+const audioCache = {};
+let openAiAudioElement = null;
+let wordHighlightTimings = [];
+
+const OPENAI_VOICES = [
+  { id: 'alloy', name: 'Alloy (Neutral)' },
+  { id: 'echo', name: 'Echo (Hombre - Enérgico)' },
+  { id: 'fable', name: 'Fable (Hombre - Juvenil)' },
+  { id: 'onyx', name: 'Onyx (Hombre - Profundo)' },
+  { id: 'nova', name: 'Nova (Mujer - Profesional)' },
+  { id: 'shimmer', name: 'Shimmer (Mujer - Clara)' }
+];
+
 function playTTS() {
   if (isPlaying) {
     stopTTS();
@@ -282,19 +339,27 @@ function playTTS() {
   const sentence = island.sentences[currentSentenceIndex];
   if (!sentence) return;
   
+  const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
+  const engine = document.getElementById('tts-engine').value;
+  
+  if (engine === 'openai') {
+    playOpenAITTS(sentence, speed);
+    return;
+  }
+  
   isPlaying = true;
   document.getElementById('play-pause-icon').textContent = 'pause';
   
   const langCode = LANG_CODES[island.language] || 'en-US';
-  const speed = parseFloat(document.getElementById('tts-speed').value) || 0.9;
   
   currentUtterance = new SpeechSynthesisUtterance(sentence.l2);
   currentUtterance.lang = langCode;
   currentUtterance.rate = speed;
   
-  // Seleccionar voz adecuada para el idioma si está disponible en el navegador
+  // Seleccionar voz del navegador
   const voices = window.speechSynthesis.getVoices();
-  const matchedVoice = voices.find(voice => voice.lang.startsWith(langCode));
+  const selectedVoiceName = document.getElementById('tts-voice').value;
+  const matchedVoice = voices.find(voice => voice.name === selectedVoiceName) || voices.find(voice => voice.lang.startsWith(langCode));
   if (matchedVoice) {
     currentUtterance.voice = matchedVoice;
   }
@@ -336,10 +401,192 @@ function playTTS() {
   window.speechSynthesis.speak(currentUtterance);
 }
 
+let highlightAnimationFrameId = null;
+
+async function playOpenAITTS(sentence, speed) {
+  const text = sentence.l2;
+  const sentenceId = sentence.id;
+  const voice = document.getElementById('tts-voice').value || 'alloy';
+  
+  stopOpenAiAudio();
+  
+  const cacheKey = `${sentenceId}_${voice}_${speed}`;
+  let audioUrl = audioCache[cacheKey];
+  
+  if (!audioUrl) {
+    let key = appState.settings.apiTtsKey;
+    if (!key && appState.settings.apiProvider === 'openai') {
+      key = appState.settings.apiKey;
+    }
+    
+    if (!key) {
+      alert("Para usar las voces premium, ingresa una clave de API de OpenAI en la pestaña de Ajustes (o selecciona el motor del navegador).");
+      isPlaying = false;
+      document.getElementById('play-pause-icon').textContent = 'play_arrow';
+      switchTab('settings');
+      return;
+    }
+    
+    // Visual loading state
+    const playPauseBtnIcon = document.getElementById('play-pause-icon');
+    playPauseBtnIcon.textContent = 'sync';
+    playPauseBtnIcon.classList.add('spin');
+    
+    try {
+      const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+      const url = `${baseUrl}/audio/speech`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: speed
+        })
+      });
+      
+      if (!response.ok) {
+        let errMsg = response.statusText;
+        try {
+          const errData = await response.json();
+          errMsg = errData.error?.message || errMsg;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+      
+      const blob = await response.blob();
+      audioUrl = URL.createObjectURL(blob);
+      audioCache[cacheKey] = audioUrl;
+      
+    } catch (err) {
+      console.error("OpenAI TTS failed:", err);
+      alert("Error al generar voz de OpenAI: " + err.message);
+      isPlaying = false;
+      playPauseBtnIcon.textContent = 'play_arrow';
+      playPauseBtnIcon.classList.remove('spin');
+      return;
+    } finally {
+      playPauseBtnIcon.classList.remove('spin');
+    }
+  }
+  
+  isPlaying = true;
+  document.getElementById('play-pause-icon').textContent = 'pause';
+  
+  openAiAudioElement = new Audio(audioUrl);
+  setupOpenAiAudioHighlighting(openAiAudioElement, text);
+  openAiAudioElement.play().catch(e => {
+    console.error("Audio playback failed:", e);
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
+function stopOpenAiAudio() {
+  if (highlightAnimationFrameId) {
+    cancelAnimationFrame(highlightAnimationFrameId);
+    highlightAnimationFrameId = null;
+  }
+  if (openAiAudioElement) {
+    openAiAudioElement.pause();
+    openAiAudioElement.currentTime = 0;
+    openAiAudioElement = null;
+  }
+  wordHighlightTimings = [];
+}
+
+function setupOpenAiAudioHighlighting(audio, textL2) {
+  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
+  
+  const calculateTimings = () => {
+    const duration = audio.duration;
+    const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
+    const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
+    
+    let cumulativeTime = 0;
+    wordHighlightTimings = Array.from(wordSpans).map((span, index) => {
+      const len = wordLengths[index];
+      const wordDuration = (len / totalChars) * duration;
+      const start = cumulativeTime;
+      const end = cumulativeTime + wordDuration;
+      cumulativeTime = end;
+      return { start, end, index };
+    });
+  };
+
+  if (audio.readyState >= 1) {
+    calculateTimings();
+  } else {
+    audio.addEventListener('loadedmetadata', calculateTimings);
+  }
+
+  // Animation frame loop for smooth 60fps word highlighting
+  const updateHighlight = () => {
+    if (!isPlaying || audio.paused || audio.ended) {
+      return;
+    }
+    
+    const currentTime = audio.currentTime;
+    const currentTiming = wordHighlightTimings.find(t => currentTime >= t.start && currentTime <= t.end);
+    
+    if (currentTiming) {
+      const span = wordSpans[currentTiming.index];
+      if (span && !span.classList.contains('active')) {
+        clearHighlights();
+        span.classList.add('active');
+      }
+    }
+    
+    highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  };
+
+  audio.addEventListener('play', () => {
+    if (highlightAnimationFrameId) {
+      cancelAnimationFrame(highlightAnimationFrameId);
+    }
+    highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  });
+
+  audio.addEventListener('ended', () => {
+    if (highlightAnimationFrameId) {
+      cancelAnimationFrame(highlightAnimationFrameId);
+    }
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+    
+    const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
+    if (repeatPhrase) {
+      setTimeout(playTTS, 600);
+    } else {
+      setTimeout(() => {
+        advanceSentence(1);
+        playTTS();
+      }, 800);
+    }
+  });
+  
+  audio.addEventListener('error', (e) => {
+    if (highlightAnimationFrameId) {
+      cancelAnimationFrame(highlightAnimationFrameId);
+    }
+    console.error("OpenAI Audio playing error:", e);
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
 function stopTTS() {
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
   }
+  stopOpenAiAudio();
   isPlaying = false;
   const icon = document.getElementById('play-pause-icon');
   if (icon) icon.textContent = 'play_arrow';
@@ -583,6 +830,7 @@ async function handleGenerateIsland(e) {
 Given the following L1 language: ${l1} and Target L2 language: ${l2}.
 Generate a 'Language Island' composed of ${sentenceCount} highly practical sentences using these words: ${wordList}.
 The context MUST strictly involve ${category}.
+Crucially, ensure a balanced distribution of verb tenses across the sentences (e.g., Present, Past Simple, Present Perfect, Future, Conditional, Imperative) to provide a rich learning experience.
 Return strictly a raw valid JSON array matching this schema: [{"l1": "...", "l2": "...", "word_targeted": "..."}]. Do not include markdown wraps or any explanatory text.`;
 
   // UI state: loading
@@ -928,6 +1176,7 @@ function loadSettingsPanel() {
   document.getElementById('api-provider').value = appState.settings.apiProvider || 'openai';
   document.getElementById('api-key').value = appState.settings.apiKey || '';
   document.getElementById('api-url').value = appState.settings.apiUrl || '';
+  document.getElementById('api-tts-key').value = appState.settings.apiTtsKey || '';
 }
 
 function saveSettingsForm(e) {
@@ -936,6 +1185,7 @@ function saveSettingsForm(e) {
   appState.settings.apiProvider = document.getElementById('api-provider').value;
   appState.settings.apiKey = document.getElementById('api-key').value.trim();
   appState.settings.apiUrl = document.getElementById('api-url').value.trim();
+  appState.settings.apiTtsKey = document.getElementById('api-tts-key').value.trim();
   
   saveAppState();
   alert("Configuración de API guardada exitosamente de forma local.");
@@ -1059,7 +1309,362 @@ document.addEventListener('DOMContentLoaded', () => {
       keyIcon.textContent = 'visibility';
     }
   });
+
+  // Ver visibilidad API key de TTS
+  document.getElementById('btn-toggle-tts-key-visibility').addEventListener('click', () => {
+    const keyInput = document.getElementById('api-tts-key');
+    const keyIcon = document.querySelector('#btn-toggle-tts-key-visibility span');
+    if (keyInput.type === 'password') {
+      keyInput.type = 'text';
+      keyIcon.textContent = 'visibility_off';
+    } else {
+      keyInput.type = 'password';
+      keyIcon.textContent = 'visibility';
+    }
+  });
+
+  // Sincronizar selectores de motor y voces
+  document.getElementById('tts-engine').value = appState.settings.ttsEngine || 'browser';
+  populateVoicesDropdown();
+
+  document.getElementById('tts-engine').addEventListener('change', (e) => {
+    stopTTS();
+    appState.settings.ttsEngine = e.target.value;
+    saveAppState();
+    populateVoicesDropdown();
+  });
+
+  document.getElementById('tts-voice').addEventListener('change', (e) => {
+    stopTTS();
+    const engine = document.getElementById('tts-engine').value;
+    if (engine === 'openai') {
+      appState.settings.ttsVoiceOpenAI = e.target.value;
+    } else {
+      appState.settings.ttsVoiceBrowser = e.target.value;
+    }
+    saveAppState();
+  });
+
+  // Controladores de velocidad
+  document.getElementById('btn-speed-reset').addEventListener('click', () => {
+    const slider = document.getElementById('tts-speed');
+    slider.value = 1.0;
+    document.getElementById('speed-val').textContent = '1.0x';
+    // Desencadenar el evento input
+    const event = new Event('input', { bubbles: true });
+    slider.dispatchEvent(event);
+  });
+
+  // Exportador de isla a MP3
+  document.getElementById('btn-export-active-island').addEventListener('click', exportIslandToMp3);
+
+  // Editores de Isla activa
+  document.getElementById('btn-edit-active-island').addEventListener('click', openEditActiveIslandModal);
+  document.getElementById('btn-close-edit-island').addEventListener('click', () => {
+    document.getElementById('edit-island-screen').classList.add('hidden');
+  });
+  document.getElementById('btn-cancel-edit-island').addEventListener('click', () => {
+    document.getElementById('edit-island-screen').classList.add('hidden');
+  });
+  document.getElementById('btn-add-edit-sentence').addEventListener('click', addNewSentenceToEditing);
+  document.getElementById('btn-save-edit-island-changes').addEventListener('click', saveEditIslandChanges);
   
+  // Eliminar isla desde el modal
+  document.getElementById('btn-delete-island-modal').addEventListener('click', () => {
+    const island = appState.islands[currentIslandIndex];
+    if (!island) return;
+    if (confirm(`¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`)) {
+      stopTTS();
+      appState.islands.splice(currentIslandIndex, 1);
+      currentIslandIndex = Math.max(0, appState.islands.length - 1);
+      currentSentenceIndex = 0;
+      saveAppState();
+      document.getElementById('edit-island-screen').classList.add('hidden');
+      renderIslandSelectors();
+      loadCurrentSentence();
+    }
+  });
+
   // Panel inicial por defecto
   initLearnPanel();
 });
+
+// ==================================================================
+// 10. FUNCIONES DE APOYO PARA MEJORAS (TTS SELECTION, MP3 & EDIT CRUD)
+// ==================================================================
+
+function populateVoicesDropdown() {
+  const select = document.getElementById('tts-voice');
+  if (!select) return;
+  select.innerHTML = '';
+  
+  const engine = document.getElementById('tts-engine').value;
+  const island = appState.islands[currentIslandIndex];
+  const lang = island ? island.language : 'Inglés';
+  const langCode = LANG_CODES[lang] || 'en-US';
+  
+  if (engine === 'openai') {
+    OPENAI_VOICES.forEach(voice => {
+      const opt = document.createElement('option');
+      opt.value = voice.id;
+      opt.textContent = voice.name;
+      if (appState.settings.ttsVoiceOpenAI === voice.id) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  } else {
+    if (!window.speechSynthesis) return;
+    const voices = window.speechSynthesis.getVoices();
+    const prefix = langCode.split('-')[0];
+    const filtered = voices.filter(voice => voice.lang.toLowerCase().startsWith(prefix));
+    
+    const listToUse = filtered.length > 0 ? filtered : voices;
+    
+    // Priorizar voces que soporten onboundary (Google, Siri, Natural) y ordenarlas al principio
+    listToUse.sort((a, b) => {
+      const aLower = a.name.toLowerCase();
+      const bLower = b.name.toLowerCase();
+      
+      const aPremium = aLower.includes('google') || aLower.includes('siri') || aLower.includes('natural');
+      const bPremium = bLower.includes('google') || bLower.includes('siri') || bLower.includes('natural');
+      
+      if (aPremium && !bPremium) return -1;
+      if (!aPremium && bPremium) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    listToUse.forEach(voice => {
+      const opt = document.createElement('option');
+      opt.value = voice.name;
+      opt.textContent = `${voice.name} (${voice.lang})`;
+      if (appState.settings.ttsVoiceBrowser === voice.name) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  }
+}
+
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    if (document.getElementById('tts-engine') && document.getElementById('tts-engine').value === 'browser') {
+      populateVoicesDropdown();
+    }
+  };
+}
+
+async function exportIslandToMp3() {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || island.sentences.length === 0) {
+    alert("No hay oraciones en esta isla para exportar.");
+    return;
+  }
+  
+  const engine = document.getElementById('tts-engine').value;
+  if (engine !== 'openai') {
+    alert("La exportación a archivos de sonido MP3 requiere activar el motor 'OpenAI (Premium)' en el reproductor. Las voces nativas del navegador se ejecutan de forma local y no admiten descargas directas.");
+    return;
+  }
+  
+  let key = appState.settings.apiTtsKey;
+  if (!key && appState.settings.apiProvider === 'openai') {
+    key = appState.settings.apiKey;
+  }
+  
+  if (!key) {
+    alert("Por favor, ingresa tu clave API de OpenAI en la pestaña de Ajustes para poder exportar.");
+    switchTab('settings');
+    return;
+  }
+  
+  const progressIndicator = document.getElementById('export-loading-indicator');
+  const progressText = document.getElementById('export-progress-text');
+  progressIndicator.classList.remove('hidden');
+  
+  try {
+    const zip = new JSZip();
+    const voice = document.getElementById('tts-voice').value || 'alloy';
+    const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
+    const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+    const url = `${baseUrl}/audio/speech`;
+    
+    let readmeText = `HYPERPOLYGLOT HARNESS - EXPORTACIÓN DE ISLA LINGÜÍSTICA\n`;
+    readmeText += `Isla: ${island.name}\n`;
+    readmeText += `Idioma: ${island.language}\n`;
+    readmeText += `Voz: ${voice} | Velocidad: ${speed}x\n`;
+    readmeText += `Fecha: ${new Date().toLocaleString()}\n`;
+    readmeText += `==========================================================\n\n`;
+    
+    for (let i = 0; i < island.sentences.length; i++) {
+      const sentence = island.sentences[i];
+      progressText.textContent = `Generando frase ${i + 1}/${island.sentences.length}...`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: sentence.l2,
+          voice: voice,
+          speed: speed
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error en la frase ${i + 1}: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const indexStr = String(i + 1).padStart(2, '0');
+      zip.file(`${indexStr}_frase.mp3`, arrayBuffer);
+      
+      readmeText += `${indexStr}. L1 (Español): ${sentence.l1}\n`;
+      readmeText += `    L2 (Objetivo): ${sentence.l2}\n`;
+      readmeText += `    Palabra Clave: ${sentence.word_targeted || 'General'}\n\n`;
+    }
+    
+    zip.file("LEEME.txt", readmeText);
+    progressText.textContent = "Empaquetando en ZIP...";
+    
+    const content = await zip.generateAsync({ type: "blob" });
+    const filename = `${island.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_isla_audio.zip`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(content);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert("¡Isla de audio exportada con éxito en un archivo ZIP!");
+  } catch (err) {
+    console.error("Export error:", err);
+    alert(`Ocurrió un error al exportar la isla: ${err.message}`);
+  } finally {
+    progressIndicator.classList.add('hidden');
+  }
+}
+
+let editingIslandTemp = null;
+
+function openEditActiveIslandModal() {
+  const island = appState.islands[currentIslandIndex];
+  if (!island) {
+    alert("No hay ninguna isla seleccionada para editar.");
+    return;
+  }
+  
+  editingIslandTemp = JSON.parse(JSON.stringify(island));
+  document.getElementById('edit-island-name-input').value = editingIslandTemp.name;
+  
+  document.getElementById('add-sentence-l1').value = '';
+  document.getElementById('add-sentence-l2').value = '';
+  document.getElementById('add-sentence-word').value = '';
+  
+  renderEditIslandSentencesList();
+  document.getElementById('edit-island-screen').classList.remove('hidden');
+}
+
+function renderEditIslandSentencesList() {
+  const container = document.getElementById('edit-island-sentences-list');
+  const countEl = document.getElementById('edit-island-sentences-count');
+  
+  container.innerHTML = '';
+  countEl.textContent = editingIslandTemp.sentences.length;
+  
+  editingIslandTemp.sentences.forEach((item, index) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding: 6px;"><input type="text" class="edit-l1-field" value="${escapeHtml(item.l1)}" required style="width:100%;"></td>
+      <td style="padding: 6px;"><input type="text" class="edit-l2-field" value="${escapeHtml(item.l2)}" required style="width:100%;"></td>
+      <td style="padding: 6px;"><input type="text" class="edit-word-field" value="${escapeHtml(item.word_targeted || '')}" style="width:100%;"></td>
+      <td style="padding: 6px; text-align: center;">
+        <button type="button" class="btn-danger-text btn-delete-edit" style="padding: 4px 8px; font-size:12px;">
+          <span class="material-symbols-rounded" style="font-size:16px;">delete</span>
+        </button>
+      </td>
+    `;
+    
+    tr.querySelector('.edit-l1-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].l1 = e.target.value.trim();
+    });
+    tr.querySelector('.edit-l2-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].l2 = e.target.value.trim();
+    });
+    tr.querySelector('.edit-word-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].word_targeted = e.target.value.trim();
+    });
+    
+    tr.querySelector('.btn-delete-edit').addEventListener('click', () => {
+      editingIslandTemp.sentences.splice(index, 1);
+      renderEditIslandSentencesList();
+    });
+    
+    container.appendChild(tr);
+  });
+}
+
+function addNewSentenceToEditing() {
+  const l1Input = document.getElementById('add-sentence-l1');
+  const l2Input = document.getElementById('add-sentence-l2');
+  const wordInput = document.getElementById('add-sentence-word');
+  
+  const l1 = l1Input.value.trim();
+  const l2 = l2Input.value.trim();
+  const word = wordInput.value.trim();
+  
+  if (!l1 || !l2) {
+    alert("Por favor completa los campos L1 y L2 para agregar una nueva frase.");
+    return;
+  }
+  
+  editingIslandTemp.sentences.push({
+    id: `s_ed_man_${Date.now()}_${editingIslandTemp.sentences.length}`,
+    l1: l1,
+    l2: l2,
+    word_targeted: word
+  });
+  
+  renderEditIslandSentencesList();
+  
+  l1Input.value = '';
+  l2Input.value = '';
+  wordInput.value = '';
+  l1Input.focus();
+}
+
+function saveEditIslandChanges() {
+  const nameInput = document.getElementById('edit-island-name-input');
+  const name = nameInput.value.trim();
+  
+  if (!name) {
+    alert("El nombre de la isla no puede estar vacío.");
+    nameInput.focus();
+    return;
+  }
+  
+  if (editingIslandTemp.sentences.length === 0) {
+    alert("La isla debe tener al menos una oración.");
+    return;
+  }
+  
+  // Validar campos vacíos en las frases
+  const hasEmpty = editingIslandTemp.sentences.some(s => !s.l1 || !s.l2);
+  if (hasEmpty) {
+    alert("Todas las frases añadidas deben tener un texto válido en L1 y L2.");
+    return;
+  }
+  
+  editingIslandTemp.name = name;
+  appState.islands[currentIslandIndex] = JSON.parse(JSON.stringify(editingIslandTemp));
+  saveAppState();
+  
+  document.getElementById('edit-island-screen').classList.add('hidden');
+  renderIslandSelectors();
+  loadCurrentSentence();
+  alert("Isla guardada exitosamente con sus cambios.");
+}

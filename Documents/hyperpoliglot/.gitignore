@@ -3,8 +3,12 @@
 __pycache__/
 *.pyc
 
-# Local Student State (Private Data)
-.harness/memory/state.json
+# Harness & Local Agents (Internal Development Tools)
+.harness/
+init.ps1
+init.sh
+harness-setup.md
+requirements.txt
 
 # Logs and system generated files
 *.log
