@@ -1501,6 +1501,68 @@ input:checked + .slider:before {
   color: hsl(var(--md-sys-color-primary));
 }
 
+/* Spaced Repetition Panel & Garden Styles */
+.sr-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.sr-btn.btn-again:hover {
+  background-color: hsla(var(--md-sys-color-error-raw, 0), 0.08) !important;
+}
+.sr-btn.btn-hard:hover {
+  background-color: hsla(var(--md-sys-color-warning-raw, 35), 0.08) !important;
+}
+.sr-btn.btn-good:hover {
+  background-color: hsla(var(--md-sys-color-success-raw, 120), 0.08) !important;
+}
+.sr-btn.btn-easy:hover {
+  background-color: hsla(var(--md-sys-color-primary-raw, 220), 0.08) !important;
+}
+
+.garden-sprout {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: hsl(var(--md-sys-color-surface-container));
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.garden-sprout:hover {
+  transform: scale(1.15) rotate(5deg);
+  z-index: 10;
+  box-shadow: var(--md-sys-elevation-2);
+}
+.garden-sprout .tooltip {
+  visibility: hidden;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: hsl(var(--md-sys-color-inverse-surface));
+  color: hsl(var(--md-sys-color-inverse-on-surface));
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  white-space: normal;
+  width: max-content;
+  max-width: 250px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  box-shadow: var(--md-sys-elevation-2);
+  pointer-events: none;
+}
+.garden-sprout:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
 
 
 
