@@ -1,0 +1,3457 @@
+// app.js - Client-Side State, TTS Karaoke Loop & LLM BYOK Integrator
+
+// 1. STATE & ALMACENAMIENTO LOCAL
+const DEFAULT_STATE = {
+  profile: null, // { firstName, lastName, email, l1 }
+  settings: {
+    theme: 'system',
+    apiProvider: 'openai',
+    apiKey: '',
+    apiUrl: '',
+    apiTtsKey: '',
+    ttsEngine: 'browser',
+    ttsVoiceBrowser: '',
+    ttsVoiceOpenAI: 'alloy'
+  },
+  islands: [
+    {
+      id: 'island_default_01',
+      name: 'Finanzas Corporativas y Datos',
+      language: 'Inglés',
+      sentences: [
+        { id: 's_01', l1: 'Los ajustes de transición bajo IFRS 17 afectarán las ganancias acumuladas iniciales.', l2: 'Transition adjustments under IFRS 17 will impact the opening retained earnings.', word_targeted: 'transition', mastery: 0 },
+        { id: 's_02', l1: 'Necesitamos conciliar el libro mayor con el sistema de flujo de caja antes de la auditoría.', l2: 'We need to reconcile the general ledger with the cash flow system prior to the audit.', word_targeted: 'reconcile', mastery: 0 },
+        { id: 's_03', l1: 'El script de Python procesa los datos financieros utilizando concurrencia para optimizar el rendimiento.', l2: 'The Python script parses the financial data using concurrency to optimize performance.', word_targeted: 'parses', mastery: 0 },
+        { id: 's_04', l1: 'Debemos imputar los gastos indirectos a los grupos de contratos de seguros correspondientes.', l2: 'We must impute indirect expenses to the corresponding groups of insurance contracts.', word_targeted: 'impute', mastery: 0 },
+        { id: 's_05', l1: 'Pronosticar los flujos de efectivo netos requiere un modelo robusto de análisis de varianza.', l2: 'Forecasting net cash flows requires a robust variance analysis model.', word_targeted: 'forecasting', mastery: 0 }
+      ]
+    }
+  ],
+  metrics: {
+    sessionsCompleted: 0,
+    accuracySum: 0,
+    totalAttempts: 0,
+    streak: 0,
+    pronAccuracySum: 0,
+    totalPronAttempts: 0,
+    wordsCount: 0,
+    correctCount: 0,
+    incorrectCount: 0
+  }
+};
+
+let appState = { ...DEFAULT_STATE };
+
+// Cargar estado de localStorage
+function loadAppState() {
+  const localData = localStorage.getItem('hyperpolyglot_harness_state');
+  if (localData) {
+    try {
+      appState = JSON.parse(localData);
+      // Garantizar estructuras básicas en caso de actualizaciones
+      if (!appState.islands) appState.islands = [...DEFAULT_STATE.islands];
+      if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
+      if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
+      
+      // Asegurar claves específicas nuevas
+      if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
+      if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'browser';
+      if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
+      if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
+      if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-JennyNeural';
+      
+      // Asegurar nuevas métricas
+      if (appState.metrics.streak === undefined) appState.metrics.streak = 0;
+      if (appState.metrics.pronAccuracySum === undefined) appState.metrics.pronAccuracySum = 0;
+      if (appState.metrics.totalPronAttempts === undefined) appState.metrics.totalPronAttempts = 0;
+      if (appState.metrics.wordsCount === undefined) appState.metrics.wordsCount = 0;
+      if (appState.metrics.correctCount === undefined) appState.metrics.correctCount = 0;
+      if (appState.metrics.incorrectCount === undefined) appState.metrics.incorrectCount = 0;
+
+      // Asegurar que cada frase tenga la propiedad de repetición espaciada (mastery)
+      appState.islands.forEach(island => {
+        if (island.sentences) {
+          island.sentences.forEach(s => {
+            if (s.mastery === undefined) s.mastery = 0;
+          });
+        }
+      });
+    } catch (e) {
+      console.error("Error cargando estado local:", e);
+      appState = { ...DEFAULT_STATE };
+    }
+  } else {
+    appState = { ...DEFAULT_STATE };
+  }
+}
+
+// Guardar estado en localStorage
+function saveAppState() {
+  localStorage.setItem('hyperpolyglot_harness_state', JSON.stringify(appState));
+}
+
+// Mostrar diálogo de confirmación personalizado
+function showCustomConfirm(title, message) {
+  return new Promise((resolve) => {
+    const screen = document.getElementById('confirm-dialog-screen');
+    const titleEl = document.getElementById('confirm-dialog-title');
+    const msgEl = document.getElementById('confirm-dialog-message');
+    const cancelBtn = document.getElementById('btn-confirm-cancel');
+    const acceptBtn = document.getElementById('btn-confirm-accept');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    screen.classList.remove('hidden');
+
+    function cleanup() {
+      screen.classList.add('hidden');
+      cancelBtn.removeEventListener('click', onCancel);
+      acceptBtn.removeEventListener('click', onAccept);
+    }
+
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    function onAccept() {
+      cleanup();
+      resolve(true);
+    }
+
+    cancelBtn.addEventListener('click', onCancel, { once: true });
+    acceptBtn.addEventListener('click', onAccept, { once: true });
+  });
+}
+
+// 2. SISTEMA DE TEMAS (MD3)
+function initTheme() {
+  const theme = appState.settings.theme || 'system';
+  applyTheme(theme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const themeIcon = document.getElementById('theme-icon');
+  
+  let currentActualTheme = theme;
+  if (theme === 'system') {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    currentActualTheme = isDark ? 'dark' : 'light';
+  }
+  
+  if (themeIcon) {
+    themeIcon.textContent = currentActualTheme === 'dark' ? 'light_mode' : 'dark_mode';
+  }
+}
+
+// Escuchador de cambios en el tema del sistema
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (appState.settings.theme === 'system') {
+    applyTheme('system');
+  }
+});
+
+// Alternar temas secuencialmente: System -> Light -> Dark
+function rotateTheme() {
+  const current = appState.settings.theme || 'system';
+  let next = 'system';
+  if (current === 'system') next = 'light';
+  else if (current === 'light') next = 'dark';
+  
+  appState.settings.theme = next;
+  saveAppState();
+  applyTheme(next);
+}
+
+// 3. NAVEGACIÓN Y PANELES
+function initNavigation() {
+  const tabs = document.querySelectorAll('[data-tab]');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetTab = tab.getAttribute('data-tab');
+      switchTab(targetTab);
+    });
+  });
+  
+  // Soporte para navegación móvil
+  const mobileLinks = document.querySelectorAll('.mobile-nav-link');
+  mobileLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetTab = link.getAttribute('data-tab');
+      switchTab(targetTab);
+    });
+  });
+
+  // Manejo de hashes en URL al cargar
+  const hash = window.location.hash.substring(1);
+  if (['learn', 'practice', 'generate', 'settings', 'methodology'].includes(hash)) {
+    switchTab(hash);
+  }
+}
+
+function switchTab(tabId) {
+  // Detener TTS activo si cambiamos de pestaña
+  stopTTS();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  
+  // Ocultar todos los paneles
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.classList.add('hidden');
+  });
+  
+  // Desactivar todos los links de navegación
+  document.querySelectorAll('[data-tab], .mobile-nav-link').forEach(link => {
+    link.classList.remove('active');
+  });
+  
+  // Mostrar panel seleccionado
+  const activePanel = document.getElementById(`tab-${tabId}`);
+  if (activePanel) {
+    activePanel.classList.remove('hidden');
+  }
+  
+  // Activar links correspondientes
+  document.querySelectorAll(`[data-tab="${tabId}"], .mobile-nav-link[data-tab="${tabId}"]`).forEach(link => {
+    link.classList.add('active');
+  });
+  
+  // Actualizar título
+  const titleMap = {
+    learn: 'Aprender (Karaoke)',
+    practice: 'Practicar (Recall Loop)',
+    generate: 'Generar Contexto Inteligente',
+    methodology: 'Metodología y Guía de Uso',
+    settings: 'Configuración del Arnés'
+  };
+  document.getElementById('view-title').textContent = titleMap[tabId] || 'Hyperpolyglot Harness';
+  
+  // Ejecutar inicializadores específicos de paneles
+  if (tabId === 'learn') initLearnPanel();
+  if (tabId === 'practice') initPracticePanel();
+  if (tabId === 'settings') loadSettingsPanel();
+}
+
+// 4. MOTOR TTS Y SINOPSIS KARAOKE
+let currentIslandIndex = 0;
+let currentSentenceIndex = 0;
+let isPlaying = false;
+let currentUtterance = null;
+let wordRanges = []; // Mapeo de caracteres para el Karaoke
+
+// Diccionario de códigos de idioma para TTS
+const LANG_CODES = {
+  'Inglés': 'en-US',
+  'Portugués': 'pt-BR',
+  'Francés': 'fr-FR',
+  'Español': 'es-ES',
+  'Alemán': 'de-DE',
+  'Italiano': 'it-IT'
+};
+
+function initLearnPanel() {
+  renderIslandSelectors();
+  loadCurrentSentence();
+}
+
+function renderIslandSelectors() {
+  const container = document.getElementById('island-selector-list');
+  container.innerHTML = '';
+  
+  if (appState.islands.length === 0) {
+    container.innerHTML = '<p class="text-secondary small">No tienes islas de aprendizaje. Genera una en la pestaña de Inteligencia Artificial.</p>';
+    return;
+  }
+  
+  appState.islands.forEach((island, index) => {
+    const item = document.createElement('div');
+    item.className = `island-item ${index === currentIslandIndex ? 'active' : ''}`;
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.justifyContent = 'space-between';
+    item.style.cursor = 'pointer';
+    
+    // Calcular promedio de mastery de la isla (de forma defensiva)
+    let totalMastery = 0;
+    const sentencesList = island.sentences || [];
+    sentencesList.forEach(s => {
+      totalMastery += (s.mastery !== undefined ? s.mastery : 0);
+    });
+    const maxPossibleMastery = sentencesList.length * 5;
+    const progressPercent = maxPossibleMastery > 0 ? Math.round((totalMastery / maxPossibleMastery) * 100) : 0;
+
+    item.innerHTML = `
+      <div class="island-info" style="flex-grow: 1;">
+        <div class="island-title font-semibold">${escapeHtml(island.name)}</div>
+        <div class="island-meta text-secondary small">${sentencesList.length} oraciones • ${escapeHtml(island.language)}</div>
+        <div class="island-progress-bar-container" style="width: 100%; max-width: 180px; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; margin-top: 8px; overflow: hidden; position: relative;" title="Dominio del cerebro: ${progressPercent}%">
+          <div style="width: ${progressPercent}%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.4s ease;"></div>
+        </div>
+        <div class="island-progress-text text-primary" style="font-size: 11px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+          <span class="material-symbols-rounded" style="font-size: 12px;">psychology</span>
+          <span>Cerebro al ${progressPercent}%</span>
+        </div>
+      </div>
+      <div class="island-actions" style="display: flex; gap: 8px; align-items: center;">
+        <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(211, 47, 47, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
+          <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+        </button>
+        <span class="material-symbols-rounded text-primary btn-play-island" style="cursor: pointer;" title="Reproducir Isla">play_arrow</span>
+      </div>
+    `;
+    
+    const deleteEl = item.querySelector('.btn-delete-island');
+    const playEl = item.querySelector('.btn-play-island');
+    
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island')) {
+        return;
+      }
+      stopTTS();
+      currentIslandIndex = index;
+      currentSentenceIndex = 0;
+      renderIslandSelectors();
+      loadCurrentSentence();
+    });
+    
+    playEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stopTTS();
+      currentIslandIndex = index;
+      currentSentenceIndex = 0;
+      renderIslandSelectors();
+      loadCurrentSentence();
+      playTTS();
+    });
+    
+    deleteEl.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const confirmed = await showCustomConfirm(
+        `¿Eliminar "${island.name}"?`,
+        `¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`
+      );
+      if (confirmed) {
+        stopTTS();
+        appState.islands.splice(index, 1);
+        
+        // Ajustar el índice activo de forma coherente
+        if (currentIslandIndex > index) {
+          currentIslandIndex--;
+        } else if (currentIslandIndex >= appState.islands.length) {
+          currentIslandIndex = Math.max(0, appState.islands.length - 1);
+        }
+        
+        currentSentenceIndex = 0;
+        saveAppState();
+        renderIslandSelectors();
+        loadCurrentSentence();
+      }
+    });
+    
+    container.appendChild(item);
+  });
+}
+
+function loadCurrentSentence() {
+  const island = appState.islands[currentIslandIndex];
+  populateVoicesDropdown();
+  
+  const progressText = document.getElementById('player-progress-text');
+  const progressPercent = document.getElementById('player-progress-percentage');
+  const progressFill = document.getElementById('player-progress-fill');
+  
+  if (!island || !island.sentences || island.sentences.length === 0) {
+    document.getElementById('player-island-name').textContent = "Ninguna Isla";
+    document.getElementById('player-lang-badge').textContent = "N/A";
+    document.getElementById('karaoke-l1').textContent = "Crea una isla lingüística para comenzar.";
+    document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada.</span>';
+    
+    if (progressText) progressText.textContent = "Frase 0 de 0";
+    if (progressPercent) progressPercent.textContent = "0%";
+    if (progressFill) progressFill.style.width = "0%";
+    return;
+  }
+  
+  const currentNum = currentSentenceIndex + 1;
+  const totalNum = island.sentences.length;
+  const percent = Math.round((currentNum / totalNum) * 100);
+  
+  if (progressText) progressText.textContent = `Frase ${currentNum} de ${totalNum}`;
+  if (progressPercent) progressPercent.textContent = `${percent}%`;
+  if (progressFill) progressFill.style.width = `${percent}%`;
+  
+  const sentence = island.sentences[currentSentenceIndex];
+  document.getElementById('player-island-name').textContent = island.name;
+  document.getElementById('player-lang-badge').textContent = island.language;
+  document.getElementById('karaoke-l1').textContent = sentence.l1;
+  
+  // Procesar L2 para el Karaoke: dividir en palabras y registrar rangos de caracteres
+  const textL2 = sentence.l2;
+  const words = textL2.split(/(\s+)/); // Preservar espacios
+  
+  let currentCharacterIndex = 0;
+  wordRanges = [];
+  
+  const containerL2 = document.getElementById('karaoke-l2');
+  containerL2.innerHTML = '';
+  
+  words.forEach(chunk => {
+    if (chunk.trim() === '') {
+      // Espacios
+      containerL2.appendChild(document.createTextNode(chunk));
+      currentCharacterIndex += chunk.length;
+    } else {
+      // Palabra
+      const span = document.createElement('span');
+      span.className = 'karaoke-word';
+      span.textContent = chunk;
+      
+      const start = currentCharacterIndex;
+      const end = currentCharacterIndex + chunk.length;
+      span.setAttribute('data-start', start);
+      span.setAttribute('data-end', end);
+      
+      // Limpiar signos de puntuación para emparejar con onboundary
+      const cleanWord = chunk.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
+      
+      wordRanges.push({
+        word: cleanWord,
+        start: start,
+        end: end,
+        element: span
+      });
+      
+      containerL2.appendChild(span);
+      currentCharacterIndex += chunk.length;
+    }
+  });
+
+  const masteryContainer = document.getElementById('karaoke-sentence-mastery-container');
+  if (masteryContainer) {
+    const mastery = sentence.mastery !== undefined ? sentence.mastery : 0;
+    const percent = mastery * 20;
+    
+    let levelName = "Sin iniciar";
+    let progressColor = "hsl(var(--md-sys-color-outline))";
+    
+    if (mastery === 5) {
+      levelName = "Largo Plazo (Completado)";
+      progressColor = "hsl(142, 60%, 40%)";
+    } else if (mastery === 4) {
+      levelName = "Consolidando";
+      progressColor = "hsl(142, 50%, 50%)";
+    } else if (mastery === 3) {
+      levelName = "Medio Plazo";
+      progressColor = "hsl(215, 60%, 50%)";
+    } else if (mastery === 2) {
+      levelName = "Corto Plazo";
+      progressColor = "hsl(36, 100%, 45%)";
+    } else if (mastery === 1) {
+      levelName = "Aprendizaje Reciente";
+      progressColor = "hsl(4, 80%, 50%)";
+    }
+    
+    let targetWordHtml = '';
+    if (sentence.word_targeted && sentence.word_targeted.trim()) {
+      const cleanL2 = sentence.l2.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
+      const cleanWord = sentence.word_targeted.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
+      
+      const wordsList = cleanL2.split(/\s+/);
+      const wordExists = cleanWord && (wordsList.includes(cleanWord) || cleanL2.includes(cleanWord));
+      
+      if (wordExists) {
+        targetWordHtml = `
+          <span class="target-word-badge" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px; background-color: hsla(var(--md-sys-color-primary), 0.08); color: hsl(var(--md-sys-color-primary)); border: 1px solid hsla(var(--md-sys-color-primary), 0.2); box-shadow: var(--md-sys-elevation-1);">
+            <span class="material-symbols-rounded" style="font-size: 18px;">key</span>
+            <span>Palabra Objetivo: <strong>${escapeHtml(sentence.word_targeted)}</strong></span>
+          </span>
+        `;
+      }
+    }
+
+    masteryContainer.innerHTML = `
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px; background-color: hsl(var(--md-sys-color-surface-variant)); color: hsl(var(--md-sys-color-on-surface-variant)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); box-shadow: var(--md-sys-elevation-1);">
+        <span class="material-symbols-rounded" style="font-size: 18px; color: hsl(var(--md-sys-color-primary));">psychology</span>
+        <span>Dominio de la Frase: <strong style="color: ${progressColor};">${percent}%</strong> (${levelName})</span>
+      </span>
+      ${targetWordHtml}
+      <div style="flex-grow: 1; max-width: 180px; height: 8px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 4px; overflow: hidden; position: relative; border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+        <div style="width: ${percent}%; height: 100%; background-color: ${progressColor}; border-radius: 4px; transition: width 0.3s ease;"></div>
+      </div>
+    `;
+  }
+}
+
+const audioCache = {};
+let openAiAudioElement = null;
+let wordHighlightTimings = [];
+window.browserHighlightAnimationFrameId = null;
+
+const OPENAI_VOICES = [
+  { id: 'alloy', name: 'Alloy (Neutral)' },
+  { id: 'echo', name: 'Echo (Hombre - Enérgico)' },
+  { id: 'fable', name: 'Fable (Hombre - Juvenil)' },
+  { id: 'onyx', name: 'Onyx (Hombre - Profundo)' },
+  { id: 'nova', name: 'Nova (Mujer - Profesional)' },
+  { id: 'shimmer', name: 'Shimmer (Mujer - Clara)' }
+];
+
+const AZURE_VOICES = {
+  'Inglés': [
+    { id: 'en-US-JennyNeural', name: 'Jenny (Mujer - EE. UU.)' },
+    { id: 'en-US-GuyNeural', name: 'Guy (Hombre - EE. UU.)' },
+    { id: 'en-GB-SoniaNeural', name: 'Sonia (Mujer - Reino Unido)' },
+    { id: 'en-US-BrianMultilingualNeural', name: 'Brian (Hombre - Multilingüe)' }
+  ],
+  'Español': [
+    { id: 'es-CO-GonzaloNeural', name: 'Gonzalo (Hombre - Colombia)' },
+    { id: 'es-MX-DaliaNeural', name: 'Dalia (Mujer - México)' },
+    { id: 'es-ES-AlvaroNeural', name: 'Álvaro (Hombre - España)' },
+    { id: 'es-ES-ElviraNeural', name: 'Elvira (Mujer - España)' },
+    { id: 'es-ES-AlvaroMultilingualNeural', name: 'Álvaro (Hombre - Multilingüe)' }
+  ],
+  'Portugués': [
+    { id: 'pt-BR-FranciscaNeural', name: 'Francisca (Mujer - Brasil)' },
+    { id: 'pt-BR-AntonioNeural', name: 'Antônio (Hombre - Brasil)' },
+    { id: 'pt-PT-RaquelNeural', name: 'Raquel (Mujer - Portugal)' }
+  ],
+  'Francés': [
+    { id: 'fr-FR-DeniseNeural', name: 'Denise (Mujer - Francia)' },
+    { id: 'fr-FR-HenriNeural', name: 'Henri (Hombre - Francia)' },
+    { id: 'fr-CA-SylvieNeural', name: 'Sylvie (Mujer - Canadá)' }
+  ],
+  'Alemán': [
+    { id: 'de-DE-KatjaNeural', name: 'Katja (Mujer - Alemania)' },
+    { id: 'de-DE-ConradNeural', name: 'Conrad (Hombre - Alemania)' }
+  ],
+  'Italiano': [
+    { id: 'it-IT-ElsaNeural', name: 'Elsa (Mujer - Italia)' },
+    { id: 'it-IT-GianniNeural', name: 'Gianni (Hombre - Italia)' }
+  ]
+};
+
+function playTTS() {
+  if (isPlaying) {
+    stopTTS();
+    return;
+  }
+  
+  const island = appState.islands[currentIslandIndex];
+  if (!island) return;
+  const sentence = island.sentences[currentSentenceIndex];
+  if (!sentence) return;
+  
+  const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
+  const engine = document.getElementById('tts-engine').value;
+  
+  if (engine === 'openai') {
+    playOpenAITTS(sentence, speed);
+    return;
+  }
+  if (engine === 'azure') {
+    playAzureTTS(sentence, speed);
+    return;
+  }
+  
+  isPlaying = true;
+  document.getElementById('play-pause-icon').textContent = 'pause';
+  
+  const langCode = LANG_CODES[island.language] || 'en-US';
+  
+  currentUtterance = new SpeechSynthesisUtterance(sentence.l2);
+  currentUtterance.lang = langCode;
+  currentUtterance.rate = speed;
+  
+  // Seleccionar voz del navegador
+  const voices = window.speechSynthesis.getVoices();
+  const selectedVoiceName = document.getElementById('tts-voice').value;
+  const matchedVoice = voices.find(voice => voice.name === selectedVoiceName) || voices.find(voice => voice.lang.startsWith(langCode));
+  if (matchedVoice) {
+    currentUtterance.voice = matchedVoice;
+  }
+  
+  let boundaryFired = false;
+  let speechStartTime = null;
+  
+  currentUtterance.onstart = () => {
+    speechStartTime = performance.now();
+    
+    // Iniciar fallback si onboundary no se dispara en 350ms
+    setTimeout(() => {
+      if (isPlaying && !boundaryFired && speechStartTime) {
+        console.warn("La síntesis de voz no disparó eventos 'onboundary'. Activando resaltado temporal estimado.");
+        startBrowserSpeechTimerHighlighting(speechStartTime, sentence.l2, speed);
+      }
+    }, 350);
+  };
+  
+  // Karaoke: Resaltado en tiempo real con onboundary
+  currentUtterance.onboundary = (event) => {
+    boundaryFired = true;
+    if (event.name === 'word') {
+      const charIndex = event.charIndex;
+      highlightWord(charIndex);
+    }
+  };
+  
+  currentUtterance.onend = () => {
+    cleanupBrowserSpeechHighlight();
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+    
+    // Control de bucles y avance
+    const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
+    if (repeatPhrase) {
+      setTimeout(playTTS, 1500);
+    } else {
+      setTimeout(() => {
+        advanceSentence(1);
+        playTTS();
+      }, 2500);
+    }
+  };
+  
+  currentUtterance.onerror = (e) => {
+    console.error("Error en la reproducción de síntesis de voz:", e);
+    cleanupBrowserSpeechHighlight();
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  };
+  
+  window.speechSynthesis.speak(currentUtterance);
+}
+
+function startBrowserSpeechTimerHighlighting(startTime, textL2, rate) {
+  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
+  if (wordSpans.length === 0) return;
+  
+  const wordCount = wordSpans.length;
+  // Estimación de la duración a una velocidad promedio de 135 palabras por minuto a ritmo 1.0x
+  const estimatedDurationMs = ((wordCount * 60) / (135 * rate)) * 1000;
+  
+  const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
+  const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
+  
+  let cumulativeTime = 0;
+  const timings = Array.from(wordSpans).map((span, index) => {
+    const len = wordLengths[index];
+    const wordDuration = (len / totalChars) * estimatedDurationMs;
+    const start = cumulativeTime;
+    const end = cumulativeTime + wordDuration;
+    cumulativeTime = end;
+    return { start, end, index };
+  });
+  
+  const updateHighlight = () => {
+    if (!isPlaying) {
+      cleanupBrowserSpeechHighlight();
+      return;
+    }
+    
+    const elapsed = performance.now() - startTime;
+    const currentTiming = timings.find(t => elapsed >= t.start && elapsed <= t.end);
+    
+    if (currentTiming) {
+      const span = wordSpans[currentTiming.index];
+      if (span && !span.classList.contains('active')) {
+        clearHighlights();
+        span.classList.add('active');
+      }
+    } else if (elapsed > estimatedDurationMs) {
+      clearHighlights();
+    }
+    
+    window.browserHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  };
+  
+  if (window.browserHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
+  }
+  window.browserHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+}
+
+function cleanupBrowserSpeechHighlight() {
+  if (window.browserHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
+    window.browserHighlightAnimationFrameId = null;
+  }
+}
+
+window.highlightAnimationFrameId = null;
+
+async function playOpenAITTS(sentence, speed) {
+  const text = sentence.l2;
+  const sentenceId = sentence.id;
+  const voice = document.getElementById('tts-voice').value || 'alloy';
+  
+  stopOpenAiAudio();
+  
+  const cacheKey = `${sentenceId}_${voice}_${speed}`;
+  let audioUrl = audioCache[cacheKey];
+  
+  if (!audioUrl) {
+    let key = appState.settings.apiTtsKey;
+    if (!key && appState.settings.apiProvider === 'openai') {
+      key = appState.settings.apiKey;
+    }
+    
+    if (!key) {
+      alert("Para usar las voces premium, ingresa una clave de API de OpenAI en la pestaña de Ajustes (o selecciona el motor del navegador).");
+      isPlaying = false;
+      document.getElementById('play-pause-icon').textContent = 'play_arrow';
+      switchTab('settings');
+      return;
+    }
+    
+    // Visual loading state
+    const playPauseBtnIcon = document.getElementById('play-pause-icon');
+    playPauseBtnIcon.textContent = 'sync';
+    playPauseBtnIcon.classList.add('spin');
+    
+    try {
+      const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+      const url = `${baseUrl}/audio/speech`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: voice,
+          speed: speed
+        })
+      });
+      
+      if (!response.ok) {
+        let errMsg = response.statusText;
+        try {
+          const errData = await response.json();
+          errMsg = errData.error?.message || errMsg;
+        } catch(e) {}
+        throw new Error(errMsg);
+      }
+      
+      const blob = await response.blob();
+      audioUrl = URL.createObjectURL(blob);
+      audioCache[cacheKey] = audioUrl;
+      
+    } catch (err) {
+      console.error("OpenAI TTS failed:", err);
+      alert("Error al generar voz de OpenAI: " + err.message);
+      isPlaying = false;
+      playPauseBtnIcon.textContent = 'play_arrow';
+      playPauseBtnIcon.classList.remove('spin');
+      return;
+    } finally {
+      playPauseBtnIcon.classList.remove('spin');
+    }
+  }
+  
+  isPlaying = true;
+  document.getElementById('play-pause-icon').textContent = 'pause';
+  
+  openAiAudioElement = new Audio(audioUrl);
+  setupOpenAiAudioHighlighting(openAiAudioElement, text);
+  openAiAudioElement.play().catch(e => {
+    console.error("Audio playback failed:", e);
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
+function stopOpenAiAudio() {
+  if (window.highlightAnimationFrameId) {
+    cancelAnimationFrame(window.highlightAnimationFrameId);
+    window.highlightAnimationFrameId = null;
+  }
+  if (openAiAudioElement) {
+    openAiAudioElement.pause();
+    openAiAudioElement.currentTime = 0;
+    openAiAudioElement = null;
+  }
+  wordHighlightTimings = [];
+}
+
+window.azureHighlightAnimationFrameId = null;
+let azureAudioElement = null;
+
+function playAzureTTS(sentence, speed) {
+  const text = sentence.l2;
+  const voice = document.getElementById('tts-voice').value || 'en-US-JennyNeural';
+  
+  stopAzureAudio();
+  
+  // Utilizar el endpoint local de edge-tts
+  const audioUrl = `/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&speed=${speed}`;
+  
+  isPlaying = true;
+  document.getElementById('play-pause-icon').textContent = 'pause';
+  
+  azureAudioElement = new Audio(audioUrl);
+  setupAzureAudioHighlighting(azureAudioElement, text);
+  azureAudioElement.play().catch(e => {
+    console.error("Azure Audio playback failed:", e);
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
+function stopAzureAudio() {
+  if (window.azureHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.azureHighlightAnimationFrameId);
+    window.azureHighlightAnimationFrameId = null;
+  }
+  if (azureAudioElement) {
+    azureAudioElement.pause();
+    azureAudioElement.currentTime = 0;
+    azureAudioElement = null;
+  }
+  wordHighlightTimings = [];
+}
+
+function setupAzureAudioHighlighting(audio, textL2) {
+  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
+  
+  const calculateTimings = () => {
+    const duration = audio.duration;
+    if (isNaN(duration) || duration === Infinity) return;
+    
+    const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
+    const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
+    
+    let cumulativeTime = 0;
+    wordHighlightTimings = Array.from(wordSpans).map((span, index) => {
+      const len = wordLengths[index];
+      const wordDuration = (len / totalChars) * duration;
+      const start = cumulativeTime;
+      const end = cumulativeTime + wordDuration;
+      cumulativeTime = end;
+      return { start, end, index };
+    });
+  };
+
+  if (audio.readyState >= 1) {
+    calculateTimings();
+  } else {
+    audio.addEventListener('loadedmetadata', calculateTimings);
+  }
+
+  const updateHighlight = () => {
+    if (!isPlaying || audio.paused || audio.ended) {
+      return;
+    }
+    
+    const currentTime = audio.currentTime;
+    const currentTiming = wordHighlightTimings.find(t => currentTime >= t.start && currentTime <= t.end);
+    
+    if (currentTiming) {
+      const span = wordSpans[currentTiming.index];
+      if (span && !span.classList.contains('active')) {
+        clearHighlights();
+        span.classList.add('active');
+      }
+    }
+    
+    window.azureHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  };
+
+  audio.addEventListener('play', () => {
+    if (window.azureHighlightAnimationFrameId) {
+      cancelAnimationFrame(window.azureHighlightAnimationFrameId);
+    }
+    window.azureHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  });
+
+  audio.addEventListener('ended', () => {
+    if (window.azureHighlightAnimationFrameId) {
+      cancelAnimationFrame(window.azureHighlightAnimationFrameId);
+    }
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+    
+    const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
+    if (repeatPhrase) {
+      setTimeout(playTTS, 1500);
+    } else {
+      setTimeout(() => {
+        advanceSentence(1);
+        playTTS();
+      }, 2500);
+    }
+  });
+  
+  audio.addEventListener('error', (e) => {
+    if (window.azureHighlightAnimationFrameId) {
+      cancelAnimationFrame(window.azureHighlightAnimationFrameId);
+    }
+    console.error("Azure Audio playing error:", e);
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
+function setupOpenAiAudioHighlighting(audio, textL2) {
+  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
+  
+  const calculateTimings = () => {
+    const duration = audio.duration;
+    const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
+    const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
+    
+    let cumulativeTime = 0;
+    wordHighlightTimings = Array.from(wordSpans).map((span, index) => {
+      const len = wordLengths[index];
+      const wordDuration = (len / totalChars) * duration;
+      const start = cumulativeTime;
+      const end = cumulativeTime + wordDuration;
+      cumulativeTime = end;
+      return { start, end, index };
+    });
+  };
+
+  if (audio.readyState >= 1) {
+    calculateTimings();
+  } else {
+    audio.addEventListener('loadedmetadata', calculateTimings);
+  }
+
+  // Animation frame loop for smooth 60fps word highlighting
+  const updateHighlight = () => {
+    if (!isPlaying || audio.paused || audio.ended) {
+      return;
+    }
+    
+    const currentTime = audio.currentTime;
+    const currentTiming = wordHighlightTimings.find(t => currentTime >= t.start && currentTime <= t.end);
+    
+    if (currentTiming) {
+      const span = wordSpans[currentTiming.index];
+      if (span && !span.classList.contains('active')) {
+        clearHighlights();
+        span.classList.add('active');
+      }
+    }
+    
+    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  };
+
+  audio.addEventListener('play', () => {
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
+    }
+    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+  });
+
+  audio.addEventListener('ended', () => {
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
+    }
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+    
+    const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
+    if (repeatPhrase) {
+      setTimeout(playTTS, 1500);
+    } else {
+      setTimeout(() => {
+        advanceSentence(1);
+        playTTS();
+      }, 2500);
+    }
+  });
+  
+  audio.addEventListener('error', (e) => {
+    if (window.highlightAnimationFrameId) {
+      cancelAnimationFrame(window.highlightAnimationFrameId);
+    }
+    console.error("OpenAI Audio playing error:", e);
+    clearHighlights();
+    isPlaying = false;
+    document.getElementById('play-pause-icon').textContent = 'play_arrow';
+  });
+}
+
+function stopTTS() {
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  stopOpenAiAudio();
+  stopAzureAudio();
+  cleanupBrowserSpeechHighlight();
+  isPlaying = false;
+  const icon = document.getElementById('play-pause-icon');
+  if (icon) icon.textContent = 'play_arrow';
+  clearHighlights();
+}
+
+function highlightWord(charIndex) {
+  clearHighlights();
+  
+  // Encontrar la palabra activa según el charIndex
+  // Buscamos la palabra cuya posición de inicio sea la más cercana pero menor o igual a charIndex
+  let activeRange = null;
+  for (let i = 0; i < wordRanges.length; i++) {
+    const range = wordRanges[i];
+    if (charIndex >= range.start && charIndex < range.end) {
+      activeRange = range;
+      break;
+    }
+  }
+  
+  // Si no se encuentra exactamente (por discrepancias de puntuación), buscar la más cercana
+  if (!activeRange) {
+    activeRange = wordRanges.reduce((prev, curr) => {
+      return (Math.abs(curr.start - charIndex) < Math.abs(prev.start - charIndex) ? curr : prev);
+    }, wordRanges[0]);
+  }
+  
+  if (activeRange && activeRange.element) {
+    activeRange.element.classList.add('active');
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.karaoke-word').forEach(el => {
+    el.classList.remove('active');
+  });
+}
+
+function advanceSentence(offset) {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || island.sentences.length === 0) return;
+  
+  const wasPlaying = isPlaying;
+  stopTTS();
+  
+  currentSentenceIndex = (currentSentenceIndex + offset + island.sentences.length) % island.sentences.length;
+  loadCurrentSentence();
+  
+  if (wasPlaying) {
+    setTimeout(playTTS, 200);
+  }
+}
+
+// 5. EVALUACIÓN Y RETROALIMENTACIÓN (RECALL LOOP)
+let practiceSentences = [];
+let currentPracticeIndex = 0;
+let activePracticeMode = 'writing'; // 'writing' o 'speech'
+let recordedAudios = {}; // Mapeo de currentPracticeIndex -> blob de voz grabado por el usuario
+let userRecordedVoiceUrl = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecordingSpeech = false;
+let speechRecognitionInstance = null;
+
+function populateRecallIslandSelect() {
+  const select = document.getElementById('recall-island-select');
+  if (!select) return;
+  const currentSelection = select.value || 'all';
+  select.innerHTML = '<option value="all">Todas las Islas</option>';
+  appState.islands.forEach(island => {
+    const opt = document.createElement('option');
+    opt.value = island.id || `island_${Math.random()}`;
+    opt.textContent = island.name;
+    select.appendChild(opt);
+  });
+  const optionExists = Array.from(select.options).some(opt => opt.value === currentSelection);
+  select.value = optionExists ? currentSelection : 'all';
+}
+
+function buildPracticeQueue() {
+  const select = document.getElementById('recall-island-select');
+  const filterVal = select ? select.value : 'all';
+  practiceSentences = [];
+  appState.islands.forEach(island => {
+    if (filterVal === 'all' || island.id === filterVal) {
+      island.sentences.forEach(s => {
+        practiceSentences.push({
+          ...s,
+          language: island.language,
+          islandId: island.id,
+          islandName: island.name
+        });
+      });
+    }
+  });
+}
+
+function initPracticePanel() {
+  populateRecallIslandSelect();
+  buildPracticeQueue();
+  currentPracticeIndex = 0;
+  loadPracticeExercise();
+  renderMetrics();
+}
+
+function loadPracticeExercise() {
+  const container = document.getElementById('recall-prompt-l1');
+  const indexEl = document.getElementById('recall-index');
+  const domainEl = document.getElementById('recall-domain');
+  const inputEl = document.getElementById('recall-user-input');
+  const feedbackCard = document.getElementById('recall-feedback-card');
+  
+  feedbackCard.classList.add('hidden');
+  inputEl.value = '';
+  inputEl.disabled = false;
+  
+  // Ocultar replay de voz del usuario por defecto
+  const replayGroup = document.getElementById('user-voice-replay-group');
+  if (replayGroup) replayGroup.classList.add('hidden');
+  
+  // Limpiar estados de voz
+  const transcriptEl = document.getElementById('recall-speech-transcript');
+  if (transcriptEl) transcriptEl.textContent = '(Tu pronunciación aparecerá aquí...)';
+  
+  const recordIcon = document.getElementById('record-mic-icon');
+  if (recordIcon) recordIcon.textContent = 'mic';
+  
+  const recordBtn = document.getElementById('btn-record-speech');
+  if (recordBtn) {
+    recordBtn.className = '';
+    recordBtn.style.backgroundColor = 'hsl(var(--md-sys-color-primary))';
+  }
+  
+  const statusEl = document.getElementById('speech-status');
+  if (statusEl) statusEl.textContent = 'Presiona para hablar';
+  
+  const submitSpeechBtn = document.getElementById('btn-speech-submit');
+  if (submitSpeechBtn) submitSpeechBtn.disabled = true;
+  
+  if (practiceSentences.length === 0) {
+    container.textContent = "No tienes oraciones cargadas para practicar. Genera oraciones mediante la Inteligencia Artificial.";
+    indexEl.textContent = "0 / 0";
+    domainEl.textContent = "Ningún dominio";
+    document.getElementById('btn-recall-submit').disabled = true;
+    return;
+  }
+  
+  document.getElementById('btn-recall-submit').disabled = false;
+  const sentence = practiceSentences[currentPracticeIndex];
+  container.textContent = sentence.l1;
+  indexEl.textContent = `${currentPracticeIndex + 1} / ${practiceSentences.length}`;
+  domainEl.textContent = `Idioma de Estudio: ${sentence.language} | Palabra objetivo: ${sentence.word_targeted || 'General'}`;
+  
+  // Renderizar indicador de repetición espaciada en práctica
+  let stateMastery = 0;
+  const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
+  if (stateIsland) {
+    const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
+    if (stateSentence && stateSentence.mastery !== undefined) {
+      stateMastery = stateSentence.mastery;
+    }
+  }
+  
+  const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
+  const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
+  if (masteryTextEl) {
+    const percent = stateMastery * 20;
+    let levelName = "Sin iniciar";
+    let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
+    let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
+    
+    if (stateMastery === 5) {
+      levelName = "Largo Plazo (Completado)";
+      badgeBg = "rgba(76, 175, 80, 0.15)";
+      badgeFg = "hsl(142, 60% ,30%)";
+    } else if (stateMastery === 4) {
+      levelName = "Consolidando";
+      badgeBg = "rgba(76, 175, 80, 0.1)";
+      badgeFg = "hsl(142, 50% ,35%)";
+    } else if (stateMastery === 3) {
+      levelName = "Medio Plazo";
+      badgeBg = "rgba(33, 150, 243, 0.1)";
+      badgeFg = "hsl(215, 60% ,40%)";
+    } else if (stateMastery === 2) {
+      levelName = "Corto Plazo";
+      badgeBg = "rgba(255, 193, 7, 0.15)";
+      badgeFg = "hsl(36, 100% ,30%)";
+    } else if (stateMastery === 1) {
+      levelName = "Aprendizaje Reciente";
+      badgeBg = "rgba(244, 67, 54, 0.1)";
+      badgeFg = "hsl(4, 80% ,40%)";
+    }
+    
+    masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
+    if (masteryBadgeEl) {
+      masteryBadgeEl.style.backgroundColor = badgeBg;
+      masteryBadgeEl.style.color = badgeFg;
+    }
+  }
+}
+
+function diffWords(userText, correctText) {
+  const cleanWord = (w) => w.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?¿¡]/g, "").trim();
+  const userWords = userText.split(/\s+/).filter(w => w.trim() !== "");
+  const correctWords = correctText.split(/\s+/).filter(w => w.trim() !== "");
+  
+  const dp = Array(userWords.length + 1).fill(null).map(() => Array(correctWords.length + 1).fill(0));
+  
+  for (let i = 1; i <= userWords.length; i++) {
+    for (let j = 1; j <= correctWords.length; j++) {
+      if (cleanWord(userWords[i-1]) === cleanWord(correctWords[j-1])) {
+        dp[i][j] = dp[i-1][j-1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);
+      }
+    }
+  }
+  
+  let i = userWords.length;
+  let j = correctWords.length;
+  
+  const userAligned = [];
+  const correctAligned = [];
+  
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && cleanWord(userWords[i-1]) === cleanWord(correctWords[j-1])) {
+      userAligned.unshift({ word: userWords[i-1], match: true });
+      correctAligned.unshift({ word: correctWords[j-1], match: true });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      correctAligned.unshift({ word: correctWords[j-1], match: false });
+      j--;
+    } else {
+      userAligned.unshift({ word: userWords[i-1], match: false });
+      i--;
+    }
+  }
+  
+  const userHTML = userAligned.map(item => {
+    if (item.match) {
+      return `<span style="color: hsl(var(--md-sys-color-accent)); font-weight: 600;">${escapeHtml(item.word)}</span>`;
+    } else {
+      return `<span style="color: hsl(var(--md-sys-color-error)); font-weight: 700; text-decoration: underline wavy hsl(var(--md-sys-color-error));" title="Diferente del modelo">${escapeHtml(item.word)}</span>`;
+    }
+  }).join(' ');
+  
+  const correctHTML = correctAligned.map(item => {
+    if (item.match) {
+      return `<span class="matched" style="color: hsl(var(--md-sys-color-on-surface));">${escapeHtml(item.word)}</span>`;
+    } else {
+      return `<span class="missed" style="color: hsl(var(--md-sys-color-accent)); font-weight: 600; background-color: rgba(76, 175, 80, 0.15); padding: 2px 4px; border-radius: 4px;">${escapeHtml(item.word)}</span>`;
+    }
+  }).join(' ');
+  
+  return { userHTML, correctHTML };
+}
+
+function evaluateRecallAttempt() {
+  const inputEl = document.getElementById('recall-user-input');
+  const userAttempt = inputEl.value.trim();
+  if (!userAttempt) return;
+  
+  const sentence = practiceSentences[currentPracticeIndex];
+  const correctAnswer = sentence.l2;
+  
+  // Calcular porcentaje de precisión basado en similitud de texto (distancia simplificada)
+  const accuracy = Math.round(calculateSimilarity(userAttempt.toLowerCase(), correctAnswer.toLowerCase()) * 100);
+  
+  // Mostrar panel de retroalimentación
+  const feedbackCard = document.getElementById('recall-feedback-card');
+  const feedbackScore = document.getElementById('feedback-score');
+  const feedbackTitle = document.getElementById('feedback-title');
+  const feedbackUser = document.getElementById('feedback-user-attempt');
+  const feedbackCorrect = document.getElementById('feedback-correct-answer');
+  
+  feedbackCard.classList.remove('hidden');
+  inputEl.disabled = true;
+  
+  feedbackScore.textContent = `${accuracy}%`;
+  
+  // Renderizar la comparación coloreada (diff)
+  const diffResult = diffWords(userAttempt, correctAnswer);
+  feedbackUser.innerHTML = diffResult.userHTML;
+  feedbackCorrect.innerHTML = diffResult.correctHTML;
+  
+  if (accuracy >= 85) {
+    feedbackTitle.textContent = "¡Excelente traducción!";
+    feedbackTitle.className = "text-success";
+    feedbackCard.style.borderColor = "hsl(142, 60%, 60%)";
+    
+    // Incrementar racha, contar palabras y aciertos
+    appState.metrics.streak += 1;
+    appState.metrics.wordsCount += correctAnswer.split(/\s+/).length;
+    appState.metrics.correctCount += 1;
+  } else {
+    if (accuracy >= 50) {
+      feedbackTitle.textContent = "Casi correcto. Revisa los detalles.";
+      feedbackTitle.className = "text-secondary";
+      feedbackCard.style.borderColor = "hsl(215, 15%, 70%)";
+    } else {
+      feedbackTitle.textContent = "Inténtalo de nuevo.";
+      feedbackTitle.className = "text-error";
+      feedbackCard.style.borderColor = "red";
+    }
+    
+    // Resetear racha e incrementar fallos
+    appState.metrics.streak = 0;
+    appState.metrics.incorrectCount += 1;
+  }
+  
+  // Actualizar Repetición Espaciada en appState
+  const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
+  if (stateIsland) {
+    const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
+    if (stateSentence) {
+      if (stateSentence.mastery === undefined) stateSentence.mastery = 0;
+      if (accuracy >= 85) {
+        stateSentence.mastery = Math.min(stateSentence.mastery + 1, 5);
+      } else {
+        stateSentence.mastery = Math.max(stateSentence.mastery - 1, 0);
+      }
+      sentence.mastery = stateSentence.mastery;
+      
+      // Actualizar distintivo de dominio en la interfaz
+      const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
+      const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
+      if (masteryTextEl) {
+        const percent = stateSentence.mastery * 20;
+        let levelName = "Sin iniciar";
+        let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
+        let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
+        if (stateSentence.mastery === 5) {
+          levelName = "Largo Plazo (Completado)";
+          badgeBg = "rgba(76, 175, 80, 0.15)";
+          badgeFg = "hsl(142, 60% ,30%)";
+        } else if (stateSentence.mastery === 4) {
+          levelName = "Consolidando";
+          badgeBg = "rgba(76, 175, 80, 0.1)";
+          badgeFg = "hsl(142, 50% ,35%)";
+        } else if (stateSentence.mastery === 3) {
+          levelName = "Medio Plazo";
+          badgeBg = "rgba(33, 150, 243, 0.1)";
+          badgeFg = "hsl(215, 60% ,40%)";
+        } else if (stateSentence.mastery === 2) {
+          levelName = "Corto Plazo";
+          badgeBg = "rgba(255, 193, 7, 0.15)";
+          badgeFg = "hsl(36, 100% ,30%)";
+        } else if (stateSentence.mastery === 1) {
+          levelName = "Aprendizaje Reciente";
+          badgeBg = "rgba(244, 67, 54, 0.1)";
+          badgeFg = "hsl(4, 80% ,40%)";
+        }
+        masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
+        if (masteryBadgeEl) {
+          masteryBadgeEl.style.backgroundColor = badgeBg;
+          masteryBadgeEl.style.color = badgeFg;
+        }
+      }
+    }
+  }
+
+  // Actualizar métricas del estado local
+  appState.metrics.totalAttempts += 1;
+  appState.metrics.accuracySum += accuracy;
+  if (currentPracticeIndex === practiceSentences.length - 1) {
+    appState.metrics.sessionsCompleted += 1;
+  }
+  saveAppState();
+  renderMetrics();
+}
+
+let activeVoiceStream = null;
+
+function toggleSpeechRecording() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert("Tu navegador no soporta el reconocimiento de voz. Te recomendamos usar Google Chrome o Microsoft Edge.");
+    return;
+  }
+
+  const recordBtn = document.getElementById('btn-record-speech');
+  const recordIcon = document.getElementById('record-mic-icon');
+  const statusEl = document.getElementById('speech-status');
+  const transcriptEl = document.getElementById('recall-speech-transcript');
+  const submitBtn = document.getElementById('btn-speech-submit');
+  
+  const sentence = practiceSentences[currentPracticeIndex];
+  if (!sentence) return;
+
+  if (!isRecordingSpeech) {
+    // Iniciar grabación de audio y transcripción
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        activeVoiceStream = stream;
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+        
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          recordedAudios[currentPracticeIndex] = audioBlob;
+          
+          if (userRecordedVoiceUrl) {
+            URL.revokeObjectURL(userRecordedVoiceUrl);
+          }
+          userRecordedVoiceUrl = URL.createObjectURL(audioBlob);
+        };
+        
+        mediaRecorder.start();
+        
+        // Iniciar reconocimiento de voz
+        speechRecognitionInstance = new SpeechRecognition();
+        const studyLang = sentence.language || 'Inglés';
+        speechRecognitionInstance.lang = LANG_CODES[studyLang] || 'en-US';
+        speechRecognitionInstance.continuous = false;
+        speechRecognitionInstance.interimResults = false;
+        
+        speechRecognitionInstance.onstart = () => {
+          statusEl.textContent = 'Escuchando... ¡Habla ahora!';
+          recordIcon.textContent = 'stop';
+          recordBtn.classList.add('recording-active');
+        };
+        
+        speechRecognitionInstance.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          transcriptEl.textContent = transcript;
+          submitBtn.disabled = false;
+          statusEl.textContent = 'Grabación finalizada. Listo para validar.';
+        };
+        
+        speechRecognitionInstance.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          statusEl.textContent = `Error: ${event.error}. Intenta de nuevo.`;
+          stopRecordingControls();
+        };
+        
+        speechRecognitionInstance.onend = () => {
+          if (isRecordingSpeech) {
+            stopRecordingControls();
+          }
+        };
+        
+        speechRecognitionInstance.start();
+        isRecordingSpeech = true;
+      })
+      .catch(err => {
+        console.error("Mic access denied:", err);
+        alert("No se pudo acceder al micrófono. Asegúrate de dar permisos de audio a la aplicación.");
+      });
+  } else {
+    stopRecordingControls();
+  }
+}
+
+function stopRecordingControls() {
+  const recordBtn = document.getElementById('btn-record-speech');
+  const recordIcon = document.getElementById('record-mic-icon');
+  const statusEl = document.getElementById('speech-status');
+  
+  isRecordingSpeech = false;
+  
+  if (recordIcon) recordIcon.textContent = 'mic';
+  if (recordBtn) recordBtn.classList.remove('recording-active');
+  if (statusEl && statusEl.textContent.startsWith('Escuchando')) {
+    statusEl.textContent = 'Grabación procesada.';
+  }
+  
+  if (speechRecognitionInstance) {
+    try {
+      speechRecognitionInstance.stop();
+    } catch(e) {}
+    speechRecognitionInstance = null;
+  }
+  
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    try {
+      mediaRecorder.stop();
+    } catch(e) {}
+  }
+  
+  if (activeVoiceStream) {
+    activeVoiceStream.getTracks().forEach(track => track.stop());
+    activeVoiceStream = null;
+  }
+}
+
+function evaluatePronunciationAttempt() {
+  const transcriptEl = document.getElementById('recall-speech-transcript');
+  const userAttempt = transcriptEl.textContent.trim();
+  if (!userAttempt || userAttempt.startsWith('(')) return;
+  
+  const sentence = practiceSentences[currentPracticeIndex];
+  const correctAnswer = sentence.l2;
+  
+  // Calcular porcentaje de precisión basado en similitud
+  const accuracy = Math.round(calculateSimilarity(userAttempt.toLowerCase(), correctAnswer.toLowerCase()) * 100);
+  
+  const feedbackCard = document.getElementById('recall-feedback-card');
+  const feedbackScore = document.getElementById('feedback-score');
+  const feedbackTitle = document.getElementById('feedback-title');
+  const feedbackUser = document.getElementById('feedback-user-attempt');
+  const feedbackCorrect = document.getElementById('feedback-correct-answer');
+  const replayGroup = document.getElementById('user-voice-replay-group');
+  
+  feedbackCard.classList.remove('hidden');
+  
+  feedbackScore.textContent = `${accuracy}%`;
+  
+  // Renderizar la comparación coloreada (diff)
+  const diffResult = diffWords(userAttempt, correctAnswer);
+  feedbackUser.innerHTML = diffResult.userHTML;
+  feedbackCorrect.innerHTML = diffResult.correctHTML;
+  
+  // Mostrar botón de reproducción de la propia grabación de voz
+  if (replayGroup && userRecordedVoiceUrl) {
+    replayGroup.classList.remove('hidden');
+  }
+  
+  if (accuracy >= 85) {
+    feedbackTitle.textContent = "¡Excelente pronunciación!";
+    feedbackTitle.className = "text-success";
+    feedbackCard.style.borderColor = "hsl(142, 60%, 60%)";
+    
+    appState.metrics.streak += 1;
+    appState.metrics.wordsCount += correctAnswer.split(/\s+/).length;
+    appState.metrics.correctCount += 1;
+  } else {
+    if (accuracy >= 50) {
+      feedbackTitle.textContent = "Casi correcto. Revisa los detalles.";
+      feedbackTitle.className = "text-secondary";
+      feedbackCard.style.borderColor = "hsl(215, 15%, 70%)";
+    } else {
+      feedbackTitle.textContent = "Inténtalo de nuevo. Presta atención al modelo de voz.";
+      feedbackTitle.className = "text-error";
+      feedbackCard.style.borderColor = "red";
+    }
+    
+    appState.metrics.streak = 0;
+    appState.metrics.incorrectCount += 1;
+  }
+  
+  // Actualizar Repetición Espaciada en appState
+  const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
+  if (stateIsland) {
+    const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
+    if (stateSentence) {
+      if (stateSentence.mastery === undefined) stateSentence.mastery = 0;
+      if (accuracy >= 85) {
+        stateSentence.mastery = Math.min(stateSentence.mastery + 1, 5);
+      } else {
+        stateSentence.mastery = Math.max(stateSentence.mastery - 1, 0);
+      }
+      sentence.mastery = stateSentence.mastery;
+      
+      // Actualizar distintivo de dominio en la interfaz
+      const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
+      const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
+      if (masteryTextEl) {
+        const percent = stateSentence.mastery * 20;
+        let levelName = "Sin iniciar";
+        let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
+        let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
+        if (stateSentence.mastery === 5) {
+          levelName = "Largo Plazo (Completado)";
+          badgeBg = "rgba(76, 175, 80, 0.15)";
+          badgeFg = "hsl(142, 60% ,30%)";
+        } else if (stateSentence.mastery === 4) {
+          levelName = "Consolidando";
+          badgeBg = "rgba(76, 175, 80, 0.1)";
+          badgeFg = "hsl(142, 50% ,35%)";
+        } else if (stateSentence.mastery === 3) {
+          levelName = "Medio Plazo";
+          badgeBg = "rgba(33, 150, 243, 0.1)";
+          badgeFg = "hsl(215, 60% ,40%)";
+        } else if (stateSentence.mastery === 2) {
+          levelName = "Corto Plazo";
+          badgeBg = "rgba(255, 193, 7, 0.15)";
+          badgeFg = "hsl(36, 100% ,30%)";
+        } else if (stateSentence.mastery === 1) {
+          levelName = "Aprendizaje Reciente";
+          badgeBg = "rgba(244, 67, 54, 0.1)";
+          badgeFg = "hsl(4, 80% ,40%)";
+        }
+        masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
+        if (masteryBadgeEl) {
+          masteryBadgeEl.style.backgroundColor = badgeBg;
+          masteryBadgeEl.style.color = badgeFg;
+        }
+      }
+    }
+  }
+
+  appState.metrics.totalPronAttempts += 1;
+  appState.metrics.pronAccuracySum += accuracy;
+  
+  saveAppState();
+  renderMetrics();
+}
+
+let practiceAudioElement = null;
+function playPracticeSentenceTTS() {
+  const sentence = practiceSentences[currentPracticeIndex];
+  if (!sentence) return;
+  
+  if (practiceAudioElement) {
+    practiceAudioElement.pause();
+    practiceAudioElement = null;
+  }
+  
+  const engine = document.getElementById('tts-engine').value;
+  const voice = document.getElementById('tts-voice').value || (engine === 'openai' ? 'alloy' : 'en-US-JennyNeural');
+  const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
+  
+  if (engine === 'browser') {
+    const langCode = LANG_CODES[sentence.language] || 'en-US';
+    const utter = new SpeechSynthesisUtterance(sentence.l2);
+    utter.lang = langCode;
+    utter.rate = speed;
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = voices.find(v => v.name === voice) || voices.find(v => v.lang.startsWith(langCode));
+    if (matchedVoice) utter.voice = matchedVoice;
+    window.speechSynthesis.speak(utter);
+  } else if (engine === 'azure') {
+    const audioUrl = `/api/tts?text=${encodeURIComponent(sentence.l2)}&voice=${encodeURIComponent(voice)}&speed=${speed}`;
+    practiceAudioElement = new Audio(audioUrl);
+    practiceAudioElement.play().catch(e => console.error("Playback error:", e));
+  } else if (engine === 'openai') {
+    let key = appState.settings.apiTtsKey || (appState.settings.apiProvider === 'openai' ? appState.settings.apiKey : '');
+    if (!key) {
+      alert("Por favor, ingresa tu clave API de OpenAI en la pestaña de Ajustes para reproducir la voz.");
+      return;
+    }
+    const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+    const url = `${baseUrl}/audio/speech`;
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'tts-1',
+        input: sentence.l2,
+        voice: voice,
+        speed: speed
+      })
+    })
+    .then(r => r.blob())
+    .then(blob => {
+      const audioUrl = URL.createObjectURL(blob);
+      practiceAudioElement = new Audio(audioUrl);
+      practiceAudioElement.play();
+    })
+    .catch(e => console.error("OpenAI playback failed:", e));
+  }
+}
+
+async function exportPracticeToMp3() {
+  const keys = Object.keys(recordedAudios);
+  if (keys.length === 0) {
+    alert("No tienes grabaciones de voz en esta sesión de práctica. ¡Usa el micrófono en el Modo Voz antes de exportar!");
+    return;
+  }
+  
+  const progressIndicator = document.getElementById('export-loading-indicator');
+  const progressText = document.getElementById('export-progress-text');
+  if (progressIndicator) progressIndicator.classList.remove('hidden');
+  if (progressText) progressText.textContent = "Empaquetando grabaciones de voz...";
+  
+  try {
+    const zip = new JSZip();
+    let readmeText = `HYPERPOLYGLOT HARNESS - EXPORTACIÓN DE PRÁCTICA DE ORATORIA\n`;
+    readmeText += `Fecha: ${new Date().toLocaleString()}\n`;
+    readmeText += `==========================================================\n\n`;
+    
+    keys.forEach(keyIdx => {
+      const idx = parseInt(keyIdx);
+      const sentence = practiceSentences[idx];
+      if (!sentence) return;
+      
+      const blob = recordedAudios[keyIdx];
+      const indexStr = String(idx + 1).padStart(2, '0');
+      
+      // Añadir la grabación de audio del usuario al ZIP
+      zip.file(`${indexStr}_mi_pronunciacion.webm`, blob);
+      
+      readmeText += `${indexStr}. Frase en Español: ${sentence.l1}\n`;
+      readmeText += `    Traducción Correcta: ${sentence.l2}\n\n`;
+    });
+    
+    zip.file("LEEME.txt", readmeText);
+    
+    const content = await zip.generateAsync({ type: "blob" });
+    const filename = `mi_practica_oratoria_${Date.now()}.zip`;
+    
+    const response = await fetch(`/api/save-export?filename=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream'
+      },
+      body: content
+    });
+    const resData = await response.json();
+    if (!resData.success) {
+      throw new Error("No se pudo guardar la exportación en el servidor.");
+    }
+    
+    const a = document.createElement('a');
+    a.href = resData.url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    alert("¡Tus grabaciones de voz han sido exportadas con éxito en un archivo ZIP!");
+  } catch (err) {
+    console.error("Export error:", err);
+    alert(`Ocurrió un error al exportar la práctica: ${err.message}`);
+  } finally {
+    if (progressIndicator) progressIndicator.classList.add('hidden');
+  }
+}
+
+// Algoritmo de similitud de cadenas (Sørensen–Dice / Levenshtein)
+function calculateSimilarity(s1, s2) {
+  let longer = s1;
+  let shorter = s2;
+  if (s1.length < s2.length) {
+    longer = s2;
+    shorter = s1;
+  }
+  const longerLength = longer.length;
+  if (longerLength === 0) {
+    return 1.0;
+  }
+  return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+}
+
+function editDistance(s1, s2) {
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+  const costs = [];
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) costs[j] = j;
+      else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          }
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
+  }
+  return costs[s2.length];
+}
+
+function showHint() {
+  const sentence = practiceSentences[currentPracticeIndex];
+  if (!sentence) return;
+  
+  const inputEl = document.getElementById('recall-user-input');
+  // Proveer las dos primeras letras de cada palabra como pista
+  const words = sentence.l2.split(' ');
+  const hint = words.map(w => w.length > 2 ? w.substring(0, 2) + '.'.repeat(w.length - 2) : w).join(' ');
+  
+  inputEl.placeholder = `Pista: ${hint}`;
+}
+
+function updateUserAvatarAndLevel() {
+  const container = document.getElementById('user-avatar-container');
+  const img = document.getElementById('user-avatar-img');
+  const levelText = document.querySelector('.user-level');
+  
+  const topContainer = document.getElementById('top-avatar-container');
+  const topImg = document.getElementById('top-avatar-img');
+  const topLevelText = document.getElementById('top-avatar-level-text');
+  
+  const sessions = appState.metrics.sessionsCompleted || 0;
+  const attempts = (appState.metrics.totalAttempts || 0) + (appState.metrics.totalPronAttempts || 0);
+  const words = appState.metrics.wordsCount || 0;
+  
+  const xp = (sessions * 100) + (attempts * 10) + (words * 20);
+  
+  let level = 1;
+  let levelName = "Cerebro Novato";
+  let avatarSrc = "assets/avatars/brain_level1.png";
+  
+  if (xp >= 2000) {
+    level = 4;
+    levelName = "Cerebro Hiperpolíglota 🔥";
+    avatarSrc = "assets/avatars/brain_level4.png";
+  } else if (xp >= 800) {
+    level = 3;
+    levelName = "Cerebro Analítico 🧠";
+    avatarSrc = "assets/avatars/brain_level3.png";
+  } else if (xp >= 200) {
+    level = 2;
+    levelName = "Cerebro Aprendiz 🌱";
+    avatarSrc = "assets/avatars/brain_level2.png";
+  }
+  
+  // Actualizar avatar inferior (barra lateral)
+  if (container && img) {
+    container.className = "user-avatar";
+    container.classList.add(`level-${level}`);
+    if (!img.src.includes(avatarSrc)) {
+      img.src = avatarSrc;
+    }
+  }
+  if (levelText) {
+    levelText.textContent = levelName;
+  }
+  
+  // Actualizar avatar superior grande (top-bar)
+  if (topContainer && topImg) {
+    topContainer.className = "user-avatar";
+    topContainer.classList.add(`level-${level}`);
+    if (!topImg.src.includes(avatarSrc)) {
+      topImg.src = avatarSrc;
+    }
+  }
+  if (topLevelText) {
+    topLevelText.textContent = levelName;
+  }
+}
+
+function renderMetrics() {
+  document.getElementById('metric-sessions').textContent = appState.metrics.sessionsCompleted;
+  
+  const avgAccuracy = appState.metrics.totalAttempts > 0 
+    ? Math.round(appState.metrics.accuracySum / appState.metrics.totalAttempts) 
+    : 0;
+  document.getElementById('metric-accuracy').textContent = `${avgAccuracy}%`;
+  
+  // Racha
+  document.getElementById('metric-streak').textContent = `${appState.metrics.streak || 0} 🔥`;
+  
+  // Precisión Voz
+  const avgPronAccuracy = appState.metrics.totalPronAttempts > 0
+    ? Math.round(appState.metrics.pronAccuracySum / appState.metrics.totalPronAttempts)
+    : 0;
+  document.getElementById('metric-pron-accuracy').textContent = `${avgPronAccuracy}%`;
+  
+  // Intentos
+  document.getElementById('metric-attempts').textContent = appState.metrics.totalAttempts + appState.metrics.totalPronAttempts;
+  
+  // Palabras
+  document.getElementById('metric-words').textContent = appState.metrics.wordsCount || 0;
+  
+  // Rellenar barra de progreso
+  const progressFill = document.getElementById('metric-progress-fill');
+  const generalProgress = avgAccuracy;
+  progressFill.style.width = `${Math.min(generalProgress, 100)}%`;
+  
+  // Actualizar avatar y nivel evolutivo del cerebro
+  updateUserAvatarAndLevel();
+}
+
+// 6. GENERADOR DE CONTEXTO (LLM CON BYOK)
+let generatedIslandTemp = null;
+
+async function handleGenerateIsland(e) {
+  e.preventDefault();
+  
+  const apiProvider = appState.settings.apiProvider;
+  const apiKey = appState.settings.apiKey;
+  const customUrl = appState.settings.apiUrl;
+  
+  if (!apiKey) {
+    alert("Por favor, ingresa tu clave API (API Key) en la pestaña de Ajustes antes de usar el generador.");
+    switchTab('settings');
+    return;
+  }
+  
+  const islandName = document.getElementById('gen-island-name').value.trim();
+  const targetLang = document.getElementById('gen-target-lang').value;
+  const category = document.getElementById('gen-island-category').value;
+  const sentenceCount = parseInt(document.getElementById('gen-sentence-count').value) || 10;
+  const wordList = document.getElementById('gen-word-list').value.trim();
+  
+  const l1 = appState.profile ? appState.profile.l1 : 'Español';
+  const l2 = targetLang;
+  
+  const systemPrompt = `You are a professional linguistic coach for financial specialists and data scientists. 
+Given the following L1 language: ${l1} and Target L2 language: ${l2}.
+Generate a 'Language Island' composed of ${sentenceCount} highly practical sentences using these words: ${wordList}.
+The context MUST strictly involve ${category}.
+Crucially, ensure a balanced distribution of verb tenses across the sentences (e.g., Present, Past Simple, Present Perfect, Future, Conditional, Imperative) to provide a rich learning experience.
+Return strictly a raw valid JSON array matching this schema: [{"l1": "...", "l2": "...", "word_targeted": "..."}]. Do not include markdown wraps or any explanatory text.`;
+
+  // UI state: loading
+  document.getElementById('btn-submit-generate').disabled = true;
+  document.getElementById('gen-loading').classList.remove('hidden');
+  document.getElementById('gen-preview-area').classList.add('hidden');
+  
+  try {
+    let resultJson = null;
+    
+    if (apiProvider === 'openai') {
+      resultJson = await callOpenAI(apiKey, customUrl, systemPrompt);
+    } else if (apiProvider === 'google') {
+      resultJson = await callGemini(apiKey, customUrl, systemPrompt);
+    } else if (apiProvider === 'anthropic') {
+      resultJson = await callAnthropic(apiKey, customUrl, systemPrompt);
+    }
+    
+    if (resultJson) {
+      displayGeneratedPreview(resultJson, targetLang, islandName);
+    } else {
+      alert("Error al procesar la respuesta del modelo. Asegúrate de ingresar una API Key válida.");
+    }
+  } catch (error) {
+    console.error("Error en la llamada de API:", error);
+    alert(`Ocurrió un error en la comunicación con la IA: ${error.message}`);
+  } finally {
+    document.getElementById('btn-submit-generate').disabled = false;
+    document.getElementById('gen-loading').classList.add('hidden');
+  }
+}
+
+// Clientes API BYOK
+async function callOpenAI(apiKey, customUrl, prompt) {
+  const url = (customUrl || 'https://api.openai.com/v1') + '/chat/completions';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3
+    })
+  });
+  
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || response.statusText);
+  }
+  
+  const data = await response.json();
+  const text = data.choices[0].message.content.trim();
+  return parseCleanJson(text);
+}
+
+async function callGemini(apiKey, customUrl, prompt) {
+  // Endpoints oficiales v1beta
+  const baseUrl = customUrl || 'https://generativelanguage.googleapis.com';
+  const url = `${baseUrl}/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.2
+      }
+    })
+  });
+  
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || response.statusText);
+  }
+  
+  const data = await response.json();
+  const text = data.candidates[0].content.parts[0].text.trim();
+  return parseCleanJson(text);
+}
+
+async function callAnthropic(apiKey, customUrl, prompt) {
+  const url = (customUrl || 'https://api.anthropic.com/v1') + '/messages';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'dangerously-allow-browser': 'true' // Para llamadas del lado del cliente directas
+    },
+    body: JSON.stringify({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 1500,
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2
+    })
+  });
+  
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || response.statusText);
+  }
+  
+  const data = await response.json();
+  const text = data.content[0].text.trim();
+  return parseCleanJson(text);
+}
+
+function parseCleanJson(text) {
+  // Limpiar posibles etiquetas markdown como ```json ... ```
+  let cleanText = text;
+  if (cleanText.includes("```")) {
+    const matches = cleanText.match(/```(?:json)?([\s\S]*?)```/);
+    if (matches && matches[1]) {
+      cleanText = matches[1].trim();
+    }
+  }
+  
+  try {
+    return JSON.parse(cleanText);
+  } catch (e) {
+    console.error("Error al parsear el JSON de respuesta:", e, cleanText);
+    return null;
+  }
+}
+
+function displayGeneratedPreview(sentencesArray, targetLang, islandName) {
+  const area = document.getElementById('gen-preview-area');
+  const container = document.getElementById('gen-preview-sentences');
+  container.innerHTML = '';
+  
+  area.classList.remove('hidden');
+  
+  // Guardamos temporalmente en memoria la isla generada
+  generatedIslandTemp = {
+    id: 'island_' + Date.now(),
+    name: islandName || `Isla Generada`,
+    language: targetLang,
+    sentences: sentencesArray.map((item, index) => ({
+      id: `s_gen_${index}_${Date.now()}`,
+      l1: item.l1,
+      l2: item.l2,
+      word_targeted: item.word_targeted || ''
+    }))
+  };
+  
+  generatedIslandTemp.sentences.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.innerHTML = `
+      <div class="preview-l2">${escapeHtml(item.l2)}</div>
+      <div class="preview-l1 text-secondary">${escapeHtml(item.l1)}</div>
+      ${item.word_targeted ? `<span class="preview-tag">${escapeHtml(item.word_targeted)}</span>` : ''}
+    `;
+    container.appendChild(div);
+  });
+  
+  // Hacer scroll automático hacia los resultados
+  area.scrollIntoView({ behavior: 'smooth' });
+}
+
+function saveGeneratedIsland() {
+  if (!generatedIslandTemp) return;
+  
+  // Agregar al estado e inicializar
+  appState.islands.push(generatedIslandTemp);
+  currentIslandIndex = appState.islands.length - 1;
+  currentSentenceIndex = 0;
+  
+  saveAppState();
+  generatedIslandTemp = null;
+  
+  // Resetear interfaz de generación
+  document.getElementById('gen-preview-area').classList.add('hidden');
+  document.getElementById('gen-word-list').value = '';
+  document.getElementById('gen-island-name').value = '';
+  
+  // Ir al Karaoke
+  switchTab('learn');
+}
+
+// LÓGICA DE CREACIÓN MANUAL DE ISLAS
+let manualSentencesTemp = [];
+
+function toggleGenerateMode(mode) {
+  const btnAi = document.getElementById('btn-mode-ai');
+  const btnManual = document.getElementById('btn-mode-manual');
+  const btnImport = document.getElementById('btn-mode-import');
+  const panelAi = document.getElementById('panel-gen-ai');
+  const panelManual = document.getElementById('panel-gen-manual');
+  const panelImport = document.getElementById('panel-gen-import');
+  
+  btnAi.classList.remove('active');
+  btnManual.classList.remove('active');
+  btnImport.classList.remove('active');
+  panelAi.classList.add('hidden');
+  panelManual.classList.add('hidden');
+  panelImport.classList.add('hidden');
+  
+  if (mode === 'ai') {
+    btnAi.classList.add('active');
+    panelAi.classList.remove('hidden');
+  } else if (mode === 'manual') {
+    btnManual.classList.add('active');
+    panelManual.classList.remove('hidden');
+  } else if (mode === 'import') {
+    btnImport.classList.add('active');
+    panelImport.classList.remove('hidden');
+    initImportPanel();
+  }
+}
+
+function addManualSentence() {
+  const l1Input = document.getElementById('manual-sentence-l1');
+  const l2Input = document.getElementById('manual-sentence-l2');
+  const wordInput = document.getElementById('manual-sentence-word');
+  
+  const l1 = l1Input.value.trim();
+  const l2 = l2Input.value.trim();
+  const word = wordInput.value.trim();
+  
+  if (!l1 || !l2) {
+    alert("Por favor, completa los campos de oración L1 y L2.");
+    return;
+  }
+  
+  const newSentence = {
+    id: `s_man_${Date.now()}_${manualSentencesTemp.length}`,
+    l1: l1,
+    l2: l2,
+    word_targeted: word
+  };
+  
+  manualSentencesTemp.push(newSentence);
+  renderManualSentencesList();
+  
+  // Limpiar campos individuales
+  l1Input.value = '';
+  l2Input.value = '';
+  wordInput.value = '';
+  l1Input.focus();
+}
+
+function removeManualSentence(index) {
+  manualSentencesTemp.splice(index, 1);
+  renderManualSentencesList();
+}
+
+function renderManualSentencesList() {
+  const container = document.getElementById('manual-sentences-list-body');
+  const countEl = document.getElementById('manual-sentences-count');
+  const previewArea = document.getElementById('manual-list-preview-area');
+  const saveBtn = document.getElementById('btn-save-manual-island');
+  
+  container.innerHTML = '';
+  countEl.textContent = manualSentencesTemp.length;
+  
+  if (manualSentencesTemp.length === 0) {
+    previewArea.classList.add('hidden');
+    saveBtn.disabled = true;
+    return;
+  }
+  
+  previewArea.classList.remove('hidden');
+  saveBtn.disabled = false;
+  
+  manualSentencesTemp.forEach((item, index) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><p>${escapeHtml(item.l1)}</p></td>
+      <td><p><strong>${escapeHtml(item.l2)}</strong></p></td>
+      <td><span class="preview-tag">${escapeHtml(item.word_targeted || 'General')}</span></td>
+      <td>
+        <button type="button" class="btn-danger-text" data-index="${index}">
+          <span class="material-symbols-rounded">delete</span>
+          <span>Eliminar</span>
+        </button>
+      </td>
+    `;
+    
+    // Bind click en botón eliminar
+    tr.querySelector('.btn-danger-text').addEventListener('click', () => removeManualSentence(index));
+    container.appendChild(tr);
+  });
+}
+
+function saveManualIsland() {
+  const nameInput = document.getElementById('manual-island-name');
+  const name = nameInput.value.trim();
+  const lang = document.getElementById('manual-target-lang').value;
+  
+  if (!name) {
+    alert("Por favor, proporciona un nombre para tu isla lingüística.");
+    nameInput.focus();
+    return;
+  }
+  
+  if (manualSentencesTemp.length === 0) {
+    alert("Agrega al menos una oración antes de guardar la isla.");
+    return;
+  }
+  
+  const newIsland = {
+    id: 'island_manual_' + Date.now(),
+    name: name,
+    language: lang,
+    sentences: [...manualSentencesTemp]
+  };
+  
+  appState.islands.push(newIsland);
+  currentIslandIndex = appState.islands.length - 1;
+  currentSentenceIndex = 0;
+  
+  saveAppState();
+  
+  // Limpiar cola temporal e interfaz
+  manualSentencesTemp = [];
+  nameInput.value = '';
+  renderManualSentencesList();
+  
+  alert("Isla creada manualmente y guardada con éxito.");
+  
+  // Ir al Karaoke
+  switchTab('learn');
+}
+
+// ==========================================
+// 6.2 LÓGICA DE IMPORTACIÓN POR ARCHIVO PLANO
+// ==========================================
+let parsedSentencesTemp = [];
+
+function initImportPanel() {
+  parsedSentencesTemp = [];
+  
+  // Resetear formularios
+  document.getElementById('import-island-name').value = '';
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-file-name').textContent = 'Ningún archivo seleccionado';
+  document.getElementById('import-destination-type').value = 'new';
+  
+  // Ocultar/Mostrar campos condicionales
+  document.getElementById('import-new-island-fields').classList.remove('hidden');
+  document.getElementById('import-existing-island-fields').classList.add('hidden');
+  document.getElementById('import-preview-area').classList.add('hidden');
+  document.getElementById('btn-import-submit').disabled = true;
+  
+  // Cargar islas existentes en el selector
+  populateImportIslandsDropdown();
+}
+
+function populateImportIslandsDropdown() {
+  const select = document.getElementById('import-island-select');
+  select.innerHTML = '';
+  
+  if (appState.islands.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '-- No hay islas disponibles --';
+    select.appendChild(opt);
+    return;
+  }
+  
+  appState.islands.forEach(island => {
+    const opt = document.createElement('option');
+    opt.value = island.id;
+    opt.textContent = `${island.name} (${island.language})`;
+    select.appendChild(opt);
+  });
+}
+
+function handleImportDestinationChange(e) {
+  const type = e.target.value;
+  const newFields = document.getElementById('import-new-island-fields');
+  const existingFields = document.getElementById('import-existing-island-fields');
+  
+  if (type === 'new') {
+    newFields.classList.remove('hidden');
+    existingFields.classList.add('hidden');
+  } else {
+    newFields.classList.add('hidden');
+    existingFields.classList.remove('hidden');
+  }
+  validateImportSubmitButton();
+}
+
+function parsePlainLines(text) {
+  const lines = text.split(/\r?\n/);
+  const results = [];
+  
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    
+    // Ignorar líneas de cabecera si el usuario copia las instrucciones
+    if (trimmed.toLowerCase().startsWith("oración l1") || trimmed.toLowerCase().startsWith("ejemplo:")) return;
+    
+    let delimiter = null;
+    if (trimmed.includes('|')) {
+      delimiter = '|';
+    } else if (trimmed.includes(';')) {
+      delimiter = ';';
+    } else if (trimmed.includes('\t')) {
+      delimiter = '\t';
+    } else if (trimmed.includes(',')) {
+      // Usar coma solo si resulta en un split válido de mínimo 2 columnas
+      const parts = trimmed.split(',');
+      if (parts.length >= 2 && parts[0].trim().length > 0 && parts[1].trim().length > 0) {
+        delimiter = ',';
+      }
+    }
+    
+    if (delimiter) {
+      const columns = trimmed.split(delimiter).map(c => c.trim());
+      if (columns.length >= 2 && columns[0] && columns[1]) {
+        // Remover comillas si existen (estilo CSV estándar)
+        const cleanL1 = columns[0].replace(/^["']|["']$/g, '').trim();
+        const cleanL2 = columns[1].replace(/^["']|["']$/g, '').trim();
+        const cleanWord = columns[2] ? columns[2].replace(/^["']|["']$/g, '').trim() : '';
+        
+        results.push({
+          l1: cleanL1,
+          l2: cleanL2,
+          word: cleanWord
+        });
+      }
+    }
+  });
+  
+  return results;
+}
+
+function processImportInput() {
+  const text = document.getElementById('import-textarea').value;
+  parsedSentencesTemp = parsePlainLines(text);
+  renderImportPreview();
+}
+
+function renderImportPreview() {
+  const previewArea = document.getElementById('import-preview-area');
+  const countSpan = document.getElementById('import-preview-count');
+  const tbody = document.getElementById('import-preview-body');
+  
+  tbody.innerHTML = '';
+  
+  if (parsedSentencesTemp.length === 0) {
+    previewArea.classList.add('hidden');
+    validateImportSubmitButton();
+    return;
+  }
+  
+  countSpan.textContent = parsedSentencesTemp.length;
+  parsedSentencesTemp.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(s.l1)}</td>
+      <td>${escapeHtml(s.l2)}</td>
+      <td class="font-semibold text-primary">${escapeHtml(s.word || 'N/A')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  previewArea.classList.remove('hidden');
+  validateImportSubmitButton();
+}
+
+function handleImportFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  readImportFile(file);
+}
+
+function readImportFile(file) {
+  document.getElementById('import-file-name').textContent = file.name;
+  
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const content = evt.target.result;
+    document.getElementById('import-textarea').value = content;
+    processImportInput();
+  };
+  reader.onerror = function() {
+    alert("Error al leer el archivo plano.");
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function clearImportData() {
+  document.getElementById('import-textarea').value = '';
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-file-name').textContent = 'Ningún archivo seleccionado';
+  parsedSentencesTemp = [];
+  renderImportPreview();
+}
+
+function validateImportSubmitButton() {
+  const submitBtn = document.getElementById('btn-import-submit');
+  const destType = document.getElementById('import-destination-type').value;
+  
+  let valid = parsedSentencesTemp.length > 0;
+  
+  if (destType === 'new') {
+    const islandName = document.getElementById('import-island-name').value.trim();
+    if (!islandName) valid = false;
+  } else {
+    const islandSelect = document.getElementById('import-island-select').value;
+    if (!islandSelect) valid = false;
+  }
+  
+  submitBtn.disabled = !valid;
+}
+
+function submitImportedSentences() {
+  if (parsedSentencesTemp.length === 0) return;
+  
+  const destType = document.getElementById('import-destination-type').value;
+  let targetIslandIndex = -1;
+  
+  if (destType === 'new') {
+    const islandName = document.getElementById('import-island-name').value.trim();
+    const l2 = document.getElementById('import-target-lang').value;
+    
+    if (!islandName) {
+      alert("Por favor, proporciona un nombre para la nueva isla.");
+      document.getElementById('import-island-name').focus();
+      return;
+    }
+    
+    const newIsland = {
+      id: 'island_import_' + Date.now(),
+      name: islandName,
+      language: l2,
+      sentences: parsedSentencesTemp.map((s, idx) => ({
+        id: `s_imp_${Date.now()}_${idx}`,
+        l1: s.l1,
+        l2: s.l2,
+        word_targeted: s.word || s.l2.split(' ')[0].toLowerCase().replace(/[^a-zA-Z]/g, ''),
+        mastery: 0
+      }))
+    };
+    
+    appState.islands.push(newIsland);
+    targetIslandIndex = appState.islands.length - 1;
+    
+  } else {
+    const selectedId = document.getElementById('import-island-select').value;
+    if (!selectedId) {
+      alert("Por favor, selecciona una isla existente.");
+      return;
+    }
+    
+    const targetIsland = appState.islands.find(is => is.id === selectedId);
+    if (!targetIsland) {
+      alert("La isla seleccionada no existe.");
+      return;
+    }
+    
+    if (!targetIsland.sentences) targetIsland.sentences = [];
+    
+    parsedSentencesTemp.forEach((s, idx) => {
+      targetIsland.sentences.push({
+        id: `s_imp_${Date.now()}_${idx}`,
+        l1: s.l1,
+        l2: s.l2,
+        word_targeted: s.word || s.l2.split(' ')[0].toLowerCase().replace(/[^a-zA-Z]/g, ''),
+        mastery: 0
+      });
+    });
+    
+    targetIslandIndex = appState.islands.indexOf(targetIsland);
+  }
+  
+  currentIslandIndex = targetIslandIndex;
+  currentSentenceIndex = 0;
+  
+  saveAppState();
+  initImportPanel();
+  
+  alert("¡Oraciones importadas y guardadas correctamente!");
+  switchTab('learn');
+}
+
+// 7. PANEL DE CONFIGURACIÓN Y PERFIL
+function loadSettingsPanel() {
+  // Cargar perfil
+  if (appState.profile) {
+    document.getElementById('edit-first-name').value = appState.profile.firstName || '';
+    document.getElementById('edit-last-name').value = appState.profile.lastName || '';
+    document.getElementById('edit-email').value = appState.profile.email || '';
+    document.getElementById('edit-l1').value = appState.profile.l1 || 'Español';
+  }
+  
+  // Cargar llaves y API
+  document.getElementById('api-provider').value = appState.settings.apiProvider || 'openai';
+  document.getElementById('api-key').value = appState.settings.apiKey || '';
+  document.getElementById('api-url').value = appState.settings.apiUrl || '';
+  document.getElementById('api-tts-key').value = appState.settings.apiTtsKey || '';
+}
+
+function saveSettingsForm(e) {
+  e.preventDefault();
+  
+  appState.settings.apiProvider = document.getElementById('api-provider').value;
+  appState.settings.apiKey = document.getElementById('api-key').value.trim();
+  appState.settings.apiUrl = document.getElementById('api-url').value.trim();
+  appState.settings.apiTtsKey = document.getElementById('api-tts-key').value.trim();
+  
+  saveAppState();
+  alert("Configuración de API guardada exitosamente de forma local.");
+}
+
+function saveProfileEditForm(e) {
+  e.preventDefault();
+  
+  appState.profile = {
+    firstName: document.getElementById('edit-first-name').value.trim(),
+    lastName: document.getElementById('edit-last-name').value.trim(),
+    email: document.getElementById('edit-email').value.trim(),
+    l1: document.getElementById('edit-l1').value
+  };
+  
+  saveAppState();
+  updateUserDisplayBadge();
+  alert("Perfil actualizado correctamente.");
+}
+
+// 8. ONBOARDING & SETUP INICIAL
+function checkOnboarding() {
+  const onboardingScreen = document.getElementById('onboarding-screen');
+  if (!appState.profile) {
+    onboardingScreen.classList.remove('hidden');
+  } else {
+    onboardingScreen.classList.add('hidden');
+    updateUserDisplayBadge();
+  }
+}
+
+function handleOnboardingForm(e) {
+  e.preventDefault();
+  
+  const firstName = document.getElementById('profile-first-name').value.trim();
+  const lastName = document.getElementById('profile-last-name').value.trim();
+  const email = document.getElementById('profile-email').value.trim();
+  const l1 = document.getElementById('profile-l1').value;
+  
+  appState.profile = { firstName, lastName, email, l1 };
+  saveAppState();
+  
+  document.getElementById('onboarding-screen').classList.add('hidden');
+  updateUserDisplayBadge();
+  switchTab('learn');
+}
+
+function updateUserDisplayBadge() {
+  if (appState.profile) {
+    const fullName = `${appState.profile.firstName} ${appState.profile.lastName}`;
+    document.getElementById('user-display-name').textContent = fullName;
+    const avatarCharEl = document.getElementById('user-avatar-char');
+    if (avatarCharEl) {
+      avatarCharEl.textContent = appState.profile.firstName.charAt(0).toUpperCase();
+    }
+  }
+}
+
+// 9. AUXILIAR UTILS & EVENT BINDINGS
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Cargar estado local
+  loadAppState();
+  
+  // Inicializar UI
+  initTheme();
+  checkOnboarding();
+  initNavigation();
+  
+  // Asignar controladores
+  document.getElementById('theme-btn').addEventListener('click', rotateTheme);
+  document.getElementById('onboarding-form').addEventListener('submit', handleOnboardingForm);
+  document.getElementById('settings-form').addEventListener('submit', saveSettingsForm);
+  document.getElementById('profile-edit-form').addEventListener('submit', saveProfileEditForm);
+  document.getElementById('gen-island-form').addEventListener('submit', handleGenerateIsland);
+  document.getElementById('btn-save-generated').addEventListener('click', saveGeneratedIsland);
+  
+  // Sub-pestañas de modo (IA vs Manual vs Importar)
+  document.getElementById('btn-mode-ai').addEventListener('click', () => toggleGenerateMode('ai'));
+  document.getElementById('btn-mode-manual').addEventListener('click', () => toggleGenerateMode('manual'));
+  document.getElementById('btn-mode-import').addEventListener('click', () => toggleGenerateMode('import'));
+  
+  // Controladores Manuales
+  document.getElementById('btn-add-manual-sentence').addEventListener('click', addManualSentence);
+  document.getElementById('btn-save-manual-island').addEventListener('click', saveManualIsland);
+  
+  // Controladores de Importación
+  document.getElementById('import-destination-type').addEventListener('change', handleImportDestinationChange);
+  document.getElementById('import-island-name').addEventListener('input', validateImportSubmitButton);
+  document.getElementById('import-textarea').addEventListener('input', processImportInput);
+  document.getElementById('btn-import-clear').addEventListener('click', clearImportData);
+  document.getElementById('btn-import-submit').addEventListener('click', submitImportedSentences);
+  
+  // File upload and Drag & Drop events
+  const dragZone = document.getElementById('import-drag-zone');
+  const fileInput = document.getElementById('import-file-input');
+  
+  dragZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', handleImportFileSelect);
+  
+  dragZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dragZone.classList.add('dragover');
+  });
+  dragZone.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragZone.classList.add('dragover');
+  });
+  dragZone.addEventListener('dragleave', () => {
+    dragZone.classList.remove('dragover');
+  });
+  dragZone.addEventListener('dragend', () => {
+    dragZone.classList.remove('dragover');
+  });
+  dragZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.tsv'))) {
+      readImportFile(file);
+    } else {
+      alert("Por favor, suelta un archivo plano válido (.txt, .csv o .tsv).");
+    }
+  });
+  
+  // Controladores Karaoke
+  document.getElementById('btn-play-pause').addEventListener('click', playTTS);
+  document.getElementById('btn-prev-sentence').addEventListener('click', () => advanceSentence(-1));
+  document.getElementById('btn-next-sentence').addEventListener('click', () => advanceSentence(1));
+  document.getElementById('tts-speed').addEventListener('input', (e) => {
+    document.getElementById('speed-val').textContent = `${e.target.value}x`;
+    if (isPlaying) {
+      // Reiniciar TTS para aplicar la nueva velocidad
+      stopTTS();
+      playTTS();
+    }
+  });
+  
+  // Controladores Recall Loop
+  document.getElementById('btn-recall-submit').addEventListener('click', evaluateRecallAttempt);
+  document.getElementById('btn-recall-hint').addEventListener('click', showHint);
+  document.getElementById('btn-recall-next').addEventListener('click', () => {
+    currentPracticeIndex = (currentPracticeIndex + 1) % practiceSentences.length;
+    loadPracticeExercise();
+  });
+  
+  // Selector de isla para practicar
+  document.getElementById('recall-island-select').addEventListener('change', () => {
+    buildPracticeQueue();
+    currentPracticeIndex = 0;
+    loadPracticeExercise();
+  });
+  
+  // Exportar audio de la práctica (tus propias grabaciones)
+  document.getElementById('btn-recall-export-audio').addEventListener('click', exportPracticeToMp3);
+  
+  // Conmutadores de modo de práctica
+  const btnWriting = document.getElementById('btn-mode-writing');
+  const btnSpeech = document.getElementById('btn-mode-speech');
+  const writingGroup = document.getElementById('recall-writing-group');
+  const speechGroup = document.getElementById('recall-speech-group');
+  
+  btnWriting.addEventListener('click', () => {
+    activePracticeMode = 'writing';
+    btnWriting.classList.add('active');
+    btnSpeech.classList.remove('active');
+    writingGroup.classList.remove('hidden');
+    speechGroup.classList.add('hidden');
+    stopRecordingControls();
+    loadPracticeExercise();
+  });
+  
+  btnSpeech.addEventListener('click', () => {
+    activePracticeMode = 'speech';
+    btnSpeech.classList.add('active');
+    btnWriting.classList.remove('active');
+    speechGroup.classList.remove('hidden');
+    writingGroup.classList.add('hidden');
+    loadPracticeExercise();
+  });
+  
+  // Acción del micrófono
+  document.getElementById('btn-record-speech').addEventListener('click', toggleSpeechRecording);
+  
+  // Escuchar pronunciación correcta de referencia
+  document.getElementById('btn-speech-play-target').addEventListener('click', playPracticeSentenceTTS);
+  
+  // Validar pronunciación por voz
+  document.getElementById('btn-speech-submit').addEventListener('click', evaluatePronunciationAttempt);
+  
+  // Reproducir mi propia grabación
+  document.getElementById('btn-replay-user-voice').addEventListener('click', () => {
+    if (userRecordedVoiceUrl) {
+      const audio = new Audio(userRecordedVoiceUrl);
+      audio.play().catch(e => console.error("Replay playback error:", e));
+    }
+  });
+  
+  // Ver visibilidad API key
+  document.getElementById('btn-toggle-key-visibility').addEventListener('click', () => {
+    const keyInput = document.getElementById('api-key');
+    const keyIcon = document.querySelector('#btn-toggle-key-visibility span');
+    if (keyInput.type === 'password') {
+      keyInput.type = 'text';
+      keyIcon.textContent = 'visibility_off';
+    } else {
+      keyInput.type = 'password';
+      keyIcon.textContent = 'visibility';
+    }
+  });
+
+  // Ver visibilidad API key de TTS
+  document.getElementById('btn-toggle-tts-key-visibility').addEventListener('click', () => {
+    const keyInput = document.getElementById('api-tts-key');
+    const keyIcon = document.querySelector('#btn-toggle-tts-key-visibility span');
+    if (keyInput.type === 'password') {
+      keyInput.type = 'text';
+      keyIcon.textContent = 'visibility_off';
+    } else {
+      keyInput.type = 'password';
+      keyIcon.textContent = 'visibility';
+    }
+  });
+
+  // Sincronizar selectores de motor y voces
+  document.getElementById('tts-engine').value = appState.settings.ttsEngine || 'browser';
+  populateVoicesDropdown();
+
+  document.getElementById('tts-engine').addEventListener('change', (e) => {
+    stopTTS();
+    appState.settings.ttsEngine = e.target.value;
+    saveAppState();
+    populateVoicesDropdown();
+  });
+
+  document.getElementById('tts-voice').addEventListener('change', (e) => {
+    stopTTS();
+    const engine = document.getElementById('tts-engine').value;
+    if (engine === 'openai') {
+      appState.settings.ttsVoiceOpenAI = e.target.value;
+    } else if (engine === 'azure') {
+      appState.settings.ttsVoiceAzure = e.target.value;
+    } else {
+      appState.settings.ttsVoiceBrowser = e.target.value;
+    }
+    saveAppState();
+  });
+
+  // Controladores de velocidad
+  document.getElementById('btn-speed-reset').addEventListener('click', () => {
+    const slider = document.getElementById('tts-speed');
+    slider.value = 1.0;
+    document.getElementById('speed-val').textContent = '1.0x';
+    // Desencadenar el evento input
+    const event = new Event('input', { bubbles: true });
+    slider.dispatchEvent(event);
+  });
+
+  // Exportador de isla a MP3
+  document.getElementById('btn-export-active-island').addEventListener('click', openExportOptionsModal);
+
+  // Editores de Isla activa
+  document.getElementById('btn-edit-active-island').addEventListener('click', openEditActiveIslandModal);
+  document.getElementById('btn-close-edit-island').addEventListener('click', () => {
+    document.getElementById('edit-island-screen').classList.add('hidden');
+  });
+  document.getElementById('btn-cancel-edit-island').addEventListener('click', () => {
+    document.getElementById('edit-island-screen').classList.add('hidden');
+  });
+  document.getElementById('btn-add-edit-sentence').addEventListener('click', addNewSentenceToEditing);
+  document.getElementById('btn-save-edit-island-changes').addEventListener('click', saveEditIslandChanges);
+  
+  // Eliminar isla desde el modal
+  document.getElementById('btn-delete-island-modal').addEventListener('click', async () => {
+    const island = appState.islands[currentIslandIndex];
+    if (!island) return;
+    const confirmed = await showCustomConfirm(
+      `¿Eliminar "${island.name}"?`,
+      `¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`
+    );
+    if (confirmed) {
+      const deletedIndex = currentIslandIndex;
+      stopTTS();
+      appState.islands.splice(deletedIndex, 1);
+      
+      // Ajustar el índice activo de forma coherente
+      if (currentIslandIndex >= appState.islands.length) {
+        currentIslandIndex = Math.max(0, appState.islands.length - 1);
+      }
+      
+      currentSentenceIndex = 0;
+      saveAppState();
+      document.getElementById('edit-island-screen').classList.add('hidden');
+      renderIslandSelectors();
+      loadCurrentSentence();
+    }
+  });
+
+  // Inicializar panel de metodología y guías
+  initMethodologyPanel();
+
+  // Panel inicial por defecto
+  initLearnPanel();
+});
+
+// ==================================================================
+// 10. FUNCIONES DE APOYO PARA MEJORAS (TTS SELECTION, MP3 & EDIT CRUD)
+// ==================================================================
+
+function populateVoicesDropdown() {
+  const select = document.getElementById('tts-voice');
+  if (!select) return;
+  select.innerHTML = '';
+  
+  const engine = document.getElementById('tts-engine').value;
+  const island = appState.islands[currentIslandIndex];
+  const lang = island ? island.language : 'Inglés';
+  const langCode = LANG_CODES[lang] || 'en-US';
+  
+  if (engine === 'openai') {
+    OPENAI_VOICES.forEach(voice => {
+      const opt = document.createElement('option');
+      opt.value = voice.id;
+      opt.textContent = voice.name;
+      if (appState.settings.ttsVoiceOpenAI === voice.id) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  } else if (engine === 'azure') {
+    const list = AZURE_VOICES[lang] || AZURE_VOICES['Inglés'];
+    list.forEach(voice => {
+      const opt = document.createElement('option');
+      opt.value = voice.id;
+      opt.textContent = voice.name;
+      if (appState.settings.ttsVoiceAzure === voice.id) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  } else {
+    if (!window.speechSynthesis) return;
+    const voices = window.speechSynthesis.getVoices();
+    const prefix = langCode.split('-')[0];
+    const filtered = voices.filter(voice => voice.lang.toLowerCase().startsWith(prefix));
+    
+    const listToUse = filtered.length > 0 ? filtered : voices;
+    
+    // Priorizar voces que soporten onboundary (Google, Siri, Natural) y ordenarlas al principio
+    listToUse.sort((a, b) => {
+      const aLower = a.name.toLowerCase();
+      const bLower = b.name.toLowerCase();
+      
+      const aPremium = aLower.includes('google') || aLower.includes('siri') || aLower.includes('natural');
+      const bPremium = bLower.includes('google') || bLower.includes('siri') || bLower.includes('natural');
+      
+      if (aPremium && !bPremium) return -1;
+      if (!aPremium && bPremium) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    listToUse.forEach(voice => {
+      const opt = document.createElement('option');
+      opt.value = voice.name;
+      opt.textContent = `${voice.name} (${voice.lang})`;
+      if (appState.settings.ttsVoiceBrowser === voice.name) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  }
+}
+
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    if (document.getElementById('tts-engine') && document.getElementById('tts-engine').value === 'browser') {
+      populateVoicesDropdown();
+    }
+  };
+}
+
+async function openExportOptionsModal() {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || island.sentences.length === 0) {
+    alert("No hay oraciones en esta isla para exportar.");
+    return;
+  }
+
+  const engine = document.getElementById('tts-engine').value;
+  if (engine !== 'openai' && engine !== 'azure') {
+    alert("La exportación a archivos de sonido MP3 requiere activar el motor 'OpenAI (Premium)' o 'Microsoft Azure (Neuronal Gratis)' en el reproductor.");
+    return;
+  }
+
+  const total = island.sentences.length;
+  
+  // Asignar etiquetas dinámicas en el modal
+  document.getElementById('export-all-count-label').textContent = `Exportará las ${total} oraciones de la isla.`;
+  
+  const radio30 = document.getElementById('export-range-30');
+  const label30 = document.getElementById('export-last-30-label');
+  
+  if (total <= 30) {
+    radio30.disabled = true;
+    label30.textContent = "La isla tiene 30 frases o menos (esta opción está deshabilitada).";
+    document.getElementById('export-range-all').checked = true;
+  } else {
+    radio30.disabled = false;
+    label30.textContent = "Ideal para repasar las adiciones o cambios más recientes.";
+  }
+
+  // Función para actualizar el texto de comportamiento esperado
+  const updateBehaviorText = () => {
+    const selectedRange = document.querySelector('input[name="export-range"]:checked').value;
+    const infoText = document.getElementById('export-behavior-info-text');
+    
+    if (selectedRange === 'last30') {
+      infoText.innerHTML = `Se exportarán solo las <strong>últimas 30 frases</strong>. Como el lote es menor o igual a 30, se consolidarán en <strong>un único archivo MP3 continuo</strong> en tu descarga.`;
+    } else {
+      if (total <= 30) {
+        infoText.innerHTML = `Se exportará la isla completa (<strong>${total} frases</strong>). Como el total es menor o igual a 30, se consolidarán en <strong>un único archivo MP3 continuo</strong> en tu descarga.`;
+      } else {
+        const totalChunks = Math.ceil(total / 30);
+        infoText.innerHTML = `Se exportará la isla completa (<strong>${total} frases</strong>). Al superar las 30 frases, se dividirá en <strong>${totalChunks} archivos de audio consolidados</strong> de máximo 30 oraciones consecutivas cada uno.`;
+      }
+    }
+  };
+
+  // Escuchar cambios de radio
+  const radioAll = document.getElementById('export-range-all');
+  radioAll.addEventListener('change', updateBehaviorText);
+  radio30.addEventListener('change', updateBehaviorText);
+  
+  updateBehaviorText();
+
+  // Mostrar modal
+  const screen = document.getElementById('export-options-screen');
+  screen.classList.remove('hidden');
+
+  // Limpiar event listeners previos de los botones
+  const cancelBtn = document.getElementById('btn-export-options-cancel');
+  const confirmBtn = document.getElementById('btn-export-options-confirm');
+
+  const onCancel = () => {
+    screen.classList.add('hidden');
+    cleanup();
+  };
+
+  const onConfirm = () => {
+    screen.classList.add('hidden');
+    cleanup();
+    const selectedRange = document.querySelector('input[name="export-range"]:checked').value;
+    exportIslandToMp3(selectedRange);
+  };
+
+  function cleanup() {
+    cancelBtn.removeEventListener('click', onCancel);
+    confirmBtn.removeEventListener('click', onConfirm);
+    radioAll.removeEventListener('change', updateBehaviorText);
+    radio30.removeEventListener('change', updateBehaviorText);
+  }
+
+  cancelBtn.addEventListener('click', onCancel);
+  confirmBtn.addEventListener('click', onConfirm);
+}
+
+async function exportIslandToMp3(rangeSelection) {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || island.sentences.length === 0) {
+    alert("No hay oraciones en esta isla para exportar.");
+    return;
+  }
+  
+  const engine = document.getElementById('tts-engine').value;
+  if (engine !== 'openai' && engine !== 'azure') {
+    alert("La exportación a archivos de sonido MP3 requiere activar el motor 'OpenAI (Premium)' o 'Microsoft Azure (Neuronal Gratis)' en el reproductor.");
+    return;
+  }
+  
+  let key = '';
+  if (engine === 'openai') {
+    key = appState.settings.apiTtsKey;
+    if (!key && appState.settings.apiProvider === 'openai') {
+      key = appState.settings.apiKey;
+    }
+    
+    if (!key) {
+      alert("Por favor, ingresa tu clave API de OpenAI en la pestaña de Ajustes para poder exportar.");
+      switchTab('settings');
+      return;
+    }
+  }
+
+  // Filtrar oraciones
+  let sentencesToExport = island.sentences;
+  if (rangeSelection === 'last30') {
+    sentencesToExport = island.sentences.slice(-30);
+  }
+
+  if (sentencesToExport.length === 0) {
+    alert("No hay oraciones seleccionadas para exportar.");
+    return;
+  }
+  
+  const progressIndicator = document.getElementById('export-loading-indicator');
+  const progressText = document.getElementById('export-progress-text');
+  progressIndicator.classList.remove('hidden');
+  
+  try {
+    const zip = new JSZip();
+    const voice = document.getElementById('tts-voice').value || (engine === 'openai' ? 'alloy' : 'en-US-JennyNeural');
+    const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
+    const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+    const url = `${baseUrl}/audio/speech`;
+    
+    let readmeText = `HYPERPOLYGLOT HARNESS - EXPORTACIÓN DE ISLA LINGÜÍSTICA\n`;
+    readmeText += `Isla: ${island.name}\n`;
+    readmeText += `Idioma: ${island.language}\n`;
+    readmeText += `Voz: ${voice} | Velocidad: ${speed}x\n`;
+    readmeText += `Motor: ${engine === 'openai' ? 'OpenAI Premium' : 'Microsoft Azure Neural'}\n`;
+    readmeText += `Rango Seleccionado: ${rangeSelection === 'last30' ? 'Últimas 30 oraciones' : 'Todas las oraciones'}\n`;
+    readmeText += `Fecha: ${new Date().toLocaleString()}\n`;
+    readmeText += `==========================================================\n\n`;
+
+    // 1. Dividir las oraciones a exportar en grupos (chunks) de máximo 30
+    const chunkSize = 30;
+    const chunks = [];
+    for (let i = 0; i < sentencesToExport.length; i += chunkSize) {
+      chunks.push(sentencesToExport.slice(i, i + chunkSize));
+    }
+
+    // 2. Procesar cada chunk de forma secuencial
+    for (let c = 0; c < chunks.length; c++) {
+      const currentChunk = chunks[c];
+      const startNum = c * chunkSize + 1;
+      const endNum = Math.min((c + 1) * chunkSize, sentencesToExport.length);
+      
+      const audioBuffers = [];
+      
+      readmeText += `--- AUDIO PARTE ${String(c + 1).padStart(2, '0')} (Oraciones de la ${startNum} a la ${endNum}) ---\n`;
+      
+      for (let i = 0; i < currentChunk.length; i++) {
+        const sentence = currentChunk[i];
+        const overallIndex = c * chunkSize + i + 1;
+        progressText.textContent = `Generando audio ${overallIndex}/${sentencesToExport.length}...`;
+        
+        let response;
+        if (engine === 'openai') {
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${key}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'tts-1',
+              input: sentence.l2,
+              voice: voice,
+              speed: speed
+            })
+          });
+        } else {
+          const fetchUrl = `/api/tts?text=${encodeURIComponent(sentence.l2)}&voice=${encodeURIComponent(voice)}&speed=${speed}`;
+          response = await fetch(fetchUrl);
+        }
+        
+        if (!response.ok) {
+          throw new Error(`Error en la frase ${overallIndex}: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        audioBuffers.push(arrayBuffer);
+        
+        readmeText += `${String(overallIndex).padStart(2, '0')}. L1: ${sentence.l1}\n`;
+        readmeText += `    L2: ${sentence.l2}\n`;
+        readmeText += `    Palabra Clave: ${sentence.word_targeted || 'General'}\n\n`;
+      }
+      
+      // 3. Concatenar los audios de este chunk en un único archivo
+      progressText.textContent = `Consolidando audio parte ${c + 1}/${chunks.length}...`;
+      const combinedLength = audioBuffers.reduce((acc, b) => acc + b.byteLength, 0);
+      const combinedBuffer = new Uint8Array(combinedLength);
+      let offset = 0;
+      for (const buffer of audioBuffers) {
+        combinedBuffer.set(new Uint8Array(buffer), offset);
+        offset += buffer.byteLength;
+      }
+      
+      // Determinar nombre del archivo de audio del chunk
+      const islandPrefix = island.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      let audioFilename = "";
+      if (chunks.length === 1) {
+        audioFilename = `${islandPrefix}_completo.mp3`;
+      } else {
+        audioFilename = `${islandPrefix}_parte_${String(c + 1).padStart(2, '0')}_frases_${startNum}_a_${endNum}.mp3`;
+      }
+      
+      zip.file(audioFilename, combinedBuffer.buffer);
+    }
+    
+    zip.file("LEEME.txt", readmeText);
+    progressText.textContent = "Empaquetando en ZIP...";
+    
+    const content = await zip.generateAsync({ type: "blob" });
+    const filename = `${island.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_isla_audio.zip`;
+    
+    const response = await fetch(`/api/save-export?filename=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream'
+      },
+      body: content
+    });
+    const resData = await response.json();
+    if (!resData.success) {
+      throw new Error("No se pudo guardar la exportación en el servidor.");
+    }
+    
+    const a = document.createElement('a');
+    a.href = resData.url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    alert("¡Isla de audio exportada con éxito en un archivo ZIP!");
+  } catch (err) {
+    console.error("Export error:", err);
+    alert(`Ocurrió un error al exportar la isla: ${err.message}`);
+  } finally {
+    progressIndicator.classList.add('hidden');
+  }
+}
+
+let editingIslandTemp = null;
+
+function openEditActiveIslandModal() {
+  const island = appState.islands[currentIslandIndex];
+  if (!island) {
+    alert("No hay ninguna isla seleccionada para editar.");
+    return;
+  }
+  
+  editingIslandTemp = JSON.parse(JSON.stringify(island));
+  document.getElementById('edit-island-name-input').value = editingIslandTemp.name;
+  
+  document.getElementById('add-sentence-l1').value = '';
+  document.getElementById('add-sentence-l2').value = '';
+  document.getElementById('add-sentence-word').value = '';
+  
+  renderEditIslandSentencesList();
+  document.getElementById('edit-island-screen').classList.remove('hidden');
+}
+
+function renderEditIslandSentencesList() {
+  const container = document.getElementById('edit-island-sentences-list');
+  const countEl = document.getElementById('edit-island-sentences-count');
+  
+  container.innerHTML = '';
+  countEl.textContent = editingIslandTemp.sentences.length;
+  
+  editingIslandTemp.sentences.forEach((item, index) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding: 6px;"><input type="text" class="edit-l1-field" value="${escapeHtml(item.l1)}" required style="width:100%;"></td>
+      <td style="padding: 6px;"><input type="text" class="edit-l2-field" value="${escapeHtml(item.l2)}" required style="width:100%;"></td>
+      <td style="padding: 6px;"><input type="text" class="edit-word-field" value="${escapeHtml(item.word_targeted || '')}" style="width:100%;"></td>
+      <td style="padding: 6px; text-align: center;">
+        <button type="button" class="btn-danger-text btn-delete-edit" style="padding: 4px 8px; font-size:12px;">
+          <span class="material-symbols-rounded" style="font-size:16px;">delete</span>
+        </button>
+      </td>
+    `;
+    
+    tr.querySelector('.edit-l1-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].l1 = e.target.value.trim();
+    });
+    tr.querySelector('.edit-l2-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].l2 = e.target.value.trim();
+    });
+    tr.querySelector('.edit-word-field').addEventListener('input', (e) => {
+      editingIslandTemp.sentences[index].word_targeted = e.target.value.trim();
+    });
+    
+    tr.querySelector('.btn-delete-edit').addEventListener('click', () => {
+      editingIslandTemp.sentences.splice(index, 1);
+      renderEditIslandSentencesList();
+    });
+    
+    container.appendChild(tr);
+  });
+}
+
+function addNewSentenceToEditing() {
+  const l1Input = document.getElementById('add-sentence-l1');
+  const l2Input = document.getElementById('add-sentence-l2');
+  const wordInput = document.getElementById('add-sentence-word');
+  
+  const l1 = l1Input.value.trim();
+  const l2 = l2Input.value.trim();
+  const word = wordInput.value.trim();
+  
+  if (!l1 || !l2) {
+    alert("Por favor completa los campos L1 y L2 para agregar una nueva frase.");
+    return;
+  }
+  
+  editingIslandTemp.sentences.push({
+    id: `s_ed_man_${Date.now()}_${editingIslandTemp.sentences.length}`,
+    l1: l1,
+    l2: l2,
+    word_targeted: word
+  });
+  
+  renderEditIslandSentencesList();
+  
+  l1Input.value = '';
+  l2Input.value = '';
+  wordInput.value = '';
+  l1Input.focus();
+}
+
+function saveEditIslandChanges() {
+  const nameInput = document.getElementById('edit-island-name-input');
+  const name = nameInput.value.trim();
+  
+  if (!name) {
+    alert("El nombre de la isla no puede estar vacío.");
+    nameInput.focus();
+    return;
+  }
+  
+  if (editingIslandTemp.sentences.length === 0) {
+    alert("La isla debe tener al menos una oración.");
+    return;
+  }
+  
+  // Validar campos vacíos en las frases
+  const hasEmpty = editingIslandTemp.sentences.some(s => !s.l1 || !s.l2);
+  if (hasEmpty) {
+    alert("Todas las frases añadidas deben tener un texto válido en L1 y L2.");
+    return;
+  }
+  
+  editingIslandTemp.name = name;
+  appState.islands[currentIslandIndex] = JSON.parse(JSON.stringify(editingIslandTemp));
+  saveAppState();
+  
+  document.getElementById('edit-island-screen').classList.add('hidden');
+  renderIslandSelectors();
+  loadCurrentSentence();
+  alert("Isla guardada exitosamente con sus cambios.");
+}
+
+// ==================================================================
+// 11. METODOLOGÍA Y VIDEO TUTORIALES MULTILINGÜES (DOBLAJE)
+// ==================================================================
+const TUTORIAL_NARRATIONS = {
+  karaoke: {
+    'Español': 'Este tutorial demuestra cómo funciona el Bucle de Karaoke. El reproductor sintetiza la oración en el idioma objetivo mientras resalta cada palabra en tiempo real, permitiendo asimilar la entonación y velocidad de forma natural.',
+    'Inglés': 'This tutorial demonstrates how the Karaoke Loop works. The player synthesizes the sentence in the target language while highlighting each word in real time, allowing you to absorb intonation and speed naturally.',
+    'Portugués': 'Este tutorial demonstra como funciona o Loop de Karaoke. O reprodutor sintetiza a frase no idioma de destino enquanto destaca cada palavra em tempo real, permitindo absorver a entonação e a velocidade naturalmente.',
+    'Francés': 'Ce didacticiel montre comment fonctionne la boucle de karaoké. Le lecteur synthétise la phrase dans la langue cible tout en surbrillant chaque mot en temps réel, vous permettant d\'absorber l\'intonation et la vitesse naturellement.',
+    'Alemán': 'Dieses Tutorial zeigt, wie die Karaoke-Schleife funktioniert. Der Player synthetisiert den Satz in der Zielsprache und hebt jedes Wort in Echtzeit hervor, sodass Sie Intonation und Geschwindigkeit natürlich aufnehmen können.',
+    'Italiano': 'Questo tutorial mostra come funziona il Karaoke Loop. Il lettore sintetizza la frase nella lingua di destinazione evidenziando ogni parola in tempo reale, consentendoti di assorbire l\'intonazione e la velocità in modo naturale.'
+  },
+  practice: {
+    'Español': 'Este tutorial muestra la pestaña de Práctica. Aquí puedes escribir tu traducción o presionar el micrófono para practicar tu pronunciación. El sistema evaluará tus errores en color rojo con subrayado ondulado y guardará tus estadísticas.',
+    'Inglés': 'This tutorial shows the Practice tab. Here you can write your translation or press the microphone to practice your pronunciation. The system will evaluate your mistakes in red with a wavy underline and save your statistics.',
+    'Portugués': 'Este tutorial mostra a aba de Prática. Aqui você pode escrever sua tradução ou pressionar o microfone para praticar sua pronúncia. O sistema avaliará seus erros em vermelho com um sublinhado ondulado e salvará suas estatísticas.',
+    'Francés': 'Ce didacticiel montre l\'onglet Pratique. Ici, vous pouvez écrire votre traduction ou appuyer sur le microphone pour pratiquer votre prononciation. Le système évaluera vos erreurs en rouge avec un soulignement ondulé et enregistrera vos statistiques.',
+    'Alemán': 'Dieses Tutorial zeigt die Registerkarte "Praxis". Hier können Sie Ihre Übersetzung schreiben oder das Mikrofon drücken, um Ihre Aussprache zu üben. Das System bewertet Ihre Fehler in Rot mit einer gewellten Unterstreichung und speichert Ihre Statistiken.',
+    'Italiano': 'Questo tutorial mostra la scheda Pratica. Qui puoi scrivere la tua traduzione o premere el microfono para ejercitarti con la pronuncia. Il sistema valuterà i tuoi errori in rosso con una sottolineatura ondulata e salverà le tue statistiche.'
+  },
+  create_islands: {
+    'Español': 'Este tutorial enseña cómo crear tus islas de aprendizaje usando tres opciones: generar oraciones con Inteligencia Artificial mediante tu clave API, estructurarlas manualmente una a una, o cargar un archivo plano delimitado.',
+    'Inglés': 'This tutorial teaches you how to create your learning islands using three options: generating sentences with Artificial Intelligence using your API key, structuring them manually one by one, or loading a delimited flat file.',
+    'Portugués': 'Este tutorial ensina como criar suas ilhas de aprendizagem usando três opções: gerar frases com Inteligência Artificial usando sua chave de API, estruturá-las manualmente uma a uma, ou carregar um arquivo plano delimitado.',
+    'Francés': 'Ce didacticiel vous apprend à créer vos îles d\'apprentissage à l\'aide de trois options : générer des phrases avec l\'Intelligence Artificielle à l\'aide de votre clé API, les structurer manuellement une par une, ou charger un fichier plat délimité.',
+    'Alemán': 'Dieses Tutorial zeigt Ihnen, wie Sie Ihre Lerninseln mit drei Optionen erstellen: Sätze mit künstlicher Intelligenz über Ihren API-Schlüssel generieren, sie nacheinander manuell strukturieren oder eine begrenzte flache Datei laden.',
+    'Italiano': 'Questo tutorial ti insegna come creare le tue isole di apprendimento utilizzando tre opzioni: generare frasi con l\'Intelligenza Artificiale utilizzando la tua chiave API, strutturarle manualmente una per una o caricare un file piatto delimitato.'
+  }
+};
+
+function initMethodologyPanel() {
+  // Configurar escuchadores de cambio de idioma de doblaje para actualizar texto en pantalla
+  document.querySelectorAll('.narration-lang').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const type = e.target.getAttribute('data-tutorial');
+      const lang = e.target.value;
+      const textEl = document.getElementById(`narration-${type}-text`);
+      if (textEl && TUTORIAL_NARRATIONS[type] && TUTORIAL_NARRATIONS[type][lang]) {
+        textEl.textContent = TUTORIAL_NARRATIONS[type][lang];
+      }
+    });
+  });
+
+  // Configurar botones de reproducción de doblaje por voz
+  document.querySelectorAll('.btn-play-narration').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const targetBtn = e.currentTarget;
+      const type = targetBtn.getAttribute('data-tutorial');
+      const select = document.querySelector(`.narration-lang[data-tutorial="${type}"]`);
+      if (!select) return;
+      
+      const lang = select.value;
+      const text = TUTORIAL_NARRATIONS[type][lang];
+      if (!text) return;
+      
+      // Detener cualquier síntesis de voz en curso
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      
+      // Cambiar icono a bocina activa temporalmente
+      const icon = targetBtn.querySelector('.material-symbols-rounded');
+      const textSpan = targetBtn.querySelector('span:not(.material-symbols-rounded)');
+      
+      const originalIcon = icon ? icon.textContent : 'volume_up';
+      const originalText = textSpan ? textSpan.textContent : 'Reproducir Doblaje';
+      
+      if (icon) icon.textContent = 'record_voice_over';
+      if (textSpan) textSpan.textContent = 'Hablando...';
+      
+      const langCodeMap = {
+        'Inglés': 'en-US',
+        'Portugués': 'pt-BR',
+        'Francés': 'fr-FR',
+        'Español': 'es-ES',
+        'Alemán': 'de-DE',
+        'Italiano': 'it-IT'
+      };
+      const langCode = langCodeMap[lang] || 'es-ES';
+      
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = langCode;
+      
+      // Buscar una voz adecuada del navegador para ese idioma
+      if (window.speechSynthesis) {
+        const voices = window.speechSynthesis.getVoices();
+        const matchedVoice = voices.find(v => v.lang.startsWith(langCode));
+        if (matchedVoice) {
+          utter.voice = matchedVoice;
+        }
+      }
+      
+      utter.onend = () => {
+        if (icon) icon.textContent = originalIcon;
+        if (textSpan) textSpan.textContent = originalText;
+      };
+      
+      utter.onerror = () => {
+        if (icon) icon.textContent = originalIcon;
+        if (textSpan) textSpan.textContent = originalText;
+      };
+      
+      window.speechSynthesis.speak(utter);
+    });
+  });
+
+  // Configurar escuchadores de control de videos explicativos (Play, Stop, Reiniciar)
+  initVideoControls();
+}
+
+function initVideoControls() {
+  document.querySelectorAll('.btn-play').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget.getAttribute('data-target');
+      playTutorialVideo(target);
+    });
+  });
+  
+  document.querySelectorAll('.btn-stop').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget.getAttribute('data-target');
+      stopTutorialVideo(target);
+    });
+  });
+  
+  document.querySelectorAll('.btn-restart').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.currentTarget.getAttribute('data-target');
+      restartTutorialVideo(target);
+    });
+  });
+  
+  document.querySelectorAll('.video-placeholder-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+      const target = overlay.id.replace('video-placeholder-', '');
+      playTutorialVideo(target);
+    });
+  });
+}
+
+function playTutorialVideo(target) {
+  const img = document.getElementById(`video-img-${target}`);
+  const placeholder = document.getElementById(`video-placeholder-${target}`);
+  
+  if (img && placeholder) {
+    const baseSrc = img.getAttribute('data-base-src');
+    if (!img.src || img.classList.contains('video-stopped')) {
+      img.src = baseSrc + '?t=' + Date.now();
+      img.classList.remove('video-stopped');
+    }
+    img.style.display = 'block';
+    img.style.opacity = '1';
+    placeholder.classList.add('hidden');
+  }
+}
+
+function stopTutorialVideo(target) {
+  const img = document.getElementById(`video-img-${target}`);
+  const placeholder = document.getElementById(`video-placeholder-${target}`);
+  
+  if (img && placeholder) {
+    img.classList.add('video-stopped');
+    img.style.display = 'none';
+    placeholder.classList.remove('hidden');
+  }
+}
+
+function restartTutorialVideo(target) {
+  const img = document.getElementById(`video-img-${target}`);
+  const placeholder = document.getElementById(`video-placeholder-${target}`);
+  
+  if (img && placeholder) {
+    const baseSrc = img.getAttribute('data-base-src');
+    img.src = baseSrc + '?t=' + Date.now();
+    img.classList.remove('video-stopped');
+    img.style.display = 'block';
+    img.style.opacity = '1';
+    placeholder.classList.add('hidden');
+  }
+}
+

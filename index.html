@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperpolyglot Harness - El Método Mikel</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Aplicación PWA local-first para el aprendizaje de idiomas con el Método Mikel. Sin servidores, Text-To-Speech nativo y LLM con tu propia API key (BYOK).">
+  
+  <!-- Google Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  
+  <!-- Main Styles -->
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- App Container -->
+  <div id="app" class="app-layout">
+    
+    <!-- Onboarding Overlay (Hidden if profile exists) -->
+    <div id="onboarding-screen" class="modal-overlay hidden">
+      <div class="modal-card onboarding-card">
+        <div class="card-header text-center">
+          <span class="material-symbols-rounded icon-hero text-primary">translate</span>
+          <h1>Hyperpolyglot Harness</h1>
+          <p class="subtitle text-secondary">Tu entorno local-first para dominar idiomas con el Método Mikel</p>
+        </div>
+        
+        <form id="onboarding-form" class="form-container">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profile-first-name">Nombre</label>
+              <input type="text" id="profile-first-name" required placeholder="Ej. Mikel">
+            </div>
+            <div class="form-group">
+              <label for="profile-last-name">Apellido</label>
+              <input type="text" id="profile-last-name" required placeholder="Ej. Hyperpolyglot">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="profile-email">Correo Electrónico</label>
+            <input type="email" id="profile-email" required placeholder="correo@ejemplo.com">
+          </div>
+          
+          <div class="form-group">
+            <label for="profile-l1">Idioma Nativo (L1)</label>
+            <select id="profile-l1">
+              <option value="Español" selected>Español</option>
+              <option value="Inglés">Inglés</option>
+              <option value="Portugués">Portugués</option>
+              <option value="Francés">Francés</option>
+              <option value="Alemán">Alemán</option>
+              <option value="Italiano">Italiano</option>
+            </select>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-full btn-lg">
+            <span>Comenzar Aventura</span>
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Navigation Rail / Sidebar (For Desktop/Laptops) -->
+    <aside class="sidebar-nav">
+      <div class="sidebar-header">
+        <span class="material-symbols-rounded text-primary">translate</span>
+        <span class="logo-text">Hyperpolyglot</span>
+      </div>
+      
+      <nav class="nav-links">
+        <a href="#learn" class="nav-link active" data-tab="learn">
+          <span class="material-symbols-rounded">play_circle</span>
+          <span class="nav-label">Aprender (Karaoke)</span>
+        </a>
+        <a href="#practice" class="nav-link" data-tab="practice">
+          <span class="material-symbols-rounded">fitness_center</span>
+          <span class="nav-label">Practicar (Recall)</span>
+        </a>
+        <a href="#generate" class="nav-link" data-tab="generate">
+          <span class="material-symbols-rounded">psychology</span>
+          <span class="nav-label">Generar Islas</span>
+        </a>
+        <a href="#methodology" class="nav-link" data-tab="methodology">
+          <span class="material-symbols-rounded">menu_book</span>
+          <span class="nav-label">Metodología y Guía</span>
+        </a>
+        <a href="#settings" class="nav-link" data-tab="settings">
+          <span class="material-symbols-rounded">settings</span>
+          <span class="nav-label">Configuración</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="user-avatar level-1" id="user-avatar-container" style="position: relative; overflow: hidden; width: 44px; height: 44px; border-radius: 50%;">
+            <img id="user-avatar-img" src="assets/avatars/brain_level1.png" alt="Brain Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <div class="user-info">
+            <span class="user-name" id="user-display-name">Usuario</span>
+            <span class="user-level text-secondary">Cerebro Novato</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Content -->
+    <main class="main-content">
+      
+      <!-- Top Bar -->
+      <header class="top-bar" style="position: relative;">
+        <h2 id="view-title">Aprender (Karaoke)</h2>
+        
+        <!-- Large Evolving Brain Widget -->
+        <div class="top-bar-brain-widget">
+          <div class="user-avatar level-1" id="top-avatar-container" style="position: relative; overflow: hidden; width: 64px; height: 64px; border-radius: 50%; box-shadow: var(--md-sys-elevation-2); transition: all 0.3s ease;">
+            <img id="top-avatar-img" src="assets/avatars/brain_level1.png" alt="Brain Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>
+          <span class="user-level" id="top-avatar-level-text" style="font-size: 11px; font-weight: 700; color: hsl(var(--md-sys-color-primary)); text-transform: uppercase; letter-spacing: 0.5px;">Cerebro Novato</span>
+        </div>
+
+        <div class="top-bar-actions">
+          <div class="theme-switch-container">
+            <button id="theme-btn" class="icon-btn" title="Cambiar tema">
+              <span class="material-symbols-rounded" id="theme-icon">dark_mode</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <div class="workspace-area">
+        
+        <!-- Tab: Learn (Karaoke Loop Engine) -->
+        <section id="tab-learn" class="tab-panel">
+          <div class="panel-layout">
+            <div class="panel-main">
+              <!-- Karaoke Player Card -->
+              <div class="card player-card">
+                <div class="player-header">
+                  <div class="island-badge">
+                    <span class="material-symbols-rounded">grid_view</span>
+                    <span id="player-island-name">Isla Activa</span>
+                  </div>
+                  <div class="player-actions-toolbar">
+                    <div id="export-loading-indicator" class="export-progress hidden">
+                      <span class="material-symbols-rounded spin">sync</span>
+                      <span id="export-progress-text">Exportando...</span>
+                    </div>
+                    <button class="btn btn-text btn-sm" id="btn-edit-active-island" title="Editar frases de esta isla" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">edit</span>
+                      <span>Editar</span>
+                    </button>
+                    <button class="btn btn-text btn-sm" id="btn-export-active-island" title="Exportar esta isla a MP3" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">download</span>
+                      <span>Exportar MP3</span>
+                    </button>
+                    <div class="target-lang-badge" id="player-lang-badge">Inglés</div>
+                  </div>
+                </div>
+                
+                <div class="karaoke-display">
+                  <!-- L1 Text (Native Language) -->
+                  <div class="karaoke-translation text-secondary" id="karaoke-l1">
+                    Selecciona o genera una isla para comenzar a practicar.
+                  </div>
+                  
+                  <!-- L2 Text (Target Language with word-level highlight) -->
+                  <div class="karaoke-text" id="karaoke-l2">
+                    <!-- Words will be dynamic spans -->
+                    <span class="placeholder-text">Choose a language island or technical list from the sidebar.</span>
+                  </div>
+                  <!-- Sentence Spaced Repetition Mastery Badge -->
+                  <div id="karaoke-sentence-mastery-container" style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+                    <!-- Dynamically populated -->
+                  </div>
+                </div>
+                
+                <!-- Progress Bar & Sentence Counter -->
+                <div class="player-progress-container" style="margin: 8px 24px 16px 24px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface-variant));">
+                    <span id="player-progress-text">Frase 0 de 0</span>
+                    <span id="player-progress-percentage">0%</span>
+                  </div>
+                  <div class="player-progress-bar" style="width: 100%; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
+                    <div id="player-progress-fill" style="width: 0%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                  </div>
+                </div>
+                
+                <!-- Player Controls -->
+                <div class="player-controls">
+                  <div class="controls-row">
+                    <button class="icon-btn btn-sec" id="btn-prev-sentence" title="Anterior">
+                      <span class="material-symbols-rounded">skip_previous</span>
+                    </button>
+                    <button class="btn btn-primary btn-round btn-lg" id="btn-play-pause" title="Reproducir Bucle">
+                      <span class="material-symbols-rounded" id="play-pause-icon">play_arrow</span>
+                    </button>
+                    <button class="icon-btn btn-sec" id="btn-next-sentence" title="Siguiente">
+                      <span class="material-symbols-rounded">skip_next</span>
+                    </button>
+                  </div>
+                  
+                  <div class="controls-settings">
+                    <div class="settings-group">
+                      <div class="speed-label-container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <label for="tts-speed">Velocidad</label>
+                        <button type="button" class="badge-btn" id="btn-speed-reset" title="Restablecer a velocidad normal (1.0x)" style="background: hsl(var(--md-sys-color-primary-container)); color: hsl(var(--md-sys-color-on-primary-container)); border: none; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; cursor: pointer;">1.0x</button>
+                      </div>
+                      <input type="range" id="tts-speed" min="0.5" max="2.0" step="0.05" value="1.0" style="width: 100%;">
+                      <span id="speed-val">1.0x</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                      <label for="tts-engine">Motor de Voz</label>
+                      <select id="tts-engine" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <option value="browser" selected>Navegador (Gratis)</option>
+                        <option value="openai">OpenAI (Premium)</option>
+                        <option value="azure">Microsoft Azure (Neuronal Gratis)</option>
+                      </select>
+                    </div>
+
+                    <div class="settings-group">
+                      <label for="tts-voice">Seleccionar Voz</label>
+                      <select id="tts-voice" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <!-- Dinámico -->
+                      </select>
+                    </div>
+
+                    <div class="toggle-container" style="align-self: center;">
+                      <label class="switch">
+                        <input type="checkbox" id="toggle-infinite-phrase">
+                        <span class="slider"></span>
+                      </label>
+                      <span class="toggle-label">Bucle de Frase</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="panel-sidebar">
+              <!-- Island Selector Card -->
+              <div class="card sidebar-card">
+                <h3>Tus Islas Lingüísticas</h3>
+                <p class="text-secondary small">Selecciona una colección para reproducir en el Karaoke Loop.</p>
+                <div class="island-list" id="island-selector-list">
+                  <!-- Dynamic Islands -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Practice (Recall Loop) -->
+        <section id="tab-practice" class="tab-panel hidden">
+          <!-- Filtro y acciones de práctica -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; background: hsl(var(--md-sys-color-surface)); padding: 12px 20px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label for="recall-island-select" style="font-size: 14px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface-variant));">Colección de Práctica:</label>
+              <select id="recall-island-select" style="padding: 8px 16px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); color: inherit; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                <option value="all">Todas las Islas</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-recall-export-audio" style="padding: 8px 20px; border-radius: 100px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: hsl(var(--md-sys-color-secondary-container)); color: hsl(var(--md-sys-color-on-secondary-container)); border: none;">
+              <span class="material-symbols-rounded" style="font-size: 20px;">download</span>
+              <span>Exportar mis Grabaciones (ZIP)</span>
+            </button>
+          </div>
+
+          <div class="panel-layout">
+            <div class="panel-main">
+              <!-- Recall Prompt Card -->
+              <div class="card recall-card">
+                <div class="recall-header">
+                  <span class="badge badge-accent">Práctica Activa</span>
+                  <div class="sentence-index" id="recall-index">0 / 0</div>
+                </div>
+
+                <!-- Selector de Modo (Escritura vs Voz) -->
+                <div class="practice-modes" style="display: flex; gap: 8px; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 8px; margin-bottom: 8px;">
+                  <button type="button" id="btn-mode-writing" class="mode-tab active" style="flex: 1; padding: 10px; border: none; background: none; border-bottom: 2px solid hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-primary)); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: 14px;">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">edit</span>
+                    <span>Escritura (Recall)</span>
+                  </button>
+                  <button type="button" id="btn-mode-speech" class="mode-tab" style="flex: 1; padding: 10px; border: none; background: none; border-bottom: 2px solid transparent; color: hsl(var(--md-sys-color-on-surface-variant)); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: 14px;">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">mic</span>
+                    <span>Pronunciación (Voz)</span>
+                  </button>
+                </div>
+                
+                <div class="recall-prompt">
+                  <p class="small text-secondary">Traduce al idioma objetivo:</p>
+                  <h2 id="recall-prompt-l1">No hay ejercicios activos.</h2>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                    <span class="domain-tag" id="recall-domain">Contexto: Finanzas</span>
+                    <span id="recall-sentence-mastery-badge" class="mastery-badge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; background-color: hsl(var(--md-sys-color-surface-variant)); color: hsl(var(--md-sys-color-on-surface-variant)); border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+                      <span class="material-symbols-rounded" style="font-size: 14px;">psychology</span>
+                      <span id="recall-sentence-mastery-text">Dominio: 0%</span>
+                    </span>
+                  </div>
+                </div>
+                
+                <!-- Contenedor del Modo Escritura -->
+                <div id="recall-writing-group">
+                  <div class="recall-form-group">
+                    <textarea id="recall-user-input" placeholder="Escribe tu traducción aquí..." rows="3"></textarea>
+                  </div>
+                  
+                  <div class="recall-actions" style="margin-top: 16px;">
+                    <button class="btn btn-secondary" id="btn-recall-hint">
+                      <span class="material-symbols-rounded">help</span>
+                      <span>Pista</span>
+                    </button>
+                    <button class="btn btn-primary" id="btn-recall-submit">
+                      <span class="material-symbols-rounded">check</span>
+                      <span>Validar Intento</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Contenedor del Modo Voz (Hidden por defecto) -->
+                <div id="recall-speech-group" class="hidden" style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 8px 0 0 0; width: 100%;">
+                  <p class="small text-secondary" style="text-align: center; margin: 0;">Haz clic en el micrófono y pronuncia la traducción en voz alta:</p>
+                  
+                  <button type="button" id="btn-record-speech" style="width: 72px; height: 72px; border-radius: 50%; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md); transition: all 0.25s ease; outline: none;">
+                    <span class="material-symbols-rounded" id="record-mic-icon" style="font-size: 32px;">mic</span>
+                  </button>
+                  
+                  <div id="speech-status" style="font-weight: 600; font-size: 13px; color: hsl(var(--md-sys-color-primary)); text-align: center;">Presiona para hablar</div>
+                  
+                  <div id="recall-speech-transcript" style="width: 100%; min-height: 48px; padding: 12px; border-radius: 8px; border: 1px dashed hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); font-style: italic; text-align: center; color: hsl(var(--md-sys-color-on-surface-variant)); box-sizing: border-box;">
+                    (Tu pronunciación aparecerá aquí...)
+                  </div>
+                  
+                  <div style="display: flex; gap: 12px; width: 100%;">
+                    <button type="button" class="btn btn-secondary" id="btn-speech-play-target" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer; font-weight: 600; font-size: 13px;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">volume_up</span>
+                      <span>Escuchar Modelo</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-speech-submit" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 100px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-weight: 600; font-size: 13px;" disabled>
+                      <span class="material-symbols-rounded" style="font-size: 18px;">check</span>
+                      <span>Validar Pronunciación</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Result Card (Hidden by default) -->
+              <div class="card feedback-card hidden" id="recall-feedback-card">
+                <div class="feedback-header">
+                  <h3 id="feedback-title">Resultado de Evaluación</h3>
+                  <span class="accuracy-score" id="feedback-score">100%</span>
+                </div>
+                
+                <div class="feedback-comparison">
+                  <div class="compare-group">
+                    <span class="label text-secondary">Tu intento:</span>
+                    <p class="text-attempt" id="feedback-user-attempt">...</p>
+                  </div>
+                  <!-- Reproductor de voz del usuario (Hidden por defecto, solo en modo voz) -->
+                  <div class="compare-group hidden" id="user-voice-replay-group" style="margin-top: -8px; display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn btn-secondary" id="btn-replay-user-voice" style="padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; outline: none;">
+                      <span class="material-symbols-rounded" style="font-size: 16px;">play_arrow</span>
+                      <span>Escuchar mi grabación</span>
+                    </button>
+                  </div>
+                  <div class="compare-group">
+                    <span class="label text-success">Traducción Correcta:</span>
+                    <p class="text-correct" id="feedback-correct-answer">...</p>
+                  </div>
+                </div>
+                
+                <div class="feedback-actions">
+                  <button class="btn btn-primary btn-full" id="btn-recall-next">
+                    <span>Siguiente Ejercicio</span>
+                    <span class="material-symbols-rounded">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="panel-sidebar">
+              <!-- Performance Metrics Card -->
+              <div class="card sidebar-card">
+                <h3>Métricas de Sesión</h3>
+                <div class="metrics-grid">
+                  <div class="metric-box" title="Sesiones completadas">
+                    <span class="metric-num" id="metric-sessions">0</span>
+                    <span class="metric-lbl">Sesiones</span>
+                  </div>
+                  <div class="metric-box" title="Precisión promedio en traducción escrita">
+                    <span class="metric-num" id="metric-accuracy">0%</span>
+                    <span class="metric-lbl">Precisión</span>
+                  </div>
+                  <div class="metric-box" title="Racha actual de aciertos consecutivos (85% o más)">
+                    <span class="metric-num" id="metric-streak">0 🔥</span>
+                    <span class="metric-lbl">Racha</span>
+                  </div>
+                  <div class="metric-box" title="Precisión promedio en pronunciación oral">
+                    <span class="metric-num" id="metric-pron-accuracy">0%</span>
+                    <span class="metric-lbl">Precisión Voz</span>
+                  </div>
+                  <div class="metric-box" title="Total de intentos validados">
+                    <span class="metric-num" id="metric-attempts">0</span>
+                    <span class="metric-lbl">Intentos</span>
+                  </div>
+                  <div class="metric-box" title="Total de palabras correctas practicadas">
+                    <span class="metric-num" id="metric-words">0</span>
+                    <span class="metric-lbl">Palabras</span>
+                  </div>
+                </div>
+                <div class="progress-bar-container">
+                  <span class="small text-secondary">Meta de Maestría Diario</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab: Generate (LLM-Powered or Manual Context Generation) -->
+        <section id="tab-generate" class="tab-panel hidden">
+          <!-- Mode Selector Tabs (Material 3 style) -->
+          <div class="sub-tabs-container">
+            <button class="sub-tab-btn active" id="btn-mode-ai" data-mode="ai">
+              <span class="material-symbols-rounded">smart_toy</span>
+              <span>Generar con IA (BYOK)</span>
+            </button>
+            <button class="sub-tab-btn" id="btn-mode-manual" data-mode="manual">
+              <span class="material-symbols-rounded">edit_note</span>
+              <span>Crear Manualmente</span>
+            </button>
+            <button class="sub-tab-btn" id="btn-mode-import" data-mode="import">
+              <span class="material-symbols-rounded">upload_file</span>
+              <span>Cargar Archivo Plano</span>
+            </button>
+          </div>
+
+          <!-- Sub-Panel: AI Generator -->
+          <div class="card gen-card" id="panel-gen-ai">
+            <div class="gen-header">
+              <span class="material-symbols-rounded text-primary icon-lg">psychology</span>
+              <div>
+                <h3>Generar Contexto con Inteligencia Artificial</h3>
+                <p class="text-secondary">Personaliza la creación de una nueva Isla de Idioma contextualizada mediante la IA.</p>
+              </div>
+            </div>
+            
+            <form id="gen-island-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="gen-island-name">Nombre de la Isla</label>
+                  <input type="text" id="gen-island-name" placeholder="Ej. Auditoría de Cuentas / IFRS 17" required>
+                </div>
+                <div class="form-group">
+                  <label for="gen-target-lang">Idioma Objetivo (L2)</label>
+                  <select id="gen-target-lang">
+                    <option value="Inglés" selected>Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Español">Español</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="gen-island-category">Tema / Categoría</label>
+                  <select id="gen-island-category">
+                    <option value="Finanzas Corporativas / Normas IFRS 17" selected>Finanzas Corporativas / Contabilidad IFRS 17</option>
+                    <option value="Ciencia de Datos / Analytics / SQL y Python">Ciencia de Datos / Analytics / Python</option>
+                    <option value="Ingeniería de Software / Programación general">Ingeniería de Software / Programación</option>
+                    <option value="Negocios Generales y Corporativo">Negocios Generales y Corporativo</option>
+                    <option value="Viajes y Turismo">Viajes y Turismo</option>
+                    <option value="Conversación Diaria y Vida Social">Conversación Diaria y Vida Social</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="gen-sentence-count">Cantidad de Oraciones</label>
+                  <input type="number" id="gen-sentence-count" min="3" max="20" value="10" required>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="gen-word-list">Lista de Vocabulario Objetivo (Separadas por comas)</label>
+                <textarea id="gen-word-list" placeholder="Ej. reconcile, forecast, variance, audit, parse, database" rows="3" required></textarea>
+                <span class="input-helper">El modelo creará las oraciones utilizando estas palabras en el tema y cantidad seleccionados.</span>
+              </div>
+              
+              <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-generate">
+                <span class="material-symbols-rounded">smart_toy</span>
+                <span>Generar Isla con IA</span>
+              </button>
+            </form>
+            
+            <!-- Loading Indicator -->
+            <div class="loading-container hidden" id="gen-loading">
+              <div class="spinner"></div>
+              <p>Llamando directamente a tu proveedor de IA (BYOK)... Generando oraciones técnicas de alta fidelidad...</p>
+            </div>
+            
+            <!-- Generator Results Preview -->
+            <div class="gen-preview hidden" id="gen-preview-area">
+              <h3>Oraciones Generadas Exitosamente</h3>
+              <div class="preview-list" id="gen-preview-sentences">
+                <!-- Spans with generated data -->
+              </div>
+              <button class="btn btn-accent btn-full" id="btn-save-generated">
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar e Iniciar Práctica en Karaoke</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-Panel: Manual Creator -->
+          <div class="card gen-card hidden" id="panel-gen-manual">
+            <div class="gen-header">
+              <span class="material-symbols-rounded text-primary icon-lg">edit_note</span>
+              <div>
+                <h3>Crear Isla Manualmente</h3>
+                <p class="text-secondary">Escribe tus propias oraciones personalizadas y organízalas en una Isla Lingüística.</p>
+              </div>
+            </div>
+            
+            <form id="manual-island-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="manual-island-name">Nombre de la Isla</label>
+                  <input type="text" id="manual-island-name" placeholder="Ej. Mis Oraciones de Negocios" required>
+                </div>
+                <div class="form-group">
+                  <label for="manual-target-lang">Idioma Objetivo (L2)</label>
+                  <select id="manual-target-lang">
+                    <option value="Inglés" selected>Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Español">Español</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+              </div>
+
+              <hr class="divider">
+
+              <div class="manual-add-row">
+                <div class="form-group">
+                  <label for="manual-sentence-l1">Oración en Idioma Nativo (L1)</label>
+                  <input type="text" id="manual-sentence-l1" placeholder="Ej. Necesitamos revisar el presupuesto de este trimestre.">
+                </div>
+                <div class="form-group margin-top-sm">
+                  <label for="manual-sentence-l2">Oración en Idioma Objetivo (L2)</label>
+                  <input type="text" id="manual-sentence-l2" placeholder="Ej. We need to review the budget for this quarter.">
+                </div>
+                <div class="form-group margin-top-sm">
+                  <label for="manual-sentence-word">Palabra Objetivo (Opcional)</label>
+                  <input type="text" id="manual-sentence-word" placeholder="Ej. budget">
+                </div>
+                <button type="button" class="btn btn-secondary margin-top-md" id="btn-add-manual-sentence">
+                  <span class="material-symbols-rounded">add</span>
+                  <span>Añadir Oración a la Lista</span>
+                </button>
+              </div>
+
+              <!-- Manual Sentences List Table -->
+              <div class="manual-list-preview hidden" id="manual-list-preview-area">
+                <h4>Oraciones en esta Isla (<span id="manual-sentences-count">0</span>)</h4>
+                <div class="table-container">
+                  <table class="manual-table">
+                    <thead>
+                      <tr>
+                        <th>Nativo (L1)</th>
+                        <th>Objetivo (L2)</th>
+                        <th>Palabra</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody id="manual-sentences-list-body">
+                      <!-- Dynamic Rows -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <button type="button" class="btn btn-primary btn-lg btn-full margin-top-md" id="btn-save-manual-island" disabled>
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar Isla Creada</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Sub-Panel: Flat File Importer -->
+          <div class="card gen-card hidden" id="panel-gen-import">
+            <div class="gen-header">
+              <span class="material-symbols-rounded text-primary icon-lg">upload_file</span>
+              <div>
+                <h3>Cargar Oraciones desde Archivo Plano</h3>
+                <p class="text-secondary">Importa oraciones masivamente arrastrando un archivo o pegando texto en formato delimitado.</p>
+              </div>
+            </div>
+
+            <form id="import-island-form" class="form-container" onsubmit="event.preventDefault();">
+              <!-- Destination Selection -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="import-destination-type">Destino de la Importación</label>
+                  <select id="import-destination-type">
+                    <option value="new" selected>Crear una Nueva Isla</option>
+                    <option value="existing">Anexar a una Isla Existente</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Fields for New Island -->
+              <div class="form-row" id="import-new-island-fields">
+                <div class="form-group">
+                  <label for="import-island-name">Nombre de la Nueva Isla</label>
+                  <input type="text" id="import-island-name" placeholder="Ej. Vocabulario Técnico IFRS 17">
+                </div>
+                <div class="form-group">
+                  <label for="import-target-lang">Idioma Objetivo (L2)</label>
+                  <select id="import-target-lang">
+                    <option value="Inglés" selected>Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Español">Español</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Fields for Existing Island (hidden by default) -->
+              <div class="form-row hidden" id="import-existing-island-fields">
+                <div class="form-group">
+                  <label for="import-island-select">Selecciona la Isla de Destino</label>
+                  <select id="import-island-select">
+                    <!-- Dynamic Options loaded from appState.islands -->
+                  </select>
+                </div>
+              </div>
+
+              <hr class="divider">
+
+              <!-- Dual Input Methods (File Upload & Text Paste) -->
+              <div class="form-row text-center" style="gap: 16px;">
+                <!-- Drag and Drop File Zone -->
+                <div class="form-group" style="flex: 1;">
+                  <label>Método 1: Arrastrar y Soltar Archivo</label>
+                  <div class="drag-drop-zone" id="import-drag-zone">
+                    <span class="material-symbols-rounded icon-lg text-secondary">cloud_upload</span>
+                    <p class="small text-secondary" style="margin: 8px 0;">Arrastra tu archivo .txt o .csv aquí o haz clic para buscar</p>
+                    <span class="file-name-label text-primary font-semibold" id="import-file-name">Ningún archivo seleccionado</span>
+                    <input type="file" id="import-file-input" accept=".txt,.csv,.tsv" style="display: none;">
+                  </div>
+                </div>
+
+                <!-- Text Area for Copy-Paste -->
+                <div class="form-group" style="flex: 1;">
+                  <label for="import-textarea">Método 2: Copiar y Pegar Texto Plano</label>
+                  <textarea id="import-textarea" placeholder="Ejemplo:&#10;Oración L1 (Nativo) | Oración L2 (Objetivo) | Palabra objetivo (opcional)&#10;Los ajustes afectarán las ganancias. | Transition adjustments will impact earnings. | transition&#10;Necesitamos conciliar el libro mayor. | We need to reconcile the general ledger. | reconcile" rows="6" style="font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
+                </div>
+              </div>
+
+              <div class="info-banner" style="margin-top: 12px; padding: 12px; background-color: hsla(var(--md-sys-color-primary), 0.04); border-left: 4px solid hsl(var(--md-sys-color-primary)); border-radius: 4px;">
+                <p class="small text-secondary" style="margin: 0; line-height: 1.5;">
+                  <strong>Formato Soportado:</strong> Una oración por línea. Usa <code>|</code> (barra vertical), <code>;</code> (punto y coma), o tabulador como delimitador. <br>
+                  <em>Esquema:</em> <code>Oración en Español | Oración en Inglés | Palabra Objetivo</code> (la palabra clave es opcional).
+                </p>
+              </div>
+
+              <!-- Preview Table Section -->
+              <div class="manual-list-preview hidden" id="import-preview-area" style="margin-top: 20px;">
+                <h4 style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Oraciones Detectadas a Importar (<span id="import-preview-count">0</span>)</span>
+                  <button type="button" class="btn btn-text btn-sm text-error" id="btn-import-clear" style="padding: 4px 8px;">Limpiar</button>
+                </h4>
+                <div class="table-container">
+                  <table class="manual-table">
+                    <thead>
+                      <tr>
+                        <th>Nativo (L1)</th>
+                        <th>Objetivo (L2)</th>
+                        <th>Palabra</th>
+                      </tr>
+                    </thead>
+                    <tbody id="import-preview-body">
+                      <!-- Dynamic Preview Rows -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <button type="button" class="btn btn-primary btn-lg btn-full margin-top-lg" id="btn-import-submit" disabled>
+                <span class="material-symbols-rounded">download_done</span>
+                <span>Procesar e Importar Oraciones</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Tab: Settings (BYOK Config) -->
+        <section id="tab-settings" class="tab-panel hidden">
+          <div class="card settings-card">
+            <h3>Configuración de Proveedor de Inteligencia Artificial (BYOK)</h3>
+            <p class="text-secondary small">Esta aplicación opera bajo una arquitectura de coste cero. No almacenamos tus llaves. Las llamadas a las APIs de IA se realizan directamente desde tu navegador a través de HTTPS.</p>
+            
+            <form id="settings-form" class="form-container">
+              <div class="form-group">
+                <label for="api-provider">Proveedor de LLM</label>
+                <select id="api-provider">
+                  <option value="openai" selected>OpenAI (ChatGPT)</option>
+                  <option value="google">Google Gemini</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="api-key">Clave de API (API Key)</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="api-key" placeholder="sk-..." required>
+                  <button type="button" class="icon-btn small-btn" id="btn-toggle-key-visibility" title="Mostrar/Ocultar">
+                    <span class="material-symbols-rounded">visibility</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="api-url">Base URL del Endpoint (Opcional)</label>
+                <input type="text" id="api-url" placeholder="https://api.openai.com/v1">
+                <span class="input-helper">Déjalo en blanco para usar la URL oficial por defecto del proveedor seleccionado.</span>
+              </div>
+              
+              <div class="form-group">
+                <label for="api-tts-key">Clave de OpenAI para Voz Premium (TTS) (Opcional)</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="api-tts-key" placeholder="sk-...">
+                  <button type="button" class="icon-btn small-btn" id="btn-toggle-tts-key-visibility" title="Mostrar/Ocultar">
+                    <span class="material-symbols-rounded">visibility</span>
+                  </button>
+                </div>
+                <span class="input-helper">Si seleccionaste Google Gemini o Anthropic como tu proveedor principal pero quieres usar las voces ultra-naturales de OpenAI y exportar a MP3, introduce aquí una clave de OpenAI. Si tu proveedor principal es OpenAI, puedes dejarlo vacío y usaremos tu clave principal.</span>
+              </div>
+              
+              <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-rounded">save</span>
+                <span>Guardar Configuración de API</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Profile Management Card -->
+          <div class="card settings-card margin-top">
+            <h3>Perfil de Usuario Local</h3>
+            <p class="text-secondary small">Tus datos personales y de progreso residen localmente en el almacenamiento aislado de tu navegador.</p>
+            
+            <form id="profile-edit-form" class="form-container">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="edit-first-name">Nombre</label>
+                  <input type="text" id="edit-first-name" required>
+                </div>
+                <div class="form-group">
+                  <label for="edit-last-name">Apellido</label>
+                  <input type="text" id="edit-last-name" required>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-email">Correo Electrónico</label>
+                <input type="email" id="edit-email" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-l1">Idioma Nativo (L1)</label>
+                <select id="edit-l1">
+                  <option value="Español">Español</option>
+                  <option value="Inglés">Inglés</option>
+                  <option value="Portugués">Portugués</option>
+                  <option value="Francés">Francés</option>
+                  <option value="Alemán">Alemán</option>
+                  <option value="Italiano">Italiano</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn btn-secondary">
+                <span class="material-symbols-rounded">save</span>
+                <span>Actualizar Datos de Perfil</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- Tab: Methodology & Guide -->
+        <section id="tab-methodology" class="tab-panel hidden">
+          <div class="methodology-grid">
+            <!-- Left Column: Scientific Method -->
+            <div class="methodology-card">
+              <h3 style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: hsl(var(--md-sys-color-primary));">
+                <span class="material-symbols-rounded">menu_book</span>
+                <span>Bases Científicas del Método</span>
+              </h3>
+              <p style="margin: 0; font-size: 14px; line-height: 22px; color: hsl(var(--md-sys-color-on-surface-variant));">
+                Nuestra aplicación combina los tres pilares más efectivos de la ciencia de adquisición de idiomas para transferir vocabulario y estructuras sintácticas de la memoria a corto plazo a la memoria a largo plazo.
+              </p>
+              
+              <div class="methodology-item">
+                <div class="methodology-icon">
+                  <span class="material-symbols-rounded">update</span>
+                </div>
+                <div class="methodology-content">
+                  <h4>Repetición Espaciada (Spaced Repetition)</h4>
+                  <p>
+                    Basado en la curva del olvido de Ebbinghaus. El cerebro tiende a olvidar información de forma exponencial. Repasar las frases justo antes de olvidarlas refuerza la retención. Cada frase en la app evoluciona en un rango de dominio de 0% a 100% (Novato, Aprendizaje Reciente, Corto, Medio, y Largo Plazo) basado en tus aciertos y errores.
+                  </p>
+                </div>
+              </div>
+
+              <div class="methodology-item">
+                <div class="methodology-icon">
+                  <span class="material-symbols-rounded">psychology</span>
+                </div>
+                <div class="methodology-content">
+                  <h4>Recuerdo Activo (Active Recall)</h4>
+                  <p>
+                    Forzar a la mente a recuperar de forma activa una traducción sin verla estimula las conexiones neuronales mucho más que la simple lectura pasiva. En la sección de práctica, debes reconstruir la frase desde cero, consolidando el vocabulario técnico en tu memoria de trabajo.
+                  </p>
+                </div>
+              </div>
+
+              <div class="methodology-item">
+                <div class="methodology-icon">
+                  <span class="material-symbols-rounded">interpreter_mode</span>
+                </div>
+                <div class="methodology-content">
+                  <h4>Input Comprensible (Comprehensive Input)</h4>
+                  <p>
+                    Inspirado en la teoría lingüística de Krashen. Aprendemos idiomas cuando nos exponemos a mensajes que comprendemos en un bucle repetitivo. El reproductor de Karaoke entrena tu oído con el ritmo y la fonética real en bucles repetidos a velocidad regulable para acelerar tu fluidez auditiva y de habla.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Interactive Video Tutorials -->
+            <div class="methodology-card">
+              <h3 style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: hsl(var(--md-sys-color-primary));">
+                <span class="material-symbols-rounded">smart_display</span>
+                <span>Guía de Uso y Video Tutoriales</span>
+              </h3>
+              
+              <!-- Tutorial 1: Karaoke Loop -->
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">1. Reproductor de Bucle de Karaoke</h4>
+                <div class="tutorial-video-container" id="video-container-karaoke">
+                  <img id="video-img-karaoke" src="assets/tutorials/full_walkthrough.webp" alt="Video Walkthrough" data-base-src="assets/tutorials/full_walkthrough.webp">
+                  <div class="video-placeholder-overlay hidden" id="video-placeholder-karaoke">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span>Video Detenido</span>
+                  </div>
+                  <div class="video-controls-overlay">
+                    <button class="btn-video-control btn-play" data-target="karaoke" title="Reproducir">
+                      <span class="material-symbols-rounded">play_arrow</span>
+                    </button>
+                    <button class="btn-video-control btn-stop" data-target="karaoke" title="Detener">
+                      <span class="material-symbols-rounded">stop</span>
+                    </button>
+                    <button class="btn-video-control btn-restart" data-target="karaoke" title="Reiniciar">
+                      <span class="material-symbols-rounded">replay</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="narration-controls">
+                  <button class="btn btn-primary btn-play-narration" data-tutorial="karaoke" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">volume_up</span>
+                    <span>Reproducir Doblaje</span>
+                  </button>
+                  <select class="narration-lang" data-tutorial="karaoke" style="padding: 6px; font-size: 12px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit;">
+                    <option value="Español">Español</option>
+                    <option value="Inglés">Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <p class="narration-text" id="narration-karaoke-text">
+                  Este tutorial demuestra cómo funciona el Bucle de Karaoke. El reproductor sintetiza la oración en el idioma objetivo mientras resalta cada palabra en tiempo real, permitiendo asimilar la entonación y velocidad de forma natural.
+                </p>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); margin: 12px 0;">
+
+              <!-- Tutorial 2: Practice & Speech -->
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">2. Práctica Activa (Recall y Pronunciación)</h4>
+                <div class="tutorial-video-container" id="video-container-practice">
+                  <img id="video-img-practice" src="assets/tutorials/speech_practice.webp" alt="Speech Practice Walkthrough" data-base-src="assets/tutorials/speech_practice.webp">
+                  <div class="video-placeholder-overlay hidden" id="video-placeholder-practice">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span>Video Detenido</span>
+                  </div>
+                  <div class="video-controls-overlay">
+                    <button class="btn-video-control btn-play" data-target="practice" title="Reproducir">
+                      <span class="material-symbols-rounded">play_arrow</span>
+                    </button>
+                    <button class="btn-video-control btn-stop" data-target="practice" title="Detener">
+                      <span class="material-symbols-rounded">stop</span>
+                    </button>
+                    <button class="btn-video-control btn-restart" data-target="practice" title="Reiniciar">
+                      <span class="material-symbols-rounded">replay</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="narration-controls">
+                  <button class="btn btn-primary btn-play-narration" data-tutorial="practice" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">volume_up</span>
+                    <span>Reproducir Doblaje</span>
+                  </button>
+                  <select class="narration-lang" data-tutorial="practice" style="padding: 6px; font-size: 12px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit;">
+                    <option value="Español">Español</option>
+                    <option value="Inglés">Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <p class="narration-text" id="narration-practice-text">
+                  Este tutorial muestra la pestaña de Práctica. Aquí puedes escribir tu traducción o presionar el micrófono para practicar tu pronunciación. El sistema evaluará tus errores en color rojo con subrayado ondulado y guardará tus estadísticas.
+                </p>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); margin: 12px 0;">
+
+              <!-- Tutorial 3: Island Creation -->
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">3. Creación de Islas Lingüísticas</h4>
+                <div class="tutorial-video-container" id="video-container-create_islands">
+                  <img id="video-img-create_islands" src="assets/tutorials/create_islands.webp" alt="Island Creation Walkthrough" data-base-src="assets/tutorials/create_islands.webp">
+                  <div class="video-placeholder-overlay hidden" id="video-placeholder-create_islands">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span>Video Detenido</span>
+                  </div>
+                  <div class="video-controls-overlay">
+                    <button class="btn-video-control btn-play" data-target="create_islands" title="Reproducir">
+                      <span class="material-symbols-rounded">play_arrow</span>
+                    </button>
+                    <button class="btn-video-control btn-stop" data-target="create_islands" title="Detener">
+                      <span class="material-symbols-rounded">stop</span>
+                    </button>
+                    <button class="btn-video-control btn-restart" data-target="create_islands" title="Reiniciar">
+                      <span class="material-symbols-rounded">replay</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="narration-controls">
+                  <button class="btn btn-primary btn-play-narration" data-tutorial="create_islands" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">volume_up</span>
+                    <span>Reproducir Doblaje</span>
+                  </button>
+                  <select class="narration-lang" data-tutorial="create_islands" style="padding: 6px; font-size: 12px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit;">
+                    <option value="Español" selected>Español</option>
+                    <option value="Inglés">Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <p class="narration-text" id="narration-create_islands-text">
+                  Este tutorial enseña cómo crear tus islas de aprendizaje usando tres opciones: generar oraciones con Inteligencia Artificial mediante tu clave API, estructurarlas manualmente una a una, o cargar un archivo plano delimitado.
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+    
+    <!-- Mobile Bottom Navigation Bar (Fills viewport in iOS/Android) -->
+    <nav class="mobile-nav">
+      <a href="#learn" class="mobile-nav-link active" data-tab="learn">
+        <span class="material-symbols-rounded">play_circle</span>
+        <span class="mobile-nav-label">Karaoke</span>
+      </a>
+      <a href="#practice" class="mobile-nav-link" data-tab="practice">
+        <span class="material-symbols-rounded">fitness_center</span>
+        <span class="mobile-nav-label">Recall</span>
+      </a>
+      <a href="#generate" class="mobile-nav-link" data-tab="generate">
+        <span class="material-symbols-rounded">psychology</span>
+        <span class="mobile-nav-label">Generar</span>
+      </a>
+      <a href="#methodology" class="mobile-nav-link" data-tab="methodology">
+        <span class="material-symbols-rounded">menu_book</span>
+        <span class="mobile-nav-label">Método</span>
+      </a>
+      <a href="#settings" class="mobile-nav-link" data-tab="settings">
+        <span class="material-symbols-rounded">settings</span>
+        <span class="mobile-nav-label">Ajustes</span>
+      </a>
+    </nav>
+
+  </div>
+
+  <!-- Modal overlay for editing active island -->
+  <div id="edit-island-screen" class="modal-overlay hidden">
+    <div class="modal-card edit-island-card" style="max-width: 850px; width: 95%; max-height: 90vh; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline)); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 12px; margin-bottom: 16px;">
+        <h2 id="edit-island-title-heading" style="margin: 0; font-size: 20px;">Editar Isla Lingüística</h2>
+        <button class="icon-btn small-btn" id="btn-close-edit-island" title="Cerrar" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      
+      <div class="form-container" style="display: flex; flex-direction: column; gap: 16px; flex-grow: 1; overflow-y: auto; padding-right: 8px;">
+        <div class="form-group">
+          <label for="edit-island-name-input" style="font-weight: 600; margin-bottom: 6px; display: block;">Nombre de la Isla</label>
+          <input type="text" id="edit-island-name-input" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: inherit; color: inherit;">
+        </div>
+        
+        <div class="sentences-editor-section" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
+          <h3 style="margin: 0; font-size: 16px;">Oraciones de la Isla (<span id="edit-island-sentences-count">0</span>)</h3>
+          
+          <div class="sentences-list-container" style="border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; overflow-y: auto; max-height: 250px; background: hsl(var(--md-sys-color-surface-container-low));">
+            <table class="sentences-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+              <thead>
+                <tr style="background: hsl(var(--md-sys-color-surface-container)); border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant));">
+                  <th style="padding: 10px; font-weight: 600;">L1 (Nativo / Español)</th>
+                  <th style="padding: 10px; font-weight: 600;">L2 (Objetivo)</th>
+                  <th style="padding: 10px; font-weight: 600; width: 150px;">Palabra Clave</th>
+                  <th style="padding: 10px; font-weight: 600; width: 80px; text-align: center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="edit-island-sentences-list">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="add-sentence-inline" style="background: hsl(var(--md-sys-color-surface-container-high)); padding: 16px; border-radius: 12px; border: 1px dashed hsl(var(--md-sys-color-outline));">
+            <h4 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Añadir Nueva Frase</h4>
+            <div class="inline-fields" style="display: grid; grid-template-columns: 1fr 1fr 150px auto; gap: 10px; align-items: center;">
+              <input type="text" id="add-sentence-l1" placeholder="Ej. El script procesa datos." style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <input type="text" id="add-sentence-l2" placeholder="Ej. The script parses data." style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <input type="text" id="add-sentence-word" placeholder="Ej. parses" style="padding: 8px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+              <button type="button" class="btn btn-secondary" id="btn-add-edit-sentence" style="padding: 8px 16px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; border: none; background: hsl(var(--md-sys-color-secondary-container)); color: hsl(var(--md-sys-color-on-secondary-container)); font-weight: 600;">
+                <span class="material-symbols-rounded" style="font-size: 18px;">add</span>
+                <span>Añadir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 12px; margin-top: 10px;">
+          <button type="button" class="btn-danger-text" id="btn-delete-island-modal" style="padding: 10px 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
+            <span>Eliminar Isla</span>
+          </button>
+          <div style="display: flex; gap: 12px;">
+            <button type="button" class="btn btn-sec" id="btn-cancel-edit-island" style="padding: 10px 20px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer; font-weight: 600;">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btn-save-edit-island-changes" style="padding: 10px 20px; border-radius: 8px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-weight: 600;">Guardar Cambios</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal overlay para confirmaciones personalizadas -->
+  <div id="confirm-dialog-screen" class="modal-overlay hidden" style="z-index: 10001;">
+    <div class="modal-card" style="max-width: 400px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <h3 id="confirm-dialog-title" style="margin: 0; font-size: 22px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface));">¿Eliminar Isla?</h3>
+        <p id="confirm-dialog-message" style="margin: 0; font-size: 14px; color: hsl(var(--md-sys-color-on-surface-variant)); line-height: 20px;">¿Estás seguro de que deseas eliminar esta isla? Esta acción no se puede deshacer.</p>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button type="button" id="btn-confirm-cancel" class="btn btn-sec" style="padding: 10px 16px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s;">
+          Cancelar
+        </button>
+        <button type="button" id="btn-confirm-accept" class="btn btn-primary" style="padding: 10px 24px; border-radius: 100px; border: none; background: hsl(var(--md-sys-color-error)); color: hsl(var(--md-sys-color-on-error)); cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.2s;">
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal overlay para opciones de exportación -->
+  <div id="export-options-screen" class="modal-overlay hidden" style="z-index: 10002;">
+    <div class="modal-card" style="max-width: 480px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
+      
+      <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
+        <span class="material-symbols-rounded text-primary" style="font-size: 32px;">download</span>
+        <h3 style="margin: 0; font-size: 22px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Exportar Isla de Audio</h3>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <p style="margin: 0; font-size: 14px; color: hsl(var(--md-sys-color-on-surface-variant)); line-height: 20px;">
+          Configura el rango de oraciones de la isla activa que deseas exportar a tu archivo ZIP:
+        </p>
+        
+        <!-- Opciones de Rango (Radio buttons modernos) -->
+        <div style="display: flex; flex-direction: column; gap: 12px; background: hsl(var(--md-sys-color-surface-container-low)); padding: 16px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+          <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none;">
+            <input type="radio" name="export-range" id="export-range-all" value="all" checked style="margin-top: 3px; width: 18px; height: 18px; accent-color: hsl(var(--md-sys-color-primary));">
+            <div>
+              <span style="font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Exportar todas las oraciones</span>
+              <span id="export-all-count-label" style="display: block; font-size: 12px; color: hsl(var(--md-sys-color-on-surface-variant)); margin-top: 2px;">(Cargando cantidad...)</span>
+            </div>
+          </label>
+          
+          <hr style="border: 0; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); margin: 4px 0;">
+          
+          <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; user-select: none;">
+            <input type="radio" name="export-range" id="export-range-30" value="last30" style="margin-top: 3px; width: 18px; height: 18px; accent-color: hsl(var(--md-sys-color-primary));">
+            <div>
+              <span style="font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Exportar solo las últimas 30 oraciones</span>
+              <span id="export-last-30-label" style="display: block; font-size: 12px; color: hsl(var(--md-sys-color-on-surface-variant)); margin-top: 2px;">(Ideal para repasar adiciones recientes)</span>
+            </div>
+          </label>
+        </div>
+        
+        <!-- Mensaje de Tipo de Archivo Dinámico -->
+        <div id="export-behavior-info-box" style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-radius: 12px; background: hsla(var(--md-sys-color-primary), 0.08); border-left: 4px solid hsl(var(--md-sys-color-primary));">
+          <span class="material-symbols-rounded text-primary" style="font-size: 20px; margin-top: 1px;">info</span>
+          <p id="export-behavior-info-text" style="margin: 0; font-size: 12px; color: hsl(var(--md-sys-color-on-surface-variant)); line-height: 18px;">
+            (Cargando comportamiento...)
+          </p>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
+        <button type="button" id="btn-export-options-cancel" class="btn btn-sec" style="padding: 10px 20px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+          Cancelar
+        </button>
+        <button type="button" id="btn-export-options-confirm" class="btn btn-primary" style="padding: 10px 24px; border-radius: 100px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">
+          Iniciar Exportación
+        </button>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- JSZip for exporting MP3s to ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js?v=1.3"></script>
+</body>
+</html>
