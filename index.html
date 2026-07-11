@@ -176,20 +176,85 @@
                     <!-- Words will be dynamic spans -->
                     <span class="placeholder-text">Choose a language island or technical list from the sidebar.</span>
                   </div>
-                  <!-- Sentence Spaced Repetition Mastery Badge -->
-                  <div id="karaoke-sentence-mastery-container" style="margin-top: 16px; display: flex; align-items: center; gap: 8px;">
+                   <!-- Sentence Spaced Repetition Mastery Badge -->
+                  <div id="karaoke-sentence-mastery-container" style="margin-top: 16px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
                     <!-- Dynamically populated -->
                   </div>
-                </div>
-                
-                <!-- Progress Bar & Sentence Counter -->
-                <div class="player-progress-container" style="margin: 8px 24px 16px 24px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface-variant));">
-                    <span id="player-progress-text">Frase 0 de 0</span>
-                    <span id="player-progress-percentage">0%</span>
+                  
+                  <!-- Panel de Calificación de Repetición Espaciada (FSRS/Leitner) -->
+                  <div id="spaced-repetition-panel" class="sr-panel-container" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: hsl(var(--md-sys-color-on-surface-variant)); text-align: center;">¿Cómo calificarías tu recuerdo de esta frase?</div>
+                    <div class="sr-buttons-group" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                      <button type="button" id="btn-sr-again" class="btn sr-btn btn-again" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-error)); background: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                        <span style="display: block; font-size: 18px;">🔴</span>
+                        <span style="display: block; font-size: 11px; margin-top: 2px;">Olvidé</span>
+                      </button>
+                      <button type="button" id="btn-sr-hard" class="btn sr-btn btn-hard" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-warning)); background: none; color: hsl(var(--md-sys-color-warning)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                        <span style="display: block; font-size: 18px;">🟠</span>
+                        <span style="display: block; font-size: 11px; margin-top: 2px;">Difícil</span>
+                      </button>
+                      <button type="button" id="btn-sr-good" class="btn sr-btn btn-good" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-success)); background: none; color: hsl(var(--md-sys-color-success)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                        <span style="display: block; font-size: 18px;">🟢</span>
+                        <span style="display: block; font-size: 11px; margin-top: 2px;">Bien</span>
+                      </button>
+                      <button type="button" id="btn-sr-easy" class="btn sr-btn btn-easy" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-primary)); background: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                        <span style="display: block; font-size: 18px;">🔵</span>
+                        <span style="display: block; font-size: 11px; margin-top: 2px;">Fácil</span>
+                      </button>
+                    </div>
                   </div>
-                  <div class="player-progress-bar" style="width: 100%; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
-                    <div id="player-progress-fill" style="width: 0%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                  
+                  <!-- Progress Bar & Sentence Counter -->
+                  <div class="player-progress-container" style="margin: 8px 24px 16px 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface-variant));">
+                      <span id="player-progress-text">Frase 0 de 0</span>
+                      <span id="player-progress-percentage">0%</span>
+                    </div>
+                    <div class="player-progress-bar" style="width: 100%; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
+                      <div id="player-progress-fill" style="width: 0%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                    </div>
+                  </div>
+
+                  <!-- Métricas Avanzadas y Jardín de Memoria -->
+                  <div id="sr-analytics-section" style="margin: 8px 24px 24px 24px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
+                    
+                    <!-- Tarjetas de Métricas -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));">Retención Estimada</span>
+                        <span id="sr-metric-retention" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">100.0%</span>
+                      </div>
+                      <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));">Consolidación L.P.</span>
+                        <span id="sr-metric-consolidation" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-success));">0%</span>
+                      </div>
+                    </div>
+
+                    <!-- Jardín de la Memoria -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Jardín de la Memoria (Isla Activa)</span>
+                        <span style="font-size: 11px; color: hsl(var(--md-sys-color-on-surface-variant)); display: flex; gap: 8px; align-items: center;">
+                          <span>🌱 Semilla</span>
+                          <span>🌿 Brote</span>
+                          <span>🌳 Árbol</span>
+                        </span>
+                      </div>
+                      <div id="memory-garden" style="display: flex; flex-wrap: wrap; gap: 8px; background: hsl(var(--md-sys-color-surface-container-lowest)); padding: 12px; border-radius: 16px; border: 1px dashed hsl(var(--md-sys-color-outline-variant)); min-height: 48px; align-items: center; justify-content: center;">
+                        <!-- Generado dinámicamente con tooltips -->
+                      </div>
+                    </div>
+
+                    <!-- Gráfico de Curva de Olvido Ebbinghaus -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                      <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Proyección de la Curva de Olvido (Ebbinghaus)</span>
+                      <div style="background: hsl(var(--md-sys-color-surface-container-lowest)); border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); padding: 12px 12px 20px 12px; display: flex; justify-content: center; align-items: center; height: 130px;">
+                        <svg id="ebbinghaus-curve-svg" width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none" style="overflow: visible;">
+                          <!-- Dibujado por JS -->
+                        </svg>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
                 
