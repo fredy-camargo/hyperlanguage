@@ -1563,6 +1563,27 @@ input:checked + .slider:before {
   opacity: 1;
 }
 
+/* 3D Flip Card CSS */
+.flip-card-inner {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card.flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+.flip-card-front, .flip-card-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: background-color 0.3s;
+}
+.flip-card-front {
+  background: hsl(var(--md-sys-color-surface-container-low));
+}
+.flip-card-back {
+  background: hsl(var(--md-sys-color-surface-container-high));
+  transform: rotateY(180deg);
+}
+
 
 
 

@@ -176,33 +176,6 @@
                     <!-- Words will be dynamic spans -->
                     <span class="placeholder-text">Choose a language island or technical list from the sidebar.</span>
                   </div>
-                   <!-- Sentence Spaced Repetition Mastery Badge -->
-                  <div id="karaoke-sentence-mastery-container" style="margin-top: 16px; display: flex; align-items: center; gap: 8px; justify-content: space-between;">
-                    <!-- Dynamically populated -->
-                  </div>
-                  
-                  <!-- Panel de Calificación de Repetición Espaciada (FSRS/Leitner) -->
-                  <div id="spaced-repetition-panel" class="sr-panel-container" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: hsl(var(--md-sys-color-on-surface-variant)); text-align: center;">¿Cómo calificarías tu recuerdo de esta frase?</div>
-                    <div class="sr-buttons-group" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                      <button type="button" id="btn-sr-again" class="btn sr-btn btn-again" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-error)); background: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
-                        <span style="display: block; font-size: 18px;">🔴</span>
-                        <span style="display: block; font-size: 11px; margin-top: 2px;">Olvidé</span>
-                      </button>
-                      <button type="button" id="btn-sr-hard" class="btn sr-btn btn-hard" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-warning)); background: none; color: hsl(var(--md-sys-color-warning)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
-                        <span style="display: block; font-size: 18px;">🟠</span>
-                        <span style="display: block; font-size: 11px; margin-top: 2px;">Difícil</span>
-                      </button>
-                      <button type="button" id="btn-sr-good" class="btn sr-btn btn-good" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-success)); background: none; color: hsl(var(--md-sys-color-success)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
-                        <span style="display: block; font-size: 18px;">🟢</span>
-                        <span style="display: block; font-size: 11px; margin-top: 2px;">Bien</span>
-                      </button>
-                      <button type="button" id="btn-sr-easy" class="btn sr-btn btn-easy" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-primary)); background: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
-                        <span style="display: block; font-size: 18px;">🔵</span>
-                        <span style="display: block; font-size: 11px; margin-top: 2px;">Fácil</span>
-                      </button>
-                    </div>
-                  </div>
                   
                   <!-- Progress Bar & Sentence Counter -->
                   <div class="player-progress-container" style="margin: 8px 24px 16px 24px;">
@@ -213,48 +186,6 @@
                     <div class="player-progress-bar" style="width: 100%; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
                       <div id="player-progress-fill" style="width: 0%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);"></div>
                     </div>
-                  </div>
-
-                  <!-- Métricas Avanzadas y Jardín de Memoria -->
-                  <div id="sr-analytics-section" style="margin: 8px 24px 24px 24px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
-                    
-                    <!-- Tarjetas de Métricas -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                      <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));">Retención Estimada</span>
-                        <span id="sr-metric-retention" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">100.0%</span>
-                      </div>
-                      <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));">Consolidación L.P.</span>
-                        <span id="sr-metric-consolidation" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-success));">0%</span>
-                      </div>
-                    </div>
-
-                    <!-- Jardín de la Memoria -->
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                      <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Jardín de la Memoria (Isla Activa)</span>
-                        <span style="font-size: 11px; color: hsl(var(--md-sys-color-on-surface-variant)); display: flex; gap: 8px; align-items: center;">
-                          <span>🌱 Semilla</span>
-                          <span>🌿 Brote</span>
-                          <span>🌳 Árbol</span>
-                        </span>
-                      </div>
-                      <div id="memory-garden" style="display: flex; flex-wrap: wrap; gap: 8px; background: hsl(var(--md-sys-color-surface-container-lowest)); padding: 12px; border-radius: 16px; border: 1px dashed hsl(var(--md-sys-color-outline-variant)); min-height: 48px; align-items: center; justify-content: center;">
-                        <!-- Generado dinámicamente con tooltips -->
-                      </div>
-                    </div>
-
-                    <!-- Gráfico de Curva de Olvido Ebbinghaus -->
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                      <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">Proyección de la Curva de Olvido (Ebbinghaus)</span>
-                      <div style="background: hsl(var(--md-sys-color-surface-container-lowest)); border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); padding: 12px 12px 20px 12px; display: flex; justify-content: center; align-items: center; height: 130px;">
-                        <svg id="ebbinghaus-curve-svg" width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none" style="overflow: visible;">
-                          <!-- Dibujado por JS -->
-                        </svg>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
                 
@@ -330,6 +261,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <label for="recall-island-select" style="font-size: 14px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface-variant));">Colección de Práctica:</label>
               <select id="recall-island-select" style="padding: 8px 16px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); color: inherit; font-size: 14px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                <option value="fsrs" selected>🧠 Repaso Inteligente (FSRS)</option>
                 <option value="all">Todas las Islas</option>
               </select>
             </div>
@@ -369,6 +301,22 @@
                       <span class="material-symbols-rounded" style="font-size: 14px;">psychology</span>
                       <span id="recall-sentence-mastery-text">Dominio: 0%</span>
                     </span>
+                  </div>
+                </div>
+                
+                <!-- Flip Card 3D para modo Pronunciación -->
+                <div id="recall-speech-flip-card" class="flip-card hidden" style="width: 100%; height: 160px; perspective: 1000px; cursor: pointer; margin: 16px 0;">
+                  <div class="flip-card-inner" style="position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); background: hsl(var(--md-sys-color-surface-container-low)); box-shadow: var(--md-sys-elevation-1);">
+                    <!-- Lado A (Frente): Idioma Nativo L1 -->
+                    <div class="flip-card-front" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; border-radius: 16px;">
+                      <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-primary)); font-weight: 700; margin: 0 0 8px 0; letter-spacing: 0.5px;" id="flip-front-label">Idioma Nativo (Toca para voltear y escuchar)</p>
+                      <h3 id="flip-front-text" style="font-size: 18px; font-weight: 600; margin: 0; color: hsl(var(--md-sys-color-on-surface));">Frase L1</h3>
+                    </div>
+                    <!-- Lado B (Atrás): Idioma Objetivo L2 -->
+                    <div class="flip-card-back" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; transform: rotateY(180deg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-high));">
+                      <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-success)); font-weight: 700; margin: 0 0 8px 0; letter-spacing: 0.5px;" id="flip-back-label">Idioma Objetivo (TTS Reproducido)</p>
+                      <h3 id="flip-back-text" style="font-size: 20px; font-weight: 700; margin: 0; color: hsl(var(--md-sys-color-on-surface));">Frase L2</h3>
+                    </div>
                   </div>
                 </div>
                 
@@ -437,17 +385,82 @@
                     </button>
                   </div>
                   <div class="compare-group">
-                    <span class="label text-success">Traducción Correcta:</span>
+                    <span class="label text-success" id="lbl-correct-translation">Traducción Correcta:</span>
                     <p class="text-correct" id="feedback-correct-answer">...</p>
+                  </div>
+                </div>
+                
+                <!-- Panel de Calificación de Repetición Espaciada (FSRS/Leitner) -->
+                <div id="spaced-repetition-panel" class="sr-panel-container" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
+                  <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: hsl(var(--md-sys-color-on-surface-variant)); text-align: center;" id="sr-grade-prompt">¿Cómo calificarías tu recuerdo de esta frase?</div>
+                  <div class="sr-buttons-group" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <button type="button" id="btn-sr-again" class="btn sr-btn btn-again" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-error)); background: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                      <span style="display: block; font-size: 18px;">🔴</span>
+                      <span style="display: block; font-size: 11px; margin-top: 2px;" id="btn-grade-again">Olvidé</span>
+                    </button>
+                    <button type="button" id="btn-sr-hard" class="btn sr-btn btn-hard" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-warning)); background: none; color: hsl(var(--md-sys-color-warning)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                      <span style="display: block; font-size: 18px;">🟠</span>
+                      <span style="display: block; font-size: 11px; margin-top: 2px;" id="btn-grade-hard">Difícil</span>
+                    </button>
+                    <button type="button" id="btn-sr-good" class="btn sr-btn btn-good" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-success)); background: none; color: hsl(var(--md-sys-color-success)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                      <span style="display: block; font-size: 18px;">🟢</span>
+                      <span style="display: block; font-size: 11px; margin-top: 2px;" id="btn-grade-good">Bien</span>
+                    </button>
+                    <button type="button" id="btn-sr-easy" class="btn sr-btn btn-easy" style="padding: 10px 4px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-primary)); background: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; transition: all 0.2s;">
+                      <span style="display: block; font-size: 18px;">🔵</span>
+                      <span style="display: block; font-size: 11px; margin-top: 2px;" id="btn-grade-easy">Fácil</span>
+                    </button>
                   </div>
                 </div>
                 
                 <div class="feedback-actions">
                   <button class="btn btn-primary btn-full" id="btn-recall-next">
-                    <span>Siguiente Ejercicio</span>
+                    <span id="btn-text-next-exercise">Siguiente Ejercicio</span>
                     <span class="material-symbols-rounded">arrow_forward</span>
                   </button>
                 </div>
+              </div>
+
+              <!-- Métricas Avanzadas y Jardín de Memoria (Práctica) -->
+              <div id="sr-analytics-section" style="margin: 20px 0; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px; width: 100%;">
+                
+                <!-- Tarjetas de Métricas -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));" id="lbl-metric-retention">Retención Estimada</span>
+                    <span id="sr-metric-retention" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">100.0%</span>
+                  </div>
+                  <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 12px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant));" id="lbl-metric-consolidation">Consolidación L.P.</span>
+                    <span id="sr-metric-consolidation" style="font-size: 20px; font-weight: 700; color: hsl(var(--md-sys-color-success));">0%</span>
+                  </div>
+                </div>
+
+                <!-- Jardín de la Memoria -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));" id="lbl-garden-title">Jardín de la Memoria (Isla Activa)</span>
+                    <span style="font-size: 11px; color: hsl(var(--md-sys-color-on-surface-variant)); display: flex; gap: 8px; align-items: center;">
+                      <span id="lbl-garden-seed">🌱 Semilla</span>
+                      <span id="lbl-garden-sprout">🌿 Brote</span>
+                      <span id="lbl-garden-tree">🌳 Árbol</span>
+                    </span>
+                  </div>
+                  <div id="memory-garden" style="display: flex; flex-wrap: wrap; gap: 8px; background: hsl(var(--md-sys-color-surface-container-lowest)); padding: 12px; border-radius: 16px; border: 1px dashed hsl(var(--md-sys-color-outline-variant)); min-height: 48px; align-items: center; justify-content: center;">
+                    <!-- Generado dinámicamente -->
+                  </div>
+                </div>
+
+                <!-- Gráfico de Curva de Olvido Ebbinghaus -->
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));" id="lbl-ebbinghaus-title">Proyección de la Curva de Olvido (Ebbinghaus)</span>
+                  <div style="background: hsl(var(--md-sys-color-surface-container-lowest)); border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); padding: 12px 12px 20px 12px; display: flex; justify-content: center; align-items: center; height: 130px;">
+                    <svg id="ebbinghaus-curve-svg" width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none" style="overflow: visible;">
+                      <!-- Dibujado por JS -->
+                    </svg>
+                  </div>
+                </div>
+
               </div>
             </div>
             
@@ -862,9 +875,26 @@
               
               <button type="submit" class="btn btn-secondary">
                 <span class="material-symbols-rounded">save</span>
-                <span>Actualizar Datos de Perfil</span>
+                <span id="btn-text-update-profile">Actualizar Datos de Perfil</span>
               </button>
             </form>
+          </div>
+
+          <!-- Configuración del Idioma de la Interfaz -->
+          <div class="card settings-card margin-top">
+            <h3 id="ui-settings-title">Idioma de la Interfaz</h3>
+            <p class="text-secondary small" id="ui-settings-desc">Selecciona el idioma en el que deseas visualizar la interfaz de la aplicación.</p>
+            <div class="form-group" style="margin-top: 12px;">
+              <label for="settings-ui-lang" id="ui-settings-label">Idioma de la App</label>
+              <select id="settings-ui-lang" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                <option value="es" selected>Español</option>
+                <option value="en">Inglés</option>
+                <option value="pt">Portugués</option>
+                <option value="fr">Francés</option>
+                <option value="de">Alemán</option>
+                <option value="it">Italiano</option>
+              </select>
+            </div>
           </div>
         </section>
 
