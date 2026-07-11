@@ -303,6 +303,64 @@ function renderIslandSelectors() {
       </div>
     `;
     
+    // Habilitar Drag & Drop
+    item.setAttribute('draggable', 'true');
+    item.setAttribute('data-index', index);
+    
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', index);
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      const allItems = container.querySelectorAll('.island-item');
+      allItems.forEach(i => i.classList.remove('drag-over'));
+    });
+    
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      item.classList.add('drag-over');
+    });
+    
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('drag-over');
+    });
+    
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      
+      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      const toIdx = index;
+      
+      if (fromIdx !== toIdx && !isNaN(fromIdx)) {
+        // Guardar ID de la isla activa actualmente para restaurar selección de forma precisa
+        const activeIsland = appState.islands[currentIslandIndex];
+        const activeIslandId = activeIsland ? activeIsland.id : null;
+        
+        // Reordenar array
+        const [moved] = appState.islands.splice(fromIdx, 1);
+        appState.islands.splice(toIdx, 0, moved);
+        
+        // Persistir cambio
+        saveState();
+        
+        // Restaurar índice correcto
+        if (activeIslandId) {
+          const newIdx = appState.islands.findIndex(isl => isl.id === activeIslandId);
+          if (newIdx !== -1) {
+            currentIslandIndex = newIdx;
+          }
+        }
+        
+        // Re-renderizar
+        renderIslandSelectors();
+      }
+    });
+    
     const deleteEl = item.querySelector('.btn-delete-island');
     const playEl = item.querySelector('.btn-play-island');
     

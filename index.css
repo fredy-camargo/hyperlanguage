@@ -573,6 +573,19 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 
+/* Drag and Drop styles for island items */
+.island-item.dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  border: 1px dashed hsl(var(--md-sys-color-primary)) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.island-item.drag-over {
+  border: 2px dashed hsl(var(--md-sys-color-primary)) !important;
+  background-color: hsla(var(--md-sys-color-primary), 0.06) !important;
+}
+
 /* Switch & Toggle Slider */
 .switch {
   position: relative;
