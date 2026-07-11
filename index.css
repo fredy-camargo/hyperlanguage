@@ -586,6 +586,16 @@ input:focus, select:focus, textarea:focus {
   background-color: hsla(var(--md-sys-color-primary), 0.06) !important;
 }
 
+/* Evitar parpadeos al pasar por encima de elementos hijos en el drag & drop */
+.island-item * {
+  pointer-events: none;
+}
+.island-item .island-actions,
+.island-item .island-actions button,
+.island-item .island-actions span {
+  pointer-events: auto;
+}
+
 /* Switch & Toggle Slider */
 .switch {
   position: relative;
