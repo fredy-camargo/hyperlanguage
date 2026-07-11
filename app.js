@@ -1238,13 +1238,11 @@ function updateSRUI() {
       
       sproutDiv.innerHTML = `
         <span style="font-size: 16px;">${icon}</span>
-        <span class="tooltip">
-          <strong>Frase ${idx + 1} (${iconName})</strong><br>
-          L2: ${escapeHtml(s.l2.substring(0, 40))}${s.l2.length > 40 ? '...' : ''}<br>
-          Retención: ${(R * 100).toFixed(1)}%<br>
-          Estabilidad: ${sr.stability.toFixed(1)} d
-        </span>
       `;
+      
+      sproutDiv.addEventListener('mouseenter', () => {
+        showGardenItemDetails(refSentence, idx, R, sr, icon, iconName);
+      });
       
       sproutDiv.addEventListener('click', () => {
         currentPracticeIndex = idx;
@@ -1350,6 +1348,50 @@ function updateSRUI() {
       label.textContent = l.text;
       svg.appendChild(label);
     });
+  }
+}
+
+function showGardenItemDetails(s, idx, R, sr, icon, iconName) {
+  const placeholder = document.getElementById('garden-details-placeholder');
+  const body = document.getElementById('garden-details-body');
+  
+  if (placeholder) placeholder.classList.add('hidden');
+  if (body) body.classList.remove('hidden');
+  
+  const numEl = document.getElementById('detail-num');
+  const retEl = document.getElementById('detail-retention');
+  const stabEl = document.getElementById('detail-stability');
+  const boxEl = document.getElementById('detail-box');
+  const l2El = document.getElementById('detail-l2');
+  
+  if (numEl) numEl.textContent = `#${idx + 1}`;
+  if (retEl) retEl.textContent = `${(R * 100).toFixed(1)}%`;
+  
+  if (stabEl) {
+    const daysText = appState.settings.uiLanguage === 'en' ? 'days' : 
+                     appState.settings.uiLanguage === 'pt' ? 'dias' :
+                     appState.settings.uiLanguage === 'fr' ? 'jours' :
+                     appState.settings.uiLanguage === 'de' ? 'Tage' :
+                     appState.settings.uiLanguage === 'it' ? 'giorni' : 'días';
+    stabEl.textContent = `${sr.stability.toFixed(1)} ${daysText}`;
+  }
+  
+  if (boxEl) {
+    boxEl.textContent = `${icon} ${iconName}`;
+    if (sr.box === 4) {
+      boxEl.style.background = "rgba(76, 175, 80, 0.15)";
+      boxEl.style.color = "hsl(142, 60%, 30%)";
+    } else if (sr.box >= 2) {
+      boxEl.style.background = "rgba(33, 150, 243, 0.1)";
+      boxEl.style.color = "hsl(215, 60%, 40%)";
+    } else {
+      boxEl.style.background = "rgba(255, 193, 7, 0.15)";
+      boxEl.style.color = "hsl(36, 100%, 30%)";
+    }
+  }
+  
+  if (l2El) {
+    l2El.textContent = s.l2;
   }
 }
 
@@ -3805,7 +3847,7 @@ const UI_TRANSLATIONS = {
     lbl_metric_words: "Palabras",
     lbl_metric_daily_goal: "Meta de Maestría Diario",
     
-    lbl_garden_title: "Jardín de la Memoria (Isla Activa)",
+    lbl_garden_title: "Jardim da Memória (Isla Activa)",
     lbl_garden_seed: "🌱 Semilla",
     lbl_garden_sprout: "🌿 Brote",
     lbl_garden_tree: "🌳 Árbol",
@@ -3819,7 +3861,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Actualizar Datos de Perfil",
     lbl_settings_ui_title: "Idioma de la Interfaz",
     lbl_settings_ui_desc: "Selecciona el idioma en el que deseas visualizar la interfaz de la aplicación.",
-    lbl_settings_ui_label: "Idioma de la App"
+    lbl_settings_ui_label: "Idioma de la App",
+
+    lbl_garden_details_title: "Detalle de Frase (Jardín)",
+    lbl_garden_details_placeholder: "Pasa el cursor sobre un brote en el jardín para ver su estado de repetición espaciada.",
+    lbl_detail_num: "Frase:",
+    lbl_detail_retention: "Retención Estimada:",
+    lbl_detail_stability: "Estabilidad:",
+    lbl_detail_box: "Nivel de Dominio:",
+    lbl_detail_l2: "Frase Objetivo (L2):"
   },
   en: {
     sidebar_learn: "Learn (Karaoke)",
@@ -3878,7 +3928,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Update Profile Data",
     lbl_settings_ui_title: "Interface Language",
     lbl_settings_ui_desc: "Select the language in which you want to display the application interface.",
-    lbl_settings_ui_label: "App Language"
+    lbl_settings_ui_label: "App Language",
+
+    lbl_garden_details_title: "Sentence Detail (Garden)",
+    lbl_garden_details_placeholder: "Hover over a sprout in the garden to view its spaced repetition status.",
+    lbl_detail_num: "Sentence:",
+    lbl_detail_retention: "Estimated Retention:",
+    lbl_detail_stability: "Stability:",
+    lbl_detail_box: "Mastery Level:",
+    lbl_detail_l2: "Target Sentence (L2):"
   },
   pt: {
     sidebar_learn: "Aprender (Karaoke)",
@@ -3937,7 +3995,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Atualizar Datos do Perfil",
     lbl_settings_ui_title: "Idioma da Interface",
     lbl_settings_ui_desc: "Selecione o idioma em que deseja exibir a interface do aplicativo.",
-    lbl_settings_ui_label: "Idioma do App"
+    lbl_settings_ui_label: "Idioma do App",
+
+    lbl_garden_details_title: "Detalhe da Frase (Jardim)",
+    lbl_garden_details_placeholder: "Passe o cursor sobre um broto no jardim para ver seu status de repetição espaçada.",
+    lbl_detail_num: "Frase:",
+    lbl_detail_retention: "Retenção Estimada:",
+    lbl_detail_stability: "Estabilidade:",
+    lbl_detail_box: "Nível de Domínio:",
+    lbl_detail_l2: "Frase de Destino (L2):"
   },
   fr: {
     sidebar_learn: "Apprendre (Karaoké)",
@@ -3996,7 +4062,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Mettre à Jour le Profil",
     lbl_settings_ui_title: "Langue de l'Interface",
     lbl_settings_ui_desc: "Sélectionnez la langue dans laquelle vous souhaitez afficher l'interface de l'application.",
-    lbl_settings_ui_label: "Langue de l'App"
+    lbl_settings_ui_label: "Langue de l'App",
+
+    lbl_garden_details_title: "Détail de la Phrase (Jardin)",
+    lbl_garden_details_placeholder: "Survolez une pousse dans le jardin pour voir son statut de répétition espacée.",
+    lbl_detail_num: "Phrase:",
+    lbl_detail_retention: "Rétention Estimée:",
+    lbl_detail_stability: "Stabilité:",
+    lbl_detail_box: "Niveau de Maîtrise:",
+    lbl_detail_l2: "Phrase Cible (L2):"
   },
   de: {
     sidebar_learn: "Lernen (Karaoke)",
@@ -4055,7 +4129,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Profil aktualisieren",
     lbl_settings_ui_title: "Oberflächensprache",
     lbl_settings_ui_desc: "Wählen Sie die Sprache aus, in der die Anwendungsoberfläche angezeigt werden soll.",
-    lbl_settings_ui_label: "App-Sprache"
+    lbl_settings_ui_label: "App-Sprache",
+
+    lbl_garden_details_title: "Satzdetail (Garten)",
+    lbl_garden_details_placeholder: "Führen Sie den Mauszeiger über einen Spross im Garten, um dessen Wiederholungsstatus anzuzeigen.",
+    lbl_detail_num: "Satz:",
+    lbl_detail_retention: "Geschätzte Retention:",
+    lbl_detail_stability: "Stabilität:",
+    lbl_detail_box: "Meisterschaftsstufe:",
+    lbl_detail_l2: "Zielsatz (L2):"
   },
   it: {
     sidebar_learn: "Imparare (Karaoke)",
@@ -4114,7 +4196,15 @@ const UI_TRANSLATIONS = {
     lbl_btn_save_profile: "Aggiorna Profilo",
     lbl_settings_ui_title: "Lingua dell'Interfaccia",
     lbl_settings_ui_desc: "Seleziona la lingua in cui desideri visualizzare l'interfaccia dell'applicazione.",
-    lbl_settings_ui_label: "Lingua dell'App"
+    lbl_settings_ui_label: "Lingua dell'App",
+
+    lbl_garden_details_title: "Dettaglio della Frase (Giardino)",
+    lbl_garden_details_placeholder: "Passa il cursore su un germoglio nel giardino per vedere lo stato di ripetizione dilazionata.",
+    lbl_detail_num: "Frase:",
+    lbl_detail_retention: "Ritenzione Stimata:",
+    lbl_detail_stability: "Stabilità:",
+    lbl_detail_box: "Livello di Padronanza:",
+    lbl_detail_l2: "Frase Target (L2):"
   }
 };
 
@@ -4185,7 +4275,7 @@ function applyUiLanguage(langCode) {
     if (span) span.textContent = t.lbl_speech_tab;
   }
   
-  const lblPrompt = document.querySelector('.recall-prompt p.small');
+  const lblPrompt = document.querySelector('.recall-prompt-card p.small') || document.querySelector('.recall-prompt p.small');
   if (lblPrompt) lblPrompt.textContent = t.lbl_translate_prompt;
   
   const txtInput = document.getElementById('recall-user-input');
@@ -4338,6 +4428,31 @@ function applyUiLanguage(langCode) {
   if (uiSettingsTitle) uiSettingsTitle.textContent = t.lbl_settings_ui_title;
   if (uiSettingsDesc) uiSettingsDesc.textContent = t.lbl_settings_ui_desc;
   if (uiSettingsLabel) uiSettingsLabel.textContent = t.lbl_settings_ui_label;
+
+  // Localizar la nueva tarjeta de detalles de frase
+  const lblDetailsTitle = document.getElementById('lbl-garden-details-title');
+  if (lblDetailsTitle) {
+    const span = lblDetailsTitle.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_garden_details_title;
+  }
+  
+  const detailsPlaceholder = document.getElementById('garden-details-placeholder');
+  if (detailsPlaceholder) {
+    detailsPlaceholder.textContent = t.lbl_garden_details_placeholder;
+  }
+  
+  const lblDetNum = document.getElementById('lbl-detail-num');
+  if (lblDetNum) lblDetNum.textContent = t.lbl_detail_num;
+  
+  const lblDetRetention = document.getElementById('lbl-detail-retention');
+  if (lblDetRetention) lblDetRetention.textContent = t.lbl_detail_retention;
+  
+  const lblDetStability = document.getElementById('lbl-detail-stability');
+  if (lblDetStability) lblDetStability.textContent = t.lbl_detail_stability;
+  
+  const lblDetBox = document.getElementById('lbl-detail-box');
+  if (lblDetBox) lblDetBox.textContent = t.lbl_detail_box;
+  
+  const lblDetL2 = document.getElementById('lbl-detail-l2');
+  if (lblDetL2) lblDetL2.textContent = t.lbl_detail_l2;
 }
-
-

@@ -292,30 +292,39 @@
                   </button>
                 </div>
                 
-                <div class="recall-prompt">
-                  <p class="small text-secondary">Traduce al idioma objetivo:</p>
-                  <h2 id="recall-prompt-l1">No hay ejercicios activos.</h2>
-                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
-                    <span class="domain-tag" id="recall-domain">Contexto: Finanzas</span>
+                <!-- Prompt como tarjeta física (flashcard) para el modo Escritura -->
+                <div class="recall-prompt-card" style="width: 100%; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); background: hsl(var(--md-sys-color-surface-container-low)); padding: 20px; box-shadow: var(--md-sys-elevation-1); margin: 0 0 16px 0; border-left: 5px solid hsl(var(--md-sys-color-primary)); transition: box-shadow 0.25s;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <p class="small text-secondary" id="recall-prompt-label" style="font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0;">Idioma Nativo (Traduce al idioma objetivo)</p>
                     <span id="recall-sentence-mastery-badge" class="mastery-badge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; background-color: hsl(var(--md-sys-color-surface-variant)); color: hsl(var(--md-sys-color-on-surface-variant)); border: 1px solid hsl(var(--md-sys-color-outline-variant));">
                       <span class="material-symbols-rounded" style="font-size: 14px;">psychology</span>
                       <span id="recall-sentence-mastery-text">Dominio: 0%</span>
                     </span>
                   </div>
+                  <h2 id="recall-prompt-l1" style="font-size: 18px; font-weight: 600; margin: 12px 0 8px 0; color: hsl(var(--md-sys-color-on-surface)); line-height: 26px;">No hay ejercicios activos.</h2>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 8px;">
+                    <span class="domain-tag" id="recall-domain" style="font-size: 11px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface-variant));">Contexto: Finanzas</span>
+                  </div>
                 </div>
                 
-                <!-- Flip Card 3D para modo Pronunciación -->
-                <div id="recall-speech-flip-card" class="flip-card hidden" style="width: 100%; height: 160px; perspective: 1000px; cursor: pointer; margin: 16px 0;">
+                <!-- Flip Card 3D para modo Pronunciación con aspecto premium de flashcard física -->
+                <div id="recall-speech-flip-card" class="flip-card hidden" style="width: 100%; height: 160px; perspective: 1000px; cursor: pointer; margin: 0 0 16px 0;">
                   <div class="flip-card-inner" style="position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); background: hsl(var(--md-sys-color-surface-container-low)); box-shadow: var(--md-sys-elevation-1);">
                     <!-- Lado A (Frente): Idioma Nativo L1 -->
-                    <div class="flip-card-front" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; border-radius: 16px;">
-                      <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-primary)); font-weight: 700; margin: 0 0 8px 0; letter-spacing: 0.5px;" id="flip-front-label">Idioma Nativo (Toca para voltear y escuchar)</p>
-                      <h3 id="flip-front-text" style="font-size: 18px; font-weight: 600; margin: 0; color: hsl(var(--md-sys-color-on-surface));">Frase L1</h3>
+                    <div class="flip-card-front" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; border-radius: 16px; border-left: 5px solid hsl(var(--md-sys-color-primary));">
+                      <div style="display: flex; align-items: center; gap: 6px; position: absolute; top: 12px; left: 16px; right: 16px; justify-content: space-between; width: calc(100% - 32px);">
+                        <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-primary)); font-weight: 700; margin: 0; letter-spacing: 0.5px;" id="flip-front-label">Idioma Nativo (Toca para voltear y escuchar)</p>
+                        <span class="material-symbols-rounded" style="font-size: 16px; color: hsl(var(--md-sys-color-primary)); animation: pulse 2s infinite;">flip_camera_android</span>
+                      </div>
+                      <h3 id="flip-front-text" style="font-size: 18px; font-weight: 600; margin: 12px 0 0 0; color: hsl(var(--md-sys-color-on-surface)); line-height: 26px;">Frase L1</h3>
                     </div>
                     <!-- Lado B (Atrás): Idioma Objetivo L2 -->
-                    <div class="flip-card-back" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; transform: rotateY(180deg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-high));">
-                      <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-success)); font-weight: 700; margin: 0 0 8px 0; letter-spacing: 0.5px;" id="flip-back-label">Idioma Objetivo (TTS Reproducido)</p>
-                      <h3 id="flip-back-text" style="font-size: 20px; font-weight: 700; margin: 0; color: hsl(var(--md-sys-color-on-surface));">Frase L2</h3>
+                    <div class="flip-card-back" style="position: absolute; width: 100%; height: 100%; backface-visibility: hidden; transform: rotateY(180deg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-high)); border-right: 5px solid hsl(var(--md-sys-color-success));">
+                      <div style="display: flex; align-items: center; gap: 6px; position: absolute; top: 12px; left: 16px; right: 16px; justify-content: space-between; width: calc(100% - 32px);">
+                        <p style="font-size: 11px; text-transform: uppercase; color: hsl(var(--md-sys-color-success)); font-weight: 700; margin: 0; letter-spacing: 0.5px;" id="flip-back-label">Idioma Objetivo (TTS Reproducido)</p>
+                        <span class="material-symbols-rounded" style="font-size: 16px; color: hsl(var(--md-sys-color-success));">volume_up</span>
+                      </div>
+                      <h3 id="flip-back-text" style="font-size: 20px; font-weight: 700; margin: 12px 0 0 0; color: hsl(var(--md-sys-color-on-surface)); line-height: 28px;">Frase L2</h3>
                     </div>
                   </div>
                 </div>
@@ -498,6 +507,39 @@
                   <span class="small text-secondary">Meta de Maestría Diario</span>
                   <div class="progress-bar">
                     <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tarjeta de Detalle de Frase (Jardín de Memoria) -->
+              <div class="card sidebar-card margin-top" id="garden-details-card" style="margin-top: 16px;">
+                <h3 id="lbl-garden-details-title" style="display: flex; align-items: center; gap: 8px;">
+                  <span class="material-symbols-rounded" style="color: hsl(var(--md-sys-color-primary));">info</span>
+                  <span>Detalle de Frase (Jardín)</span>
+                </h3>
+                <div id="garden-details-content" class="text-secondary small" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                  <p id="garden-details-placeholder" style="margin: 0; font-style: italic;">Pasa el cursor sobre un brote en el jardín para ver su estado de repetición espaciada.</p>
+                  <div id="garden-details-body" class="hidden" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
+                      <span style="font-weight: 600;" id="lbl-detail-num">Frase:</span>
+                      <span id="detail-num" style="color: hsl(var(--md-sys-color-primary)); font-weight: 700;">#1</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
+                      <span style="font-weight: 600;" id="lbl-detail-retention">Retención Estimada:</span>
+                      <span id="detail-retention" style="font-weight: 700; color: hsl(var(--md-sys-color-primary));">100%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
+                      <span style="font-weight: 600;" id="lbl-detail-stability">Estabilidad:</span>
+                      <span id="detail-stability">1.0 días</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
+                      <span style="font-weight: 600;" id="lbl-detail-box">Nivel de Dominio:</span>
+                      <span id="detail-box" style="font-weight: 600; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🌱 Semilla</span>
+                    </div>
+                    <div style="margin-top: 6px;">
+                      <span style="font-weight: 600; display: block; margin-bottom: 4px;" id="lbl-detail-l2">Frase Objetivo (L2):</span>
+                      <p id="detail-l2" style="margin: 0; color: hsl(var(--md-sys-color-on-surface)); font-weight: 500; font-size: 13px; line-height: 18px; background: hsl(var(--md-sys-color-surface-container-lowest)); padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); word-break: break-word;"></p>
+                    </div>
                   </div>
                 </div>
               </div>

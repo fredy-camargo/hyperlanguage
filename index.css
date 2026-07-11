@@ -715,6 +715,25 @@ input:checked + .slider:before {
   gap: 16px;
 }
 
+/* Prompt en forma de tarjeta premium física de estudio */
+.recall-prompt-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.recall-prompt-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+#recall-speech-flip-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+#recall-speech-flip-card:hover {
+  transform: translateY(-2px);
+}
+#recall-speech-flip-card:hover .flip-card-inner {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
 .feedback-card {
   border-left: 6px solid hsl(var(--md-sys-color-accent));
   animation: fadeIn var(--transition-normal);
