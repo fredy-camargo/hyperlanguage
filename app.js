@@ -59,6 +59,7 @@ function loadAppState() {
       if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
       if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
       if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-JennyNeural';
+      if (appState.settings.uiLanguage === undefined) appState.settings.uiLanguage = 'es';
       
       // Asegurar nuevas métricas
       if (appState.metrics.streak === undefined) appState.metrics.streak = 0;
@@ -219,7 +220,7 @@ function switchTab(tabId) {
   });
   
   // Actualizar título
-  const titleMap = {
+  const titleMap = window.uiTitleMap || {
     learn: 'Aprender (Karaoke)',
     practice: 'Practicar (Recall Loop)',
     generate: 'Generar Contexto Inteligente',
@@ -1044,89 +1045,120 @@ function advanceSentence(offset) {
 
 // --- SISTEMA DE REPETICIÓN ESPACIADA INTEGRADA (FSRS + LEITNER) ---
 
+// --- SISTEMA DE REPETICIÓN ESPACIADA INTEGRADA (FSRS + LEITNER) ---
+
 function sanitizeSentenceSRMetadata(s) {
-  if (s.mastery === undefined) s.mastery = 0;
-  if (s.box === undefined) s.box = 1;
-  if (s.difficulty === undefined) s.difficulty = 5.0;
-  if (s.stability === undefined) s.stability = 1.0;
-  if (s.last_review === undefined) s.last_review = null;
-  if (s.next_review === undefined) s.next_review = null;
-  if (s.reps === undefined) s.reps = 0;
-  if (s.lapses === undefined) s.lapses = 0;
+  if (!s.writing_sr) {
+    s.writing_sr = {
+      box: 1,
+      difficulty: 5.0,
+      stability: 1.0,
+      last_review: null,
+      next_review: null,
+      reps: 0,
+      lapses: 0
+    };
+  }
+  if (!s.speech_sr) {
+    s.speech_sr = {
+      box: 1,
+      difficulty: 5.0,
+      stability: 1.0,
+      last_review: null,
+      next_review: null,
+      reps: 0,
+      lapses: 0
+    };
+  }
+  if (s.box === undefined) s.box = s.writing_sr.box;
+  if (s.difficulty === undefined) s.difficulty = s.writing_sr.difficulty;
+  if (s.stability === undefined) s.stability = s.writing_sr.stability;
+  if (s.mastery === undefined) s.mastery = s.writing_sr.box;
   return s;
 }
 
 function gradeActiveSentence(grade) {
-  const island = appState.islands[currentIslandIndex];
-  if (!island || island.sentences.length === 0) return;
-  const sentence = island.sentences[currentSentenceIndex];
+  if (practiceSentences.length === 0) return;
+  const sentence = practiceSentences[currentPracticeIndex];
   if (!sentence) return;
   
-  sanitizeSentenceSRMetadata(sentence);
+  const island = appState.islands.find(isl => isl.id === sentence.islandId);
+  if (!island) return;
+  const dbSentence = island.sentences.find(s => s.id === sentence.id);
+  if (!dbSentence) return;
+  
+  sanitizeSentenceSRMetadata(dbSentence);
   
   const now = new Date();
-  sentence.last_review = now.toISOString();
+  const isSpeech = (activePracticeMode === 'speech');
+  const sr = isSpeech ? dbSentence.speech_sr : dbSentence.writing_sr;
   
-  let S = sentence.stability;
-  let D = sentence.difficulty;
+  sr.last_review = now.toISOString();
+  let S = sr.stability || 1.0;
+  let D = sr.difficulty || 5.0;
   
-  if (grade === 1) { // Olvidé (Again)
+  if (grade === 1) { // Olvidé
     D = Math.min(D + 2.0, 10.0);
-    S = 0.5; // Resetea la estabilidad a medio día
-    sentence.lapses += 1;
-    sentence.box = 1;
-  } else if (grade === 2) { // Difícil (Hard)
+    S = 0.5;
+    sr.lapses = (sr.lapses || 0) + 1;
+    sr.box = 1;
+  } else if (grade === 2) { // Difícil
     D = Math.min(D + 1.0, 10.0);
     S = S * 1.2;
-    sentence.reps += 1;
-    if (S >= 3.0) sentence.box = Math.min(sentence.box + 1, 4);
-  } else if (grade === 3) { // Bien (Good)
+    sr.reps = (sr.reps || 0) + 1;
+    if (S >= 3.0) sr.box = Math.min((sr.box || 1) + 1, 4);
+  } else if (grade === 3) { // Bien
     const factor = 1.8 + 2.0 * Math.pow(D, -0.3);
     S = S * factor;
-    sentence.reps += 1;
-    sentence.box = Math.min(sentence.box + 1, 4);
-  } else if (grade === 4) { // Fácil (Easy)
+    sr.reps = (sr.reps || 0) + 1;
+    sr.box = Math.min((sr.box || 1) + 1, 4);
+  } else if (grade === 4) { // Fácil
     D = Math.max(D - 1.5, 1.0);
     const factor = 3.5 * (1.2 + 2.0 * Math.pow(D, -0.3));
     S = S * factor;
-    sentence.reps += 1;
-    sentence.box = Math.max(sentence.box, 3);
-    sentence.box = Math.min(sentence.box + 1, 4);
+    sr.reps = (sr.reps || 0) + 1;
+    sr.box = Math.max((sr.box || 1), 3);
+    sr.box = Math.min(sr.box + 1, 4);
   }
   
-  sentence.stability = S;
-  sentence.difficulty = D;
-  sentence.mastery = sentence.box; // Sincronización visual
+  sr.stability = S;
+  sr.difficulty = D;
+  
+  // Compatibilidad general
+  dbSentence.box = dbSentence.writing_sr.box;
+  dbSentence.stability = dbSentence.writing_sr.stability;
+  dbSentence.difficulty = dbSentence.writing_sr.difficulty;
+  dbSentence.mastery = dbSentence.writing_sr.box;
   
   const nextDate = new Date();
   nextDate.setTime(now.getTime() + S * 24 * 60 * 60 * 1000);
-  sentence.next_review = nextDate.toISOString();
+  sr.next_review = nextDate.toISOString();
   
   saveAppState();
   
-  // Animación del botón pulsado
   const btnId = ['btn-sr-again', 'btn-sr-hard', 'btn-sr-good', 'btn-sr-easy'][grade - 1];
   const btnEl = document.getElementById(btnId);
   if (btnEl) {
     btnEl.style.transform = "scale(0.92)";
-    setTimeout(() => {
-      btnEl.style.transform = "";
-    }, 150);
+    setTimeout(() => { btnEl.style.transform = ""; }, 150);
   }
   
-  stopTTS();
-  loadCurrentSentence();
+  const feedbackCard = document.getElementById('recall-feedback-card');
+  if (feedbackCard) feedbackCard.classList.add('hidden');
   
-  // Avance automático tras 1 segundo para flujo continuo
-  setTimeout(() => {
-    advanceSentence(1);
-    playTTS();
-  }, 1000);
+  const select = document.getElementById('recall-island-select');
+  if (select && select.value === 'fsrs') {
+    buildPracticeQueue();
+    currentPracticeIndex = 0;
+  } else {
+    currentPracticeIndex = (currentPracticeIndex + 1) % practiceSentences.length;
+  }
+  
+  loadPracticeExercise();
 }
 
 function updateSRUI() {
-  const island = appState.islands[currentIslandIndex];
-  if (!island || !island.sentences || island.sentences.length === 0) {
+  if (practiceSentences.length === 0) {
     const analytics = document.getElementById('sr-analytics-section');
     if (analytics) analytics.style.display = 'none';
     const panel = document.getElementById('spaced-repetition-panel');
@@ -1136,8 +1168,16 @@ function updateSRUI() {
   
   const analytics = document.getElementById('sr-analytics-section');
   if (analytics) analytics.style.display = 'flex';
+  
+  const feedbackCard = document.getElementById('recall-feedback-card');
   const panel = document.getElementById('spaced-repetition-panel');
-  if (panel) panel.style.display = 'flex';
+  if (panel) {
+    if (feedbackCard && !feedbackCard.classList.contains('hidden')) {
+      panel.style.display = 'flex';
+    } else {
+      panel.style.display = 'none';
+    }
+  }
   
   const now = new Date();
   let totalRetention = 0;
@@ -1147,18 +1187,29 @@ function updateSRUI() {
   if (gardenContainer) {
     gardenContainer.innerHTML = '';
     
-    island.sentences.forEach((s, idx) => {
-      sanitizeSentenceSRMetadata(s);
+    practiceSentences.forEach((s, idx) => {
+      const stateIsland = appState.islands.find(isl => isl.id === s.islandId);
+      let refSentence = s;
+      if (stateIsland) {
+        const stateSent = stateIsland.sentences.find(sent => sent.id === s.id);
+        if (stateSent) {
+          sanitizeSentenceSRMetadata(stateSent);
+          refSentence = stateSent;
+        }
+      }
+      
+      const isSpeech = (activePracticeMode === 'speech');
+      const sr = isSpeech ? refSentence.speech_sr : refSentence.writing_sr;
       
       let R = 1.0;
-      if (s.last_review) {
-        const lastReviewDate = new Date(s.last_review);
+      if (sr.last_review) {
+        const lastReviewDate = new Date(sr.last_review);
         const elapsedDays = (now.getTime() - lastReviewDate.getTime()) / (24 * 60 * 60 * 1000);
-        R = Math.pow(1 + elapsedDays / (9 * s.stability), -0.5);
+        R = Math.pow(1 + elapsedDays / (9 * sr.stability), -0.5);
       }
       totalRetention += R;
       
-      if (s.box === 4) {
+      if (sr.box === 4) {
         consolidationCount++;
       }
       
@@ -1166,18 +1217,17 @@ function updateSRUI() {
       let iconName = "Semilla";
       let badgeColor = "hsl(var(--md-sys-color-outline-variant))";
       
-      if (s.box === 4) {
+      if (sr.box === 4) {
         icon = "🌳";
         iconName = "Árbol Consolidado";
         badgeColor = "hsl(142, 60%, 40%)";
-      } else if (s.box >= 2) {
+      } else if (sr.box >= 2) {
         icon = "🌿";
         iconName = "Brote Joven";
         badgeColor = "hsl(142, 40%, 55%)";
       }
       
-      // Resaltar brote actual en el Karaoke
-      const isCurrent = (idx === currentSentenceIndex);
+      const isCurrent = (idx === currentPracticeIndex);
       const sproutDiv = document.createElement('div');
       sproutDiv.className = 'garden-sprout';
       sproutDiv.style.borderColor = badgeColor;
@@ -1192,21 +1242,21 @@ function updateSRUI() {
           <strong>Frase ${idx + 1} (${iconName})</strong><br>
           L2: ${escapeHtml(s.l2.substring(0, 40))}${s.l2.length > 40 ? '...' : ''}<br>
           Retención: ${(R * 100).toFixed(1)}%<br>
-          Estabilidad: ${s.stability.toFixed(1)} d
+          Estabilidad: ${sr.stability.toFixed(1)} d
         </span>
       `;
       
       sproutDiv.addEventListener('click', () => {
-        currentSentenceIndex = idx;
-        loadCurrentSentence();
+        currentPracticeIndex = idx;
+        loadPracticeExercise();
       });
       
       gardenContainer.appendChild(sproutDiv);
     });
   }
   
-  const avgRetention = (totalRetention / island.sentences.length) * 100;
-  const consolidationPercent = (consolidationCount / island.sentences.length) * 100;
+  const avgRetention = (totalRetention / practiceSentences.length) * 100;
+  const consolidationPercent = (consolidationCount / practiceSentences.length) * 100;
   
   const retEl = document.getElementById('sr-metric-retention');
   const conEl = document.getElementById('sr-metric-consolidation');
@@ -1216,7 +1266,22 @@ function updateSRUI() {
   const svg = document.getElementById('ebbinghaus-curve-svg');
   if (svg) {
     svg.innerHTML = '';
-    const avgStability = island.sentences.reduce((acc, s) => acc + s.stability, 0) / island.sentences.length;
+    
+    let sumStability = 0;
+    practiceSentences.forEach(s => {
+      const stateIsland = appState.islands.find(isl => isl.id === s.islandId);
+      let refSentence = s;
+      if (stateIsland) {
+        const stateSent = stateIsland.sentences.find(sent => sent.id === s.id);
+        if (stateSent) {
+          refSentence = stateSent;
+        }
+      }
+      const isSpeech = (activePracticeMode === 'speech');
+      const sr = isSpeech ? refSentence.speech_sr : refSentence.writing_sr;
+      sumStability += sr.stability || 1.0;
+    });
+    const avgStability = sumStability / practiceSentences.length;
     
     const lineY90 = 10 + (1.0 - 0.90) * 80;
     const refLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -1302,8 +1367,11 @@ let speechRecognitionInstance = null;
 function populateRecallIslandSelect() {
   const select = document.getElementById('recall-island-select');
   if (!select) return;
-  const currentSelection = select.value || 'all';
-  select.innerHTML = '<option value="all">Todas las Islas</option>';
+  const currentSelection = select.value || 'fsrs';
+  select.innerHTML = `
+    <option value="fsrs">🧠 Repaso Inteligente (FSRS)</option>
+    <option value="all">Todas las Islas</option>
+  `;
   appState.islands.forEach(island => {
     const opt = document.createElement('option');
     opt.value = island.id || `island_${Math.random()}`;
@@ -1311,16 +1379,18 @@ function populateRecallIslandSelect() {
     select.appendChild(opt);
   });
   const optionExists = Array.from(select.options).some(opt => opt.value === currentSelection);
-  select.value = optionExists ? currentSelection : 'all';
+  select.value = optionExists ? currentSelection : 'fsrs';
 }
 
 function buildPracticeQueue() {
   const select = document.getElementById('recall-island-select');
-  const filterVal = select ? select.value : 'all';
+  const filterVal = select ? select.value : 'fsrs';
   practiceSentences = [];
+  
   appState.islands.forEach(island => {
-    if (filterVal === 'all' || island.id === filterVal) {
+    if (filterVal === 'fsrs' || filterVal === 'all' || island.id === filterVal) {
       island.sentences.forEach(s => {
+        sanitizeSentenceSRMetadata(s);
         practiceSentences.push({
           ...s,
           language: island.language,
@@ -1330,6 +1400,37 @@ function buildPracticeQueue() {
       });
     }
   });
+  
+  if (filterVal === 'fsrs' && practiceSentences.length > 0) {
+    const now = new Date();
+    practiceSentences.sort((a, b) => {
+      const srA = (activePracticeMode === 'speech') ? a.speech_sr : a.writing_sr;
+      const srB = (activePracticeMode === 'speech') ? b.speech_sr : b.writing_sr;
+      
+      const overdueA = srA.next_review ? (new Date(srA.next_review) <= now) : true;
+      const overdueB = srB.next_review ? (new Date(srB.next_review) <= now) : true;
+      
+      if (overdueA && !overdueB) return -1;
+      if (!overdueA && overdueB) return 1;
+      
+      if (overdueA && overdueB) {
+        const lastA = srA.last_review ? new Date(srA.last_review).getTime() : 0;
+        const lastB = srB.last_review ? new Date(srB.last_review).getTime() : 0;
+        const elapsedA = (now.getTime() - lastA) / (24 * 60 * 60 * 1000);
+        const elapsedB = (now.getTime() - lastB) / (24 * 60 * 60 * 1000);
+        const rA = Math.pow(1 + elapsedA / (9 * srA.stability), -0.5);
+        const rB = Math.pow(1 + elapsedB / (9 * srB.stability), -0.5);
+        return rA - rB;
+      }
+      
+      const nextA = srA.next_review ? new Date(srA.next_review).getTime() : 0;
+      const nextB = srB.next_review ? new Date(srB.next_review).getTime() : 0;
+      if (nextA !== nextB) {
+        return nextA - nextB;
+      }
+      return srA.stability - srB.stability;
+    });
+  }
 }
 
 function initPracticePanel() {
@@ -1384,48 +1485,63 @@ function loadPracticeExercise() {
   
   document.getElementById('btn-recall-submit').disabled = false;
   const sentence = practiceSentences[currentPracticeIndex];
-  container.textContent = sentence.l1;
+  
+  const isSpeechMode = (activePracticeMode === 'speech');
+  const flipCard = document.getElementById('recall-speech-flip-card');
+  const labelEl = document.querySelector('.recall-prompt p.small');
+  
+  if (isSpeechMode) {
+    if (container) container.classList.add('hidden');
+    if (labelEl) labelEl.classList.add('hidden');
+    if (flipCard) {
+      flipCard.classList.remove('hidden');
+      flipCard.classList.remove('flipped');
+      document.getElementById('flip-front-text').textContent = sentence.l1;
+      document.getElementById('flip-back-text').textContent = sentence.l2;
+    }
+  } else {
+    if (container) {
+      container.classList.remove('hidden');
+      container.textContent = sentence.l1;
+    }
+    if (labelEl) labelEl.classList.remove('hidden');
+    if (flipCard) flipCard.classList.add('hidden');
+  }
+  
   indexEl.textContent = `${currentPracticeIndex + 1} / ${practiceSentences.length}`;
   domainEl.textContent = `Idioma de Estudio: ${sentence.language} | Palabra objetivo: ${sentence.word_targeted || 'General'}`;
   
-  // Renderizar indicador de repetición espaciada en práctica
-  let stateMastery = 0;
+  let stateMastery = 1;
   const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
   if (stateIsland) {
     const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
-    if (stateSentence && stateSentence.mastery !== undefined) {
-      stateMastery = stateSentence.mastery;
+    if (stateSentence) {
+      sanitizeSentenceSRMetadata(stateSentence);
+      const sr = isSpeechMode ? stateSentence.speech_sr : stateSentence.writing_sr;
+      stateMastery = sr.box;
     }
   }
   
   const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
   const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
   if (masteryTextEl) {
-    const percent = stateMastery * 20;
-    let levelName = "Sin iniciar";
-    let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
-    let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
+    const percent = stateMastery * 25;
+    let levelName = "Semilla (Por repasar)";
+    let badgeBg = "rgba(255, 193, 7, 0.15)";
+    let badgeFg = "hsl(36, 100% ,30%)";
     
-    if (stateMastery === 5) {
-      levelName = "Largo Plazo (Completado)";
+    if (stateMastery === 4) {
+      levelName = "Árbol Maduro (Largo Plazo)";
       badgeBg = "rgba(76, 175, 80, 0.15)";
       badgeFg = "hsl(142, 60% ,30%)";
-    } else if (stateMastery === 4) {
-      levelName = "Consolidando";
-      badgeBg = "rgba(76, 175, 80, 0.1)";
-      badgeFg = "hsl(142, 50% ,35%)";
     } else if (stateMastery === 3) {
-      levelName = "Medio Plazo";
+      levelName = "Planta Joven (Mediano Plazo)";
       badgeBg = "rgba(33, 150, 243, 0.1)";
       badgeFg = "hsl(215, 60% ,40%)";
     } else if (stateMastery === 2) {
-      levelName = "Corto Plazo";
-      badgeBg = "rgba(255, 193, 7, 0.15)";
-      badgeFg = "hsl(36, 100% ,30%)";
-    } else if (stateMastery === 1) {
-      levelName = "Aprendizaje Reciente";
-      badgeBg = "rgba(244, 67, 54, 0.1)";
-      badgeFg = "hsl(4, 80% ,40%)";
+      levelName = "Brote Joven (Corto Plazo)";
+      badgeBg = "rgba(76, 175, 80, 0.1)";
+      badgeFg = "hsl(142, 50% ,35%)";
     }
     
     masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
@@ -1434,6 +1550,8 @@ function loadPracticeExercise() {
       masteryBadgeEl.style.color = badgeFg;
     }
   }
+  
+  updateSRUI();
 }
 
 function diffWords(userText, correctText) {
@@ -1546,56 +1664,7 @@ function evaluateRecallAttempt() {
     appState.metrics.incorrectCount += 1;
   }
   
-  // Actualizar Repetición Espaciada en appState
-  const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
-  if (stateIsland) {
-    const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
-    if (stateSentence) {
-      if (stateSentence.mastery === undefined) stateSentence.mastery = 0;
-      if (accuracy >= 85) {
-        stateSentence.mastery = Math.min(stateSentence.mastery + 1, 5);
-      } else {
-        stateSentence.mastery = Math.max(stateSentence.mastery - 1, 0);
-      }
-      sentence.mastery = stateSentence.mastery;
-      
-      // Actualizar distintivo de dominio en la interfaz
-      const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
-      const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
-      if (masteryTextEl) {
-        const percent = stateSentence.mastery * 20;
-        let levelName = "Sin iniciar";
-        let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
-        let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
-        if (stateSentence.mastery === 5) {
-          levelName = "Largo Plazo (Completado)";
-          badgeBg = "rgba(76, 175, 80, 0.15)";
-          badgeFg = "hsl(142, 60% ,30%)";
-        } else if (stateSentence.mastery === 4) {
-          levelName = "Consolidando";
-          badgeBg = "rgba(76, 175, 80, 0.1)";
-          badgeFg = "hsl(142, 50% ,35%)";
-        } else if (stateSentence.mastery === 3) {
-          levelName = "Medio Plazo";
-          badgeBg = "rgba(33, 150, 243, 0.1)";
-          badgeFg = "hsl(215, 60% ,40%)";
-        } else if (stateSentence.mastery === 2) {
-          levelName = "Corto Plazo";
-          badgeBg = "rgba(255, 193, 7, 0.15)";
-          badgeFg = "hsl(36, 100% ,30%)";
-        } else if (stateSentence.mastery === 1) {
-          levelName = "Aprendizaje Reciente";
-          badgeBg = "rgba(244, 67, 54, 0.1)";
-          badgeFg = "hsl(4, 80% ,40%)";
-        }
-        masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
-        if (masteryBadgeEl) {
-          masteryBadgeEl.style.backgroundColor = badgeBg;
-          masteryBadgeEl.style.color = badgeFg;
-        }
-      }
-    }
-  }
+  updateSRUI();
 
   // Actualizar métricas del estado local
   appState.metrics.totalAttempts += 1;
@@ -1782,56 +1851,7 @@ function evaluatePronunciationAttempt() {
     appState.metrics.incorrectCount += 1;
   }
   
-  // Actualizar Repetición Espaciada en appState
-  const stateIsland = appState.islands.find(isl => isl.id === sentence.islandId);
-  if (stateIsland) {
-    const stateSentence = stateIsland.sentences.find(s => s.id === sentence.id);
-    if (stateSentence) {
-      if (stateSentence.mastery === undefined) stateSentence.mastery = 0;
-      if (accuracy >= 85) {
-        stateSentence.mastery = Math.min(stateSentence.mastery + 1, 5);
-      } else {
-        stateSentence.mastery = Math.max(stateSentence.mastery - 1, 0);
-      }
-      sentence.mastery = stateSentence.mastery;
-      
-      // Actualizar distintivo de dominio en la interfaz
-      const masteryTextEl = document.getElementById('recall-sentence-mastery-text');
-      const masteryBadgeEl = document.getElementById('recall-sentence-mastery-badge');
-      if (masteryTextEl) {
-        const percent = stateSentence.mastery * 20;
-        let levelName = "Sin iniciar";
-        let badgeBg = "hsl(var(--md-sys-color-surface-variant))";
-        let badgeFg = "hsl(var(--md-sys-color-on-surface-variant))";
-        if (stateSentence.mastery === 5) {
-          levelName = "Largo Plazo (Completado)";
-          badgeBg = "rgba(76, 175, 80, 0.15)";
-          badgeFg = "hsl(142, 60% ,30%)";
-        } else if (stateSentence.mastery === 4) {
-          levelName = "Consolidando";
-          badgeBg = "rgba(76, 175, 80, 0.1)";
-          badgeFg = "hsl(142, 50% ,35%)";
-        } else if (stateSentence.mastery === 3) {
-          levelName = "Medio Plazo";
-          badgeBg = "rgba(33, 150, 243, 0.1)";
-          badgeFg = "hsl(215, 60% ,40%)";
-        } else if (stateSentence.mastery === 2) {
-          levelName = "Corto Plazo";
-          badgeBg = "rgba(255, 193, 7, 0.15)";
-          badgeFg = "hsl(36, 100% ,30%)";
-        } else if (stateSentence.mastery === 1) {
-          levelName = "Aprendizaje Reciente";
-          badgeBg = "rgba(244, 67, 54, 0.1)";
-          badgeFg = "hsl(4, 80% ,40%)";
-        }
-        masteryTextEl.textContent = `Dominio: ${percent}% (${levelName})`;
-        if (masteryBadgeEl) {
-          masteryBadgeEl.style.backgroundColor = badgeBg;
-          masteryBadgeEl.style.color = badgeFg;
-        }
-      }
-    }
-  }
+  updateSRUI();
 
   appState.metrics.totalPronAttempts += 1;
   appState.metrics.pronAccuracySum += accuracy;
@@ -2747,6 +2767,12 @@ function loadSettingsPanel() {
   document.getElementById('api-key').value = appState.settings.apiKey || '';
   document.getElementById('api-url').value = appState.settings.apiUrl || '';
   document.getElementById('api-tts-key').value = appState.settings.apiTtsKey || '';
+
+  // Cargar idioma de la interfaz
+  const uiLangSelect = document.getElementById('settings-ui-lang');
+  if (uiLangSelect) {
+    uiLangSelect.value = appState.settings.uiLanguage || 'es';
+  }
 }
 
 function saveSettingsForm(e) {
@@ -2827,6 +2853,9 @@ function escapeHtml(unsafe) {
 document.addEventListener('DOMContentLoaded', () => {
   // Cargar estado local
   loadAppState();
+  
+  // Aplicar idioma cargado
+  applyUiLanguage(appState.settings.uiLanguage || 'es');
   
   // Inicializar UI
   initTheme();
@@ -3070,6 +3099,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Inicializar panel de metodología y guías
   initMethodologyPanel();
+
+  // Registrar listeners adicionales para Idioma e Flip Card 3D
+  const uiLangSelect = document.getElementById('settings-ui-lang');
+  if (uiLangSelect) {
+    uiLangSelect.addEventListener('change', (e) => {
+      const lang = e.target.value;
+      appState.settings.uiLanguage = lang;
+      saveAppState();
+      applyUiLanguage(lang);
+    });
+  }
+
+  const flipCard = document.getElementById('recall-speech-flip-card');
+  if (flipCard) {
+    flipCard.addEventListener('click', () => {
+      flipCard.classList.toggle('flipped');
+      if (flipCard.classList.contains('flipped')) {
+        playPracticeSentenceTTS();
+      }
+    });
+  }
 
   // Panel inicial por defecto
   initLearnPanel();
@@ -3706,4 +3756,588 @@ function restartTutorialVideo(target) {
     placeholder.classList.add('hidden');
   }
 }
+
+// ==================================================================
+// 11. SISTEMA DE TRADUCCIÓN MULTI-IDIOMA (I18N)
+// ==================================================================
+
+const UI_TRANSLATIONS = {
+  es: {
+    sidebar_learn: "Aprender (Karaoke)",
+    sidebar_practice: "Practicar (Recall)",
+    sidebar_generate: "Generar Islas",
+    sidebar_methodology: "Metodología y Guía",
+    sidebar_settings: "Configuración",
+    
+    lbl_practice_collection: "Colección de Práctica:",
+    lbl_all_islands: "Todas las Islas",
+    lbl_smart_review: "🧠 Repaso Inteligente (FSRS)",
+    lbl_export_recordings: "Exportar mis Grabaciones (ZIP)",
+    lbl_active_practice: "Práctica Activa",
+    lbl_writing_tab: "Escritura (Recall)",
+    lbl_speech_tab: "Pronunciación (Voz)",
+    lbl_translate_prompt: "Traduce al idioma objetivo:",
+    lbl_placeholder_input: "Escribe tu traducción aquí...",
+    lbl_btn_hint: "Pista",
+    lbl_btn_submit: "Validar Intento",
+    lbl_mic_prompt: "Haz clic en el micrófono y pronuncia la traducción en voz alta:",
+    lbl_mic_status: "Presiona para hablar",
+    lbl_listening: "Escuchando...",
+    lbl_listen_model: "Escuchar Modelo",
+    lbl_validate_speech: "Validar Pronunciación",
+    lbl_feedback_title: "Resultado de Evaluación",
+    lbl_your_attempt: "Tu intento:",
+    lbl_correct_translation: "Traducción Correcta:",
+    lbl_next_exercise: "Siguiente Ejercicio",
+    
+    lbl_grade_prompt: "¿Cómo calificarías tu recuerdo de esta frase?",
+    lbl_grade_again: "Olvidé",
+    lbl_grade_hard: "Difícil",
+    lbl_grade_good: "Bien",
+    lbl_grade_easy: "Fácil",
+    
+    lbl_metrics_title: "Métricas de Sesión",
+    lbl_metric_sessions: "Sesiones",
+    lbl_metric_accuracy: "Precisión",
+    lbl_metric_streak: "Racha",
+    lbl_metric_speech_accuracy: "Precisión Voz",
+    lbl_metric_attempts: "Intentos",
+    lbl_metric_words: "Palabras",
+    lbl_metric_daily_goal: "Meta de Maestría Diario",
+    
+    lbl_garden_title: "Jardín de la Memoria (Isla Activa)",
+    lbl_garden_seed: "🌱 Semilla",
+    lbl_garden_sprout: "🌿 Brote",
+    lbl_garden_tree: "🌳 Árbol",
+    lbl_ebbinghaus_title: "Proyección de la Curva de Olvido (Ebbinghaus)",
+    
+    lbl_settings_byok: "Configuración de Proveedor de Inteligencia Artificial (BYOK)",
+    lbl_settings_provider: "Proveedor de LLM",
+    lbl_settings_key: "Clave de API (API Key)",
+    lbl_btn_save_settings: "Guardar Configuración de API",
+    lbl_settings_profile: "Perfil de Usuario Local",
+    lbl_btn_save_profile: "Actualizar Datos de Perfil",
+    lbl_settings_ui_title: "Idioma de la Interfaz",
+    lbl_settings_ui_desc: "Selecciona el idioma en el que deseas visualizar la interfaz de la aplicación.",
+    lbl_settings_ui_label: "Idioma de la App"
+  },
+  en: {
+    sidebar_learn: "Learn (Karaoke)",
+    sidebar_practice: "Practice (Recall)",
+    sidebar_generate: "Generate Islands",
+    sidebar_methodology: "Methodology & Guide",
+    sidebar_settings: "Settings",
+    
+    lbl_practice_collection: "Practice Collection:",
+    lbl_all_islands: "All Islands",
+    lbl_smart_review: "🧠 Smart Review (FSRS)",
+    lbl_export_recordings: "Export my Recordings (ZIP)",
+    lbl_active_practice: "Active Practice",
+    lbl_writing_tab: "Writing (Recall)",
+    lbl_speech_tab: "Pronunciation (Voice)",
+    lbl_translate_prompt: "Translate to the target language:",
+    lbl_placeholder_input: "Write your translation here...",
+    lbl_btn_hint: "Hint",
+    lbl_btn_submit: "Validate Attempt",
+    lbl_mic_prompt: "Click the microphone and pronounce the translation aloud:",
+    lbl_mic_status: "Press to speak",
+    lbl_listening: "Listening...",
+    lbl_listen_model: "Listen to Model",
+    lbl_validate_speech: "Validate Pronunciation",
+    lbl_feedback_title: "Evaluation Result",
+    lbl_your_attempt: "Your attempt:",
+    lbl_correct_translation: "Correct Translation:",
+    lbl_next_exercise: "Next Exercise",
+    
+    lbl_grade_prompt: "How would you rate your recall of this sentence?",
+    lbl_grade_again: "Again",
+    lbl_grade_hard: "Hard",
+    lbl_grade_good: "Good",
+    lbl_grade_easy: "Easy",
+    
+    lbl_metrics_title: "Session Metrics",
+    lbl_metric_sessions: "Sessions",
+    lbl_metric_accuracy: "Accuracy",
+    lbl_metric_streak: "Streak",
+    lbl_metric_speech_accuracy: "Voice Accuracy",
+    lbl_metric_attempts: "Attempts",
+    lbl_metric_words: "Words",
+    lbl_metric_daily_goal: "Daily Mastery Goal",
+    
+    lbl_garden_title: "Memory Garden (Active Island)",
+    lbl_garden_seed: "🌱 Seed",
+    lbl_garden_sprout: "🌿 Sprout",
+    lbl_garden_tree: "🌳 Tree",
+    lbl_ebbinghaus_title: "Forgetting Curve Projection (Ebbinghaus)",
+    
+    lbl_settings_byok: "AI Provider Configuration (BYOK)",
+    lbl_settings_provider: "LLM Provider",
+    lbl_settings_key: "API Key",
+    lbl_btn_save_settings: "Save API Configuration",
+    lbl_settings_profile: "Local User Profile",
+    lbl_btn_save_profile: "Update Profile Data",
+    lbl_settings_ui_title: "Interface Language",
+    lbl_settings_ui_desc: "Select the language in which you want to display the application interface.",
+    lbl_settings_ui_label: "App Language"
+  },
+  pt: {
+    sidebar_learn: "Aprender (Karaoke)",
+    sidebar_practice: "Praticar (Recall)",
+    sidebar_generate: "Gerar Ilhas",
+    sidebar_methodology: "Metodologia e Guia",
+    sidebar_settings: "Configuração",
+    
+    lbl_practice_collection: "Coleção de Prática:",
+    lbl_all_islands: "Todas as Ilhas",
+    lbl_smart_review: "🧠 Revisão Inteligente (FSRS)",
+    lbl_export_recordings: "Exportar minhas Gravações (ZIP)",
+    lbl_active_practice: "Prática Ativa",
+    lbl_writing_tab: "Escrita (Recall)",
+    lbl_speech_tab: "Pronúncia (Voz)",
+    lbl_translate_prompt: "Traduzir para o idioma de destino:",
+    lbl_placeholder_input: "Escreva sua tradução aqui...",
+    lbl_btn_hint: "Dica",
+    lbl_btn_submit: "Validar Tentativa",
+    lbl_mic_prompt: "Clique no microfone e pronuncie a tradução em voz alta:",
+    lbl_mic_status: "Pressione para falar",
+    lbl_listening: "Ouvindo...",
+    lbl_listen_model: "Ouvir Modelo",
+    lbl_validate_speech: "Validar Pronúncia",
+    lbl_feedback_title: "Resultado da Avaliação",
+    lbl_your_attempt: "Sua tentativa:",
+    lbl_correct_translation: "Tradução Correta:",
+    lbl_next_exercise: "Próximo Exercício",
+    
+    lbl_grade_prompt: "Como você avalia a sua lembrança desta frase?",
+    lbl_grade_again: "Esqueci",
+    lbl_grade_hard: "Difícil",
+    lbl_grade_good: "Bom",
+    lbl_grade_easy: "Fácil",
+    
+    lbl_metrics_title: "Métricas da Sessão",
+    lbl_metric_sessions: "Sessões",
+    lbl_metric_accuracy: "Precisão",
+    lbl_metric_streak: "Racha",
+    lbl_metric_speech_accuracy: "Precisão Voz",
+    lbl_metric_attempts: "Tentativas",
+    lbl_metric_words: "Palavras",
+    lbl_metric_daily_goal: "Meta de Maestria Diária",
+    
+    lbl_garden_title: "Jardim da Memória (Ilha Ativa)",
+    lbl_garden_seed: "🌱 Semente",
+    lbl_garden_sprout: "🌿 Broto",
+    lbl_garden_tree: "🌳 Árvore",
+    lbl_ebbinghaus_title: "Projeção da Curva do Esquecimento (Ebbinghaus)",
+    
+    lbl_settings_byok: "Configuração do Provedor de IA (BYOK)",
+    lbl_settings_provider: "Provedor de LLM",
+    lbl_settings_key: "Chave de API",
+    lbl_btn_save_settings: "Salvar Configuração de API",
+    lbl_settings_profile: "Perfil de Usuário Local",
+    lbl_btn_save_profile: "Atualizar Datos do Perfil",
+    lbl_settings_ui_title: "Idioma da Interface",
+    lbl_settings_ui_desc: "Selecione o idioma em que deseja exibir a interface do aplicativo.",
+    lbl_settings_ui_label: "Idioma do App"
+  },
+  fr: {
+    sidebar_learn: "Apprendre (Karaoké)",
+    sidebar_practice: "S'entraîner (Recall)",
+    sidebar_generate: "Générer des Îles",
+    sidebar_methodology: "Méthodologie & Guide",
+    sidebar_settings: "Configuration",
+    
+    lbl_practice_collection: "Collection d'Entraînement:",
+    lbl_all_islands: "Toutes les Îles",
+    lbl_smart_review: "🧠 Révision Intelligente (FSRS)",
+    lbl_export_recordings: "Exporter mes Enregistrements (ZIP)",
+    lbl_active_practice: "Pratique Active",
+    lbl_writing_tab: "Écriture (Recall)",
+    lbl_speech_tab: "Prononciation (Voix)",
+    lbl_translate_prompt: "Traduire dans la langue cible:",
+    lbl_placeholder_input: "Écrivez votre traduction ici...",
+    lbl_btn_hint: "Indice",
+    lbl_btn_submit: "Valider la Tentative",
+    lbl_mic_prompt: "Cliquez sur le micro et prononcez la traduction à haute voix:",
+    lbl_mic_status: "Appuyez pour parler",
+    lbl_listening: "Écoute...",
+    lbl_listen_model: "Écouter le Modèle",
+    lbl_validate_speech: "Valider la Prononciation",
+    lbl_feedback_title: "Résultat de l'Évaluation",
+    lbl_your_attempt: "Votre tentative:",
+    lbl_correct_translation: "Traduction Correcte:",
+    lbl_next_exercise: "Exercice Suivant",
+    
+    lbl_grade_prompt: "Comment évaluez-vous votre rappel de cette phrase?",
+    lbl_grade_again: "Oublié",
+    lbl_grade_hard: "Difficile",
+    lbl_grade_good: "Bien",
+    lbl_grade_easy: "Facile",
+    
+    lbl_metrics_title: "Statistiques de Session",
+    lbl_metric_sessions: "Sessions",
+    lbl_metric_accuracy: "Précision",
+    lbl_metric_streak: "Série",
+    lbl_metric_speech_accuracy: "Précision Voix",
+    lbl_metric_attempts: "Tentatives",
+    lbl_metric_words: "Mots",
+    lbl_metric_daily_goal: "Objectif Quotidien de Maîtrise",
+    
+    lbl_garden_title: "Jardin de la Mémoire (Île Active)",
+    lbl_garden_seed: "🌱 Graine",
+    lbl_garden_sprout: "🌿 Pousse",
+    lbl_garden_tree: "🌳 Arbre",
+    lbl_ebbinghaus_title: "Projection de la Courbe de l'Oubli (Ebbinghaus)",
+    
+    lbl_settings_byok: "Configuration du Fournisseur d'IA (BYOK)",
+    lbl_settings_provider: "Fournisseur de LLM",
+    lbl_settings_key: "Clé API",
+    lbl_btn_save_settings: "Enregistrer la Configuration API",
+    lbl_settings_profile: "Profil Utilisateur Local",
+    lbl_btn_save_profile: "Mettre à Jour le Profil",
+    lbl_settings_ui_title: "Langue de l'Interface",
+    lbl_settings_ui_desc: "Sélectionnez la langue dans laquelle vous souhaitez afficher l'interface de l'application.",
+    lbl_settings_ui_label: "Langue de l'App"
+  },
+  de: {
+    sidebar_learn: "Lernen (Karaoke)",
+    sidebar_practice: "Üben (Recall)",
+    sidebar_generate: "Inseln Generieren",
+    sidebar_methodology: "Methodik & Anleitung",
+    sidebar_settings: "Einstellungen",
+    
+    lbl_practice_collection: "Übungssammlung:",
+    lbl_all_islands: "Alle Inseln",
+    lbl_smart_review: "🧠 Intelligente Wiederholung (FSRS)",
+    lbl_export_recordings: "Meine Aufnahmen exportieren (ZIP)",
+    lbl_active_practice: "Aktives Üben",
+    lbl_writing_tab: "Schreiben (Recall)",
+    lbl_speech_tab: "Aussprache (Stimme)",
+    lbl_translate_prompt: "In die Zielsprache übersetzen:",
+    lbl_placeholder_input: "Schreiben Sie Ihre Übersetzung hier...",
+    lbl_btn_hint: "Hinweis",
+    lbl_btn_submit: "Versuch Validieren",
+    lbl_mic_prompt: "Klicken Sie auf das Mikrofon und sprechen Sie die Übersetzung laut aus:",
+    lbl_mic_status: "Zum Sprechen drücken",
+    lbl_listening: "Zuhören...",
+    lbl_listen_model: "Modell Anhören",
+    lbl_validate_speech: "Aussprache Validieren",
+    lbl_feedback_title: "Bewertungsergebnis",
+    lbl_your_attempt: "Ihr Versuch:",
+    lbl_correct_translation: "Richtige Übersetzung:",
+    lbl_next_exercise: "Nächste Übung",
+    
+    lbl_grade_prompt: "Wie würden Sie Ihre Erinnerung an diesen Satz bewerten?",
+    lbl_grade_again: "Vergessen",
+    lbl_grade_hard: "Schwer",
+    lbl_grade_good: "Gut",
+    lbl_grade_easy: "Einfach",
+    
+    lbl_metrics_title: "Sitzungsmetriken",
+    lbl_metric_sessions: "Sitzungen",
+    lbl_metric_accuracy: "Genauigkeit",
+    lbl_metric_streak: "Serie",
+    lbl_metric_speech_accuracy: "Stimmgenauigkeit",
+    lbl_metric_attempts: "Versuche",
+    lbl_metric_words: "Wörter",
+    lbl_metric_daily_goal: "Tägliches Meisterschaftsziel",
+    
+    lbl_garden_title: "Garten der Erinnerung (Aktive Insel)",
+    lbl_garden_seed: "🌱 Samen",
+    lbl_garden_sprout: "🌿 Spross",
+    lbl_garden_tree: "🌳 Baum",
+    lbl_ebbinghaus_title: "Projektion der Vergessenskurve (Ebbinghaus)",
+    
+    lbl_settings_byok: "KI-Anbieter-Konfiguration (BYOK)",
+    lbl_settings_provider: "LLM-Anbieter",
+    lbl_settings_key: "API-Schlüssel",
+    lbl_btn_save_settings: "API-Konfiguration Speichern",
+    lbl_settings_profile: "Lokales Benutzerprofil",
+    lbl_btn_save_profile: "Profil aktualisieren",
+    lbl_settings_ui_title: "Oberflächensprache",
+    lbl_settings_ui_desc: "Wählen Sie die Sprache aus, in der die Anwendungsoberfläche angezeigt werden soll.",
+    lbl_settings_ui_label: "App-Sprache"
+  },
+  it: {
+    sidebar_learn: "Imparare (Karaoke)",
+    sidebar_practice: "Praticare (Recall)",
+    sidebar_generate: "Generare Isole",
+    sidebar_methodology: "Metodologia e Guida",
+    sidebar_settings: "Impostazioni",
+    
+    lbl_practice_collection: "Collezione di Pratica:",
+    lbl_all_islands: "Tutte le Isole",
+    lbl_smart_review: "🧠 Ripasso Intelligente (FSRS)",
+    lbl_export_recordings: "Esporta le mie Registrazioni (ZIP)",
+    lbl_active_practice: "Pratica Attiva",
+    lbl_writing_tab: "Scrittura (Recall)",
+    lbl_speech_tab: "Pronuncia (Voce)",
+    lbl_translate_prompt: "Traduci nella lingua di destinazione:",
+    lbl_placeholder_input: "Scrivi la tua traduzione qui...",
+    lbl_btn_hint: "Suggerimento",
+    lbl_btn_submit: "Valuta Tentativo",
+    lbl_mic_prompt: "Fai clic sul microfono e pronuncia la traduzione ad alta voce:",
+    lbl_mic_status: "Premi per parlare",
+    lbl_listening: "Ascolto...",
+    lbl_listen_model: "Ascolta Modello",
+    lbl_validate_speech: "Valuta Pronuncia",
+    lbl_feedback_title: "Risultato della Valutazione",
+    lbl_your_attempt: "Il tuo tentativo:",
+    lbl_correct_translation: "Traduzione Corretta:",
+    lbl_next_exercise: "Prossimo Esercizio",
+    
+    lbl_grade_prompt: "Come valuti il tuo ricordo di questa frase?",
+    lbl_grade_again: "Dimenticato",
+    lbl_grade_hard: "Difficile",
+    lbl_grade_good: "Bene",
+    lbl_grade_easy: "Facile",
+    
+    lbl_metrics_title: "Metriche della Sessione",
+    lbl_metric_sessions: "Sessioni",
+    lbl_metric_accuracy: "Precisione",
+    lbl_metric_streak: "Striscia",
+    lbl_metric_speech_accuracy: "Precisione Voce",
+    lbl_metric_attempts: "Tentativi",
+    lbl_metric_words: "Parole",
+    lbl_metric_daily_goal: "Obiettivo Giornaliero di Padronanza",
+    
+    lbl_garden_title: "Giardino della Memoria (Isola Attiva)",
+    lbl_garden_seed: "🌱 Seme",
+    lbl_garden_sprout: "🌿 Germoglio",
+    lbl_garden_tree: "🌳 Albero",
+    lbl_ebbinghaus_title: "Proiezione della Curva dell'Oblio (Ebbinghaus)",
+    
+    lbl_settings_byok: "Configurazione del Provider IA (BYOK)",
+    lbl_settings_provider: "Provider LLM",
+    lbl_settings_key: "Chiave API",
+    lbl_btn_save_settings: "Salva Configurazione API",
+    lbl_settings_profile: "Profilo Utente Locale",
+    lbl_btn_save_profile: "Aggiorna Profilo",
+    lbl_settings_ui_title: "Lingua dell'Interfaccia",
+    lbl_settings_ui_desc: "Seleziona la lingua in cui desideri visualizzare l'interfaccia dell'applicazione.",
+    lbl_settings_ui_label: "Lingua dell'App"
+  }
+};
+
+function applyUiLanguage(langCode) {
+  const t = UI_TRANSLATIONS[langCode] || UI_TRANSLATIONS['es'];
+  
+  const sideLearn = document.querySelector('[data-tab="learn"] .nav-label');
+  const sidePractice = document.querySelector('[data-tab="practice"] .nav-label');
+  const sideGenerate = document.querySelector('[data-tab="generate"] .nav-label');
+  const sideMethodology = document.querySelector('[data-tab="methodology"] .nav-label');
+  const sideSettings = document.querySelector('[data-tab="settings"] .nav-label');
+  
+  if (sideLearn) sideLearn.textContent = t.sidebar_learn;
+  if (sidePractice) sidePractice.textContent = t.sidebar_practice;
+  if (sideGenerate) sideGenerate.textContent = t.sidebar_generate;
+  if (sideMethodology) sideMethodology.textContent = t.sidebar_methodology;
+  if (sideSettings) sideSettings.textContent = t.sidebar_settings;
+  
+  const titleMap = {
+    learn: t.sidebar_learn,
+    practice: t.sidebar_practice,
+    generate: t.sidebar_generate,
+    methodology: t.sidebar_methodology,
+    settings: t.sidebar_settings
+  };
+  
+  window.uiTitleMap = titleMap;
+  
+  // Re-aplicar título de la vista activa actual
+  const activeLink = document.querySelector('.sidebar-nav a.active, .mobile-nav-link.active');
+  if (activeLink) {
+    const tabId = activeLink.getAttribute('data-tab');
+    const titleEl = document.getElementById('view-title');
+    if (titleEl && titleMap[tabId]) {
+      titleEl.textContent = titleMap[tabId];
+    }
+  }
+  
+  const lblPracticeColl = document.querySelector('label[for="recall-island-select"]');
+  if (lblPracticeColl) lblPracticeColl.textContent = t.lbl_practice_collection;
+  
+  const select = document.getElementById('recall-island-select');
+  if (select) {
+    const optionFsrs = select.querySelector('option[value="fsrs"]');
+    const optionAll = select.querySelector('option[value="all"]');
+    if (optionFsrs) optionFsrs.textContent = t.lbl_smart_review;
+    if (optionAll) optionAll.textContent = t.lbl_all_islands;
+  }
+  
+  const btnExport = document.getElementById('btn-recall-export-audio');
+  if (btnExport) {
+    const span = btnExport.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_export_recordings;
+  }
+  
+  const badgeActive = document.querySelector('#tab-practice .badge-accent');
+  if (badgeActive) badgeActive.textContent = t.lbl_active_practice;
+  
+  const tabWriting = document.getElementById('btn-mode-writing');
+  if (tabWriting) {
+    const span = tabWriting.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_writing_tab;
+  }
+  
+  const tabSpeech = document.getElementById('btn-mode-speech');
+  if (tabSpeech) {
+    const span = tabSpeech.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_speech_tab;
+  }
+  
+  const lblPrompt = document.querySelector('.recall-prompt p.small');
+  if (lblPrompt) lblPrompt.textContent = t.lbl_translate_prompt;
+  
+  const txtInput = document.getElementById('recall-user-input');
+  if (txtInput) txtInput.setAttribute('placeholder', t.lbl_placeholder_input);
+  
+  const btnHint = document.getElementById('btn-recall-hint');
+  if (btnHint) {
+    const span = btnHint.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_btn_hint;
+  }
+  
+  const btnSubmit = document.getElementById('btn-recall-submit');
+  if (btnSubmit) {
+    const span = btnSubmit.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_btn_submit;
+  }
+  
+  const speechPrompt = document.querySelector('#recall-speech-group p.small');
+  if (speechPrompt) speechPrompt.textContent = t.lbl_mic_prompt;
+  
+  const micStatus = document.getElementById('speech-status');
+  if (micStatus) {
+    if (micStatus.textContent === 'Presiona para hablar' || micStatus.textContent === 'Press to speak' || micStatus.textContent === 'Pressione para falar' || micStatus.textContent === 'Appuyez pour parler' || micStatus.textContent === 'Zum Sprechen drücken' || micStatus.textContent === 'Premi per parlare') {
+      micStatus.textContent = t.lbl_mic_status;
+    }
+  }
+  
+  const btnListenModel = document.getElementById('btn-speech-play-target');
+  if (btnListenModel) {
+    const span = btnListenModel.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_listen_model;
+  }
+  
+  const btnValidateSpeech = document.getElementById('btn-speech-submit');
+  if (btnValidateSpeech) {
+    const span = btnValidateSpeech.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_validate_speech;
+  }
+  
+  const feedbackTitle = document.getElementById('feedback-title');
+  if (feedbackTitle && (feedbackTitle.textContent === 'Resultado de Evaluación' || feedbackTitle.textContent === 'Evaluation Result' || feedbackTitle.textContent === 'Resultado da Avaliação' || feedbackTitle.textContent === 'Résultat de l\'Évaluation' || feedbackTitle.textContent === 'Bewertungsergebnis' || feedbackTitle.textContent === 'Risultato della Valutazione')) {
+    feedbackTitle.textContent = t.lbl_feedback_title;
+  }
+  
+  const lblYourAtt = document.querySelector('#recall-feedback-card .compare-group span.label:not(.text-success)');
+  if (lblYourAtt) lblYourAtt.textContent = t.lbl_your_attempt;
+  
+  const lblCorrect = document.getElementById('lbl-correct-translation');
+  if (lblCorrect) lblCorrect.textContent = t.lbl_correct_translation;
+  
+  const srPrompt = document.getElementById('sr-grade-prompt');
+  if (srPrompt) srPrompt.textContent = t.lbl_grade_prompt;
+  
+  const btnGradeAgain = document.getElementById('btn-grade-again');
+  const btnGradeHard = document.getElementById('btn-grade-hard');
+  const btnGradeGood = document.getElementById('btn-grade-good');
+  const btnGradeEasy = document.getElementById('btn-grade-easy');
+  if (btnGradeAgain) btnGradeAgain.textContent = t.lbl_grade_again;
+  if (btnGradeHard) btnGradeHard.textContent = t.lbl_grade_hard;
+  if (btnGradeGood) btnGradeGood.textContent = t.lbl_grade_good;
+  if (btnGradeEasy) btnGradeEasy.textContent = t.lbl_grade_easy;
+  
+  const btnTextNext = document.getElementById('btn-text-next-exercise');
+  if (btnTextNext) btnTextNext.textContent = t.lbl_next_exercise;
+  
+  const metricsTitle = document.querySelector('#tab-practice .panel-sidebar h3');
+  if (metricsTitle) metricsTitle.textContent = t.lbl_metrics_title;
+  
+  const lblSessions = document.querySelector('.metric-box[title*="Sesiones"] .metric-lbl, .metric-box[title*="sessions"] .metric-lbl, .metric-box[title*="sessões"] .metric-lbl, .metric-box[title*="sitzungen"] .metric-lbl, .metric-box[title*="sessioni"] .metric-lbl');
+  if (lblSessions) lblSessions.textContent = t.lbl_metric_sessions;
+  
+  const lblAccuracy = document.querySelector('.metric-box[title*="traducción escrita"] .metric-lbl, .metric-box[title*="translation accuracy"] .metric-lbl, .metric-box[title*="tradução escrita"] .metric-lbl, .metric-box[title*="traduction écrite"] .metric-lbl, .metric-box[title*="schriftlicher Übersetzung"] .metric-lbl, .metric-box[title*="traduzione scritta"] .metric-lbl');
+  if (lblAccuracy) lblAccuracy.textContent = t.lbl_metric_accuracy;
+  
+  const lblStreak = document.querySelector('.metric-box[title*="Racha"] .metric-lbl, .metric-box[title*="Streak"] .metric-lbl, .metric-box[title*="Série"] .metric-lbl, .metric-box[title*="Serie"] .metric-lbl, .metric-box[title*="Striscia"] .metric-lbl');
+  if (lblStreak) lblStreak.textContent = t.lbl_metric_streak;
+  
+  const lblSpeechAcc = document.querySelector('.metric-box[title*="pronunciación"] .metric-lbl, .metric-box[title*="pronunciation accuracy"] .metric-lbl, .metric-box[title*="pronúncia"] .metric-lbl, .metric-box[title*="prononciation"] .metric-lbl, .metric-box[title*="Aussprache"] .metric-lbl, .metric-box[title*="pronuncia"] .metric-lbl');
+  if (lblSpeechAcc) lblSpeechAcc.textContent = t.lbl_metric_speech_accuracy;
+  
+  const lblAttempts = document.querySelector('.metric-box[title*="intentos"] .metric-lbl, .metric-box[title*="attempts"] .metric-lbl, .metric-box[title*="tentativas"] .metric-lbl, .metric-box[title*="tentatives"] .metric-lbl, .metric-box[title*="Versuche"] .metric-lbl, .metric-box[title*="tentativi"] .metric-lbl');
+  if (lblAttempts) lblAttempts.textContent = t.lbl_metric_attempts;
+  
+  const lblWords = document.querySelector('.metric-box[title*="palabras"] .metric-lbl, .metric-box[title*="words"] .metric-lbl, .metric-box[title*="palavras"] .metric-lbl, .metric-box[title*="mots"] .metric-lbl, .metric-box[title*="Wörter"] .metric-lbl, .metric-box[title*="parole"] .metric-lbl');
+  if (lblWords) lblWords.textContent = t.lbl_metric_words;
+  
+  const lblDailyGoal = document.querySelector('.progress-bar-container .small');
+  if (lblDailyGoal) lblDailyGoal.textContent = t.lbl_metric_daily_goal;
+  
+  const lblRetention = document.getElementById('lbl-metric-retention');
+  if (lblRetention) lblRetention.textContent = t.lbl_metric_retention;
+  const lblConsolidation = document.getElementById('lbl-metric-consolidation');
+  if (lblConsolidation) lblConsolidation.textContent = t.lbl_metric_consolidation;
+  
+  const lblGarden = document.getElementById('lbl-garden-title');
+  if (lblGarden) lblGarden.textContent = t.lbl_garden_title;
+  const lblGardenSeed = document.getElementById('lbl-garden-seed');
+  const lblGardenSprout = document.getElementById('lbl-garden-sprout');
+  const lblGardenTree = document.getElementById('lbl-garden-tree');
+  if (lblGardenSeed) lblGardenSeed.textContent = t.lbl_garden_seed;
+  if (lblGardenSprout) lblGardenSprout.textContent = t.lbl_garden_sprout;
+  if (lblGardenTree) lblGardenTree.textContent = t.lbl_garden_tree;
+  
+  const lblEbbinghaus = document.getElementById('lbl-ebbinghaus-title');
+  if (lblEbbinghaus) lblEbbinghaus.textContent = t.lbl_ebbinghaus_title;
+  
+  const flipFrontLabel = document.getElementById('flip-front-label');
+  const flipBackLabel = document.getElementById('flip-back-label');
+  if (flipFrontLabel) {
+    flipFrontLabel.textContent = langCode === 'es' ? 'Idioma Nativo (Toca para voltear y escuchar)' : 
+                                  langCode === 'en' ? 'Native Language (Tap to flip and listen)' :
+                                  langCode === 'pt' ? 'Idioma Nativo (Toque para girar e ouvir)' :
+                                  langCode === 'fr' ? 'Langue Maternelle (Tapez pour retourner et écouter)' :
+                                  langCode === 'de' ? 'Muttersprache (Tippen zum Wenden und Anhören)' :
+                                  'Lingua Madre (Tocca per capovolgere e ascoltare)';
+  }
+  if (flipBackLabel) {
+    flipBackLabel.textContent = langCode === 'es' ? 'Idioma Objetivo (TTS Reproducido)' : 
+                                 langCode === 'en' ? 'Target Language (TTS Played)' :
+                                 langCode === 'pt' ? 'Idioma de Destino (TTS Reproduzido)' :
+                                 langCode === 'fr' ? 'Langue Cible (TTS Joué)' :
+                                 langCode === 'de' ? 'Zielsprache (TTS Abgespielt)' :
+                                 'Lingua di Destinazione (TTS Riprodottò)';
+  }
+  
+  const settingsTitle = document.querySelector('#tab-settings h3');
+  if (settingsTitle) settingsTitle.textContent = t.lbl_settings_byok;
+  
+  const lblProv = document.querySelector('label[for="api-provider"]');
+  if (lblProv) lblProv.textContent = t.lbl_settings_provider;
+  
+  const lblKey = document.querySelector('label[for="api-key"]');
+  if (lblKey) lblKey.textContent = t.lbl_settings_key;
+  
+  const btnSaveSettings = document.querySelector('#settings-form button[type="submit"]');
+  if (btnSaveSettings) {
+    const span = btnSaveSettings.querySelector('span:not(.material-symbols-rounded)');
+    if (span) span.textContent = t.lbl_btn_save_settings;
+  }
+  
+  const profileTitle = document.querySelector('#tab-settings .settings-card:nth-of-type(2) h3');
+  if (profileTitle) profileTitle.textContent = t.lbl_settings_profile;
+  
+  const btnSaveProfile = document.getElementById('btn-text-update-profile');
+  if (btnSaveProfile) btnSaveProfile.textContent = t.lbl_btn_save_profile;
+  
+  const uiSettingsTitle = document.getElementById('ui-settings-title');
+  const uiSettingsDesc = document.getElementById('ui-settings-desc');
+  const uiSettingsLabel = document.getElementById('ui-settings-label');
+  if (uiSettingsTitle) uiSettingsTitle.textContent = t.lbl_settings_ui_title;
+  if (uiSettingsDesc) uiSettingsDesc.textContent = t.lbl_settings_ui_desc;
+  if (uiSettingsLabel) uiSettingsLabel.textContent = t.lbl_settings_ui_label;
+}
+
 
