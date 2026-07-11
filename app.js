@@ -308,6 +308,7 @@ function renderIslandSelectors() {
     item.setAttribute('data-index', index);
     
     item.addEventListener('dragstart', (e) => {
+      window.draggedIslandIndex = index;
       e.dataTransfer.setData('text/plain', index);
       item.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -315,6 +316,7 @@ function renderIslandSelectors() {
     
     item.addEventListener('dragend', () => {
       item.classList.remove('dragging');
+      window.draggedIslandIndex = null;
       const allItems = container.querySelectorAll('.island-item');
       allItems.forEach(i => i.classList.remove('drag-over'));
     });
@@ -333,7 +335,7 @@ function renderIslandSelectors() {
       e.preventDefault();
       item.classList.remove('drag-over');
       
-      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      const fromIdx = window.draggedIslandIndex !== undefined && window.draggedIslandIndex !== null ? window.draggedIslandIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
       const toIdx = index;
       
       if (fromIdx !== toIdx && !isNaN(fromIdx)) {
