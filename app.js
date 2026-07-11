@@ -68,11 +68,11 @@ function loadAppState() {
       if (appState.metrics.correctCount === undefined) appState.metrics.correctCount = 0;
       if (appState.metrics.incorrectCount === undefined) appState.metrics.incorrectCount = 0;
 
-      // Asegurar que cada frase tenga la propiedad de repetición espaciada (mastery)
+      // Asegurar que cada frase tenga la propiedad de repetición espaciada (mastery) y metadatos SR
       appState.islands.forEach(island => {
         if (island.sentences) {
           island.sentences.forEach(s => {
-            if (s.mastery === undefined) s.mastery = 0;
+            sanitizeSentenceSRMetadata(s);
           });
         }
       });
@@ -430,27 +430,24 @@ function loadCurrentSentence() {
 
   const masteryContainer = document.getElementById('karaoke-sentence-mastery-container');
   if (masteryContainer) {
-    const mastery = sentence.mastery !== undefined ? sentence.mastery : 0;
-    const percent = mastery * 20;
+    const box = sentence.box !== undefined ? sentence.box : 1;
+    const percent = box * 25;
     
-    let levelName = "Sin iniciar";
+    let levelName = "Semilla (Por repasar)";
     let progressColor = "hsl(var(--md-sys-color-outline))";
     
-    if (mastery === 5) {
-      levelName = "Largo Plazo (Completado)";
+    if (box === 4) {
+      levelName = "Árbol Maduro (Largo Plazo)";
       progressColor = "hsl(142, 60%, 40%)";
-    } else if (mastery === 4) {
-      levelName = "Consolidando";
-      progressColor = "hsl(142, 50%, 50%)";
-    } else if (mastery === 3) {
-      levelName = "Medio Plazo";
+    } else if (box === 3) {
+      levelName = "Planta Joven (Mediano Plazo)";
       progressColor = "hsl(215, 60%, 50%)";
-    } else if (mastery === 2) {
-      levelName = "Corto Plazo";
+    } else if (box === 2) {
+      levelName = "Brote Joven (Corto Plazo)";
+      progressColor = "hsl(142, 40%, 55%)";
+    } else if (box === 1) {
+      levelName = "Semilla (Corto Plazo)";
       progressColor = "hsl(36, 100%, 45%)";
-    } else if (mastery === 1) {
-      levelName = "Aprendizaje Reciente";
-      progressColor = "hsl(4, 80%, 50%)";
     }
     
     let targetWordHtml = '';
@@ -481,6 +478,9 @@ function loadCurrentSentence() {
         <div style="width: ${percent}%; height: 100%; background-color: ${progressColor}; border-radius: 4px; transition: width 0.3s ease;"></div>
       </div>
     `;
+    
+    // Actualizar UI del Spaced Repetition (Métricas, Jardín de Memoria y Ebbinghaus Curve)
+    updateSRUI();
   }
 }
 
@@ -1039,6 +1039,252 @@ function advanceSentence(offset) {
   
   if (wasPlaying) {
     setTimeout(playTTS, 200);
+  }
+}
+
+// --- SISTEMA DE REPETICIÓN ESPACIADA INTEGRADA (FSRS + LEITNER) ---
+
+function sanitizeSentenceSRMetadata(s) {
+  if (s.mastery === undefined) s.mastery = 0;
+  if (s.box === undefined) s.box = 1;
+  if (s.difficulty === undefined) s.difficulty = 5.0;
+  if (s.stability === undefined) s.stability = 1.0;
+  if (s.last_review === undefined) s.last_review = null;
+  if (s.next_review === undefined) s.next_review = null;
+  if (s.reps === undefined) s.reps = 0;
+  if (s.lapses === undefined) s.lapses = 0;
+  return s;
+}
+
+function gradeActiveSentence(grade) {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || island.sentences.length === 0) return;
+  const sentence = island.sentences[currentSentenceIndex];
+  if (!sentence) return;
+  
+  sanitizeSentenceSRMetadata(sentence);
+  
+  const now = new Date();
+  sentence.last_review = now.toISOString();
+  
+  let S = sentence.stability;
+  let D = sentence.difficulty;
+  
+  if (grade === 1) { // Olvidé (Again)
+    D = Math.min(D + 2.0, 10.0);
+    S = 0.5; // Resetea la estabilidad a medio día
+    sentence.lapses += 1;
+    sentence.box = 1;
+  } else if (grade === 2) { // Difícil (Hard)
+    D = Math.min(D + 1.0, 10.0);
+    S = S * 1.2;
+    sentence.reps += 1;
+    if (S >= 3.0) sentence.box = Math.min(sentence.box + 1, 4);
+  } else if (grade === 3) { // Bien (Good)
+    const factor = 1.8 + 2.0 * Math.pow(D, -0.3);
+    S = S * factor;
+    sentence.reps += 1;
+    sentence.box = Math.min(sentence.box + 1, 4);
+  } else if (grade === 4) { // Fácil (Easy)
+    D = Math.max(D - 1.5, 1.0);
+    const factor = 3.5 * (1.2 + 2.0 * Math.pow(D, -0.3));
+    S = S * factor;
+    sentence.reps += 1;
+    sentence.box = Math.max(sentence.box, 3);
+    sentence.box = Math.min(sentence.box + 1, 4);
+  }
+  
+  sentence.stability = S;
+  sentence.difficulty = D;
+  sentence.mastery = sentence.box; // Sincronización visual
+  
+  const nextDate = new Date();
+  nextDate.setTime(now.getTime() + S * 24 * 60 * 60 * 1000);
+  sentence.next_review = nextDate.toISOString();
+  
+  saveAppState();
+  
+  // Animación del botón pulsado
+  const btnId = ['btn-sr-again', 'btn-sr-hard', 'btn-sr-good', 'btn-sr-easy'][grade - 1];
+  const btnEl = document.getElementById(btnId);
+  if (btnEl) {
+    btnEl.style.transform = "scale(0.92)";
+    setTimeout(() => {
+      btnEl.style.transform = "";
+    }, 150);
+  }
+  
+  stopTTS();
+  loadCurrentSentence();
+  
+  // Avance automático tras 1 segundo para flujo continuo
+  setTimeout(() => {
+    advanceSentence(1);
+    playTTS();
+  }, 1000);
+}
+
+function updateSRUI() {
+  const island = appState.islands[currentIslandIndex];
+  if (!island || !island.sentences || island.sentences.length === 0) {
+    const analytics = document.getElementById('sr-analytics-section');
+    if (analytics) analytics.style.display = 'none';
+    const panel = document.getElementById('spaced-repetition-panel');
+    if (panel) panel.style.display = 'none';
+    return;
+  }
+  
+  const analytics = document.getElementById('sr-analytics-section');
+  if (analytics) analytics.style.display = 'flex';
+  const panel = document.getElementById('spaced-repetition-panel');
+  if (panel) panel.style.display = 'flex';
+  
+  const now = new Date();
+  let totalRetention = 0;
+  let consolidationCount = 0;
+  
+  const gardenContainer = document.getElementById('memory-garden');
+  if (gardenContainer) {
+    gardenContainer.innerHTML = '';
+    
+    island.sentences.forEach((s, idx) => {
+      sanitizeSentenceSRMetadata(s);
+      
+      let R = 1.0;
+      if (s.last_review) {
+        const lastReviewDate = new Date(s.last_review);
+        const elapsedDays = (now.getTime() - lastReviewDate.getTime()) / (24 * 60 * 60 * 1000);
+        R = Math.pow(1 + elapsedDays / (9 * s.stability), -0.5);
+      }
+      totalRetention += R;
+      
+      if (s.box === 4) {
+        consolidationCount++;
+      }
+      
+      let icon = "🌱";
+      let iconName = "Semilla";
+      let badgeColor = "hsl(var(--md-sys-color-outline-variant))";
+      
+      if (s.box === 4) {
+        icon = "🌳";
+        iconName = "Árbol Consolidado";
+        badgeColor = "hsl(142, 60%, 40%)";
+      } else if (s.box >= 2) {
+        icon = "🌿";
+        iconName = "Brote Joven";
+        badgeColor = "hsl(142, 40%, 55%)";
+      }
+      
+      // Resaltar brote actual en el Karaoke
+      const isCurrent = (idx === currentSentenceIndex);
+      const sproutDiv = document.createElement('div');
+      sproutDiv.className = 'garden-sprout';
+      sproutDiv.style.borderColor = badgeColor;
+      if (isCurrent) {
+        sproutDiv.style.backgroundColor = "hsla(var(--md-sys-color-primary), 0.12)";
+        sproutDiv.style.boxShadow = "0 0 8px hsl(var(--md-sys-color-primary))";
+      }
+      
+      sproutDiv.innerHTML = `
+        <span style="font-size: 16px;">${icon}</span>
+        <span class="tooltip">
+          <strong>Frase ${idx + 1} (${iconName})</strong><br>
+          L2: ${escapeHtml(s.l2.substring(0, 40))}${s.l2.length > 40 ? '...' : ''}<br>
+          Retención: ${(R * 100).toFixed(1)}%<br>
+          Estabilidad: ${s.stability.toFixed(1)} d
+        </span>
+      `;
+      
+      sproutDiv.addEventListener('click', () => {
+        currentSentenceIndex = idx;
+        loadCurrentSentence();
+      });
+      
+      gardenContainer.appendChild(sproutDiv);
+    });
+  }
+  
+  const avgRetention = (totalRetention / island.sentences.length) * 100;
+  const consolidationPercent = (consolidationCount / island.sentences.length) * 100;
+  
+  const retEl = document.getElementById('sr-metric-retention');
+  const conEl = document.getElementById('sr-metric-consolidation');
+  if (retEl) retEl.textContent = `${avgRetention.toFixed(1)}%`;
+  if (conEl) conEl.textContent = `${consolidationPercent.toFixed(0)}%`;
+  
+  const svg = document.getElementById('ebbinghaus-curve-svg');
+  if (svg) {
+    svg.innerHTML = '';
+    const avgStability = island.sentences.reduce((acc, s) => acc + s.stability, 0) / island.sentences.length;
+    
+    const lineY90 = 10 + (1.0 - 0.90) * 80;
+    const refLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    refLine.setAttribute("x1", "0");
+    refLine.setAttribute("y1", lineY90.toString());
+    refLine.setAttribute("x2", "400");
+    refLine.setAttribute("y2", lineY90.toString());
+    refLine.setAttribute("stroke", "rgba(255, 0, 0, 0.25)");
+    refLine.setAttribute("stroke-dasharray", "4,4");
+    svg.appendChild(refLine);
+    
+    const refText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    refText.setAttribute("x", "5");
+    refText.setAttribute("y", (lineY90 - 4).toString());
+    refText.setAttribute("fill", "hsl(var(--md-sys-color-error))");
+    refText.setAttribute("font-size", "9px");
+    refText.setAttribute("font-weight", "600");
+    refText.textContent = "Umbral de repaso (90%)";
+    svg.appendChild(refText);
+    
+    let pathD = "";
+    const steps = 30;
+    for (let d = 0; d <= steps; d++) {
+      const x = (d / steps) * 400;
+      const R = Math.pow(1 + d / (9 * avgStability), -0.5);
+      const y = 10 + (1.0 - R) * 80;
+      
+      if (d === 0) {
+        pathD += `M ${x} ${y}`;
+      } else {
+        pathD += ` L ${x} ${y}`;
+      }
+    }
+    
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", pathD);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "hsl(var(--md-sys-color-primary))");
+    path.setAttribute("stroke-width", "2.5");
+    svg.appendChild(path);
+    
+    const daysLabels = [
+      { day: 0, text: "Hoy" },
+      { day: 10, text: "10d" },
+      { day: 20, text: "20d" },
+      { day: 30, text: "30d" }
+    ];
+    
+    daysLabels.forEach(l => {
+      const x = (l.day / steps) * 400;
+      
+      const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      gridLine.setAttribute("x1", x.toString());
+      gridLine.setAttribute("y1", "10");
+      gridLine.setAttribute("x2", x.toString());
+      gridLine.setAttribute("y2", "90");
+      gridLine.setAttribute("stroke", "rgba(0, 0, 0, 0.05)");
+      svg.appendChild(gridLine);
+      
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", x.toString());
+      label.setAttribute("y", "98");
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("fill", "hsl(var(--md-sys-color-on-surface-variant))");
+      label.setAttribute("font-size", "9px");
+      label.textContent = l.text;
+      svg.appendChild(label);
+    });
   }
 }
 
@@ -2647,6 +2893,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-play-pause').addEventListener('click', playTTS);
   document.getElementById('btn-prev-sentence').addEventListener('click', () => advanceSentence(-1));
   document.getElementById('btn-next-sentence').addEventListener('click', () => advanceSentence(1));
+  
+  // Controladores de Calificación de Repetición Espaciada (FSRS/Leitner)
+  document.getElementById('btn-sr-again').addEventListener('click', () => gradeActiveSentence(1));
+  document.getElementById('btn-sr-hard').addEventListener('click', () => gradeActiveSentence(2));
+  document.getElementById('btn-sr-good').addEventListener('click', () => gradeActiveSentence(3));
+  document.getElementById('btn-sr-easy').addEventListener('click', () => gradeActiveSentence(4));
   document.getElementById('tts-speed').addEventListener('input', (e) => {
     document.getElementById('speed-val').textContent = `${e.target.value}x`;
     if (isPlaying) {
