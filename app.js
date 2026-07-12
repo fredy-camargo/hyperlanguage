@@ -3496,10 +3496,10 @@ async function exportIslandToMp3(rangeSelection) {
         const arrayBuffer = await blob.arrayBuffer();
         audioBuffers.push(arrayBuffer);
         
-        // Agregar silencio de 2.5 segundos entre frase y frase (excepto la última del chunk)
+        // Agregar silencio de 3.5 segundos entre frase y frase (excepto la última del chunk)
         if (i < currentChunk.length - 1) {
           try {
-            const silenceResponse = await fetch('/api/silence?duration=2.5');
+            const silenceResponse = await fetch('/api/silence?duration=3.5');
             if (silenceResponse.ok) {
               const silenceBlob = await silenceResponse.blob();
               if (silenceBlob) {
