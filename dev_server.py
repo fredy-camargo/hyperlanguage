@@ -118,24 +118,22 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
         duration_str = params.get('duration', ['2.5'])[0]
+        voice = params.get('voice', ['en-US-JennyNeural'])[0]
         
         try:
             duration_ms = int(float(duration_str) * 1000)
         except ValueError:
             duration_ms = 2500
             
-        ssml = f"""
-        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
-            <break time="{duration_ms}ms"/>
-        </speak>
-        """
+        # Inyección SSML limpia para evitar lectura literal de etiquetas
+        injected_text = f'</prosody><break time="{duration_ms}ms"/><prosody>'
         
         temp_fd, temp_path = tempfile.mkstemp(suffix=".mp3")
         os.close(temp_fd)
         
         try:
             async def main_silence():
-                communicate = edge_tts.Communicate(text=ssml, voice="en-US-JennyNeural")
+                communicate = edge_tts.Communicate(text=injected_text, voice=voice)
                 await communicate.save(temp_path)
                 
             asyncio.run(main_silence())
