@@ -3496,6 +3496,22 @@ async function exportIslandToMp3(rangeSelection) {
         const arrayBuffer = await blob.arrayBuffer();
         audioBuffers.push(arrayBuffer);
         
+        // Agregar silencio de 2.5 segundos entre frase y frase (excepto la última del chunk)
+        if (i < currentChunk.length - 1) {
+          try {
+            const silenceResponse = await fetch('/api/silence?duration=2.5');
+            if (silenceResponse.ok) {
+              const silenceBlob = await silenceResponse.blob();
+              if (silenceBlob) {
+                const silenceBuffer = await silenceBlob.arrayBuffer();
+                audioBuffers.push(silenceBuffer);
+              }
+            }
+          } catch (silenceErr) {
+            console.error("Error al obtener silencio para la exportación:", silenceErr);
+          }
+        }
+        
         readmeText += `${String(overallIndex).padStart(2, '0')}. L1: ${sentence.l1}\n`;
         readmeText += `    L2: ${sentence.l2}\n`;
         readmeText += `    Palabra Clave: ${sentence.word_targeted || 'General'}\n\n`;

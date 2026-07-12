@@ -33,6 +33,8 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith('/api/tts'):
             self.handle_api_tts()
+        elif self.path.startswith('/api/silence'):
+            self.handle_api_silence()
         elif self.path.startswith('/exports/'):
             self.handle_get_export()
         else:
@@ -105,6 +107,52 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"Error en TTS de Azure: {e}")
             self.send_error(500, f"Error generating speech: {str(e)}")
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+
+    def handle_api_silence(self):
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        duration_str = params.get('duration', ['2.5'])[0]
+        
+        try:
+            duration_ms = int(float(duration_str) * 1000)
+        except ValueError:
+            duration_ms = 2500
+            
+        ssml = f"""
+        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+            <break time="{duration_ms}ms"/>
+        </speak>
+        """
+        
+        temp_fd, temp_path = tempfile.mkstemp(suffix=".mp3")
+        os.close(temp_fd)
+        
+        try:
+            async def main_silence():
+                communicate = edge_tts.Communicate(text=ssml, voice="en-US-JennyNeural")
+                await communicate.save(temp_path)
+                
+            asyncio.run(main_silence())
+            
+            with open(temp_path, 'rb') as f:
+                mp3_data = f.read()
+                
+            self.send_response(200)
+            self.send_header('Content-Type', 'audio/mpeg')
+            self.send_header('Content-Length', str(len(mp3_data)))
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self.end_headers()
+            self.wfile.write(mp3_data)
+            
+        except Exception as e:
+            print(f"Error generando silencio: {e}")
+            self.send_error(500, f"Error generating silence: {str(e)}")
         finally:
             if os.path.exists(temp_path):
                 try:
