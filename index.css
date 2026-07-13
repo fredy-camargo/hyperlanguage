@@ -1626,6 +1626,367 @@ input:checked + .slider:before {
   transform: rotateY(180deg);
 }
 
+/* About Tab Custom Styles */
+.about-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.about-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.brand-logo-container {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, hsl(var(--md-sys-color-primary)), hsl(var(--md-sys-color-tertiary)));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: var(--md-sys-elevation-2);
+}
+
+.brand-logo-icon {
+  font-size: 40px !important;
+  color: hsl(var(--md-sys-color-on-primary));
+}
+
+.about-brand-header h2 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.5px;
+}
+
+.about-brand-header .subtitle {
+  font-size: 16px;
+  margin: 0 0 16px 0;
+}
+
+.version-badge {
+  background-color: hsl(var(--md-sys-color-primary-container));
+  color: hsl(var(--md-sys-color-on-primary-container));
+  padding: 6px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid hsla(var(--md-sys-color-primary), 0.12);
+}
+
+/* Developer Showcase Card */
+.dev-showcase-card {
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  background: hsl(var(--md-sys-color-surface-container-low));
+}
+
+.dev-showcase-card .dev-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.dev-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: hsl(var(--md-sys-color-primary-container));
+  color: hsl(var(--md-sys-color-on-primary-container));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  border: 2px solid hsl(var(--md-sys-color-primary));
+}
+
+.dev-meta h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  font-family: 'Outfit', sans-serif;
+  color: hsl(var(--md-sys-color-on-surface));
+}
+
+.dev-title {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: hsl(var(--md-sys-color-on-surface-variant));
+}
+
+.dev-email-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dev-email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--md-sys-color-primary));
+  text-decoration: none;
+  background-color: hsla(var(--md-sys-color-primary), 0.08);
+  padding: 4px 12px;
+  border-radius: 100px;
+  transition: background-color 0.2s;
+}
+
+.dev-email-link:hover {
+  background-color: hsla(var(--md-sys-color-primary), 0.16);
+}
+
+.dev-email-link .material-symbols-rounded {
+  font-size: 16px !important;
+}
+
+/* Grid Layout What is / is not */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+  .dev-showcase-card .dev-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .dev-email-container {
+    justify-content: center;
+  }
+}
+
+.about-info-card {
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  height: 100%;
+}
+
+.about-info-card.is-what {
+  border-left: 5px solid hsl(var(--md-sys-color-primary));
+  background-color: hsl(var(--md-sys-color-surface-container-low));
+}
+
+.about-info-card.is-not {
+  border-left: 5px solid hsl(var(--md-sys-color-error));
+  background-color: hsl(var(--md-sys-color-surface-container-low));
+}
+
+.card-title-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.card-title-container h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+}
+
+.card-body-text ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-body-text li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: hsl(var(--md-sys-color-on-surface-variant));
+}
+
+/* Donation Card Styling */
+.donation-card {
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  background: linear-gradient(180deg, hsl(var(--md-sys-color-surface-container-low)), hsl(var(--md-sys-color-surface-container-lowest)));
+}
+
+.donation-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.donation-header .icon-lg {
+  font-size: 36px !important;
+  color: hsl(var(--md-sys-color-primary));
+  background-color: hsla(var(--md-sys-color-primary), 0.08);
+  padding: 12px;
+  border-radius: 16px;
+}
+
+.donation-header-title h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  font-family: 'Outfit', sans-serif;
+  color: hsl(var(--md-sys-color-on-surface));
+}
+
+.donation-header-title p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.paypal-donate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #0070ba; /* PayPal Blue */
+  color: #ffffff !important;
+  padding: 14px 28px;
+  border-radius: 100px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 112, 186, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.paypal-donate-btn:hover {
+  background-color: #005ea6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 112, 186, 0.4);
+}
+
+.paypal-donate-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 112, 186, 0.3);
+}
+
+.paypal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Donation sub-tabs styling */
+.donation-tab-btn {
+  color: hsl(var(--md-sys-color-on-surface-variant));
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent !important;
+}
+
+.donation-tab-btn:hover {
+  background-color: hsla(var(--md-sys-color-primary), 0.08) !important;
+  color: hsl(var(--md-sys-color-primary));
+}
+
+.donation-tab-btn.active {
+  color: hsl(var(--md-sys-color-primary)) !important;
+  border-bottom: 2px solid hsl(var(--md-sys-color-primary)) !important;
+  border-radius: 8px 8px 0 0 !important;
+  background-color: hsla(var(--md-sys-color-primary), 0.04) !important;
+}
+
+.donation-tab-panel {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.donation-tab-panel.hidden {
+  display: none !important;
+}
+
+/* Ko-fi Button style */
+.kofi-donate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #ff5e5b; /* Ko-fi Red/Pink */
+  color: #ffffff !important;
+  padding: 14px 28px;
+  border-radius: 100px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(255, 94, 91, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kofi-donate-btn:hover {
+  background-color: #e54d4a;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 94, 91, 0.4);
+}
+
+.kofi-donate-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 94, 91, 0.3);
+}
+
+.kofi-icon {
+  font-size: 20px;
+}
+
+/* Layout responsivo de soporte y comentarios */
+.support-feedback-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .support-feedback-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.feedback-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.feedback-form input:focus, 
+.feedback-form textarea:focus {
+  outline: none;
+  border-color: hsl(var(--md-sys-color-primary)) !important;
+  box-shadow: 0 0 0 3px hsla(var(--md-sys-color-primary), 0.15);
+  transition: all 0.2s ease-in-out;
+}
+
+.feedback-form input,
+.feedback-form textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+
+
 
 
 

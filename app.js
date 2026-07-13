@@ -237,7 +237,7 @@ function initNavigation() {
 
   // Manejo de hashes en URL al cargar
   const hash = window.location.hash.substring(1);
-  if (['learn', 'practice', 'generate', 'settings', 'methodology'].includes(hash)) {
+  if (['learn', 'practice', 'generate', 'settings', 'methodology', 'about'].includes(hash)) {
     switchTab(hash);
   }
 }
@@ -274,7 +274,8 @@ function switchTab(tabId) {
     practice: 'Practicar (Recall Loop)',
     generate: 'Generar Contexto Inteligente',
     methodology: 'Metodología y Guía de Uso',
-    settings: 'Configuración del Laboratorio'
+    settings: 'Configuración del Laboratorio',
+    about: 'Acerca de PolyglotLab'
   };
   document.getElementById('view-title').textContent = titleMap[tabId] || 'PolyglotLab';
   
@@ -3111,6 +3112,8 @@ function updateUserDisplayBadge() {
     if (avatarCharEl) {
       avatarCharEl.textContent = appState.profile.firstName.charAt(0).toUpperCase();
     }
+    // Autogestionar campos de feedback con el perfil del usuario logueado
+    autofillFeedbackForm();
   }
 }
 
@@ -3190,6 +3193,32 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('profile-edit-form').addEventListener('submit', saveProfileEditForm);
   document.getElementById('gen-island-form').addEventListener('submit', handleGenerateIsland);
   document.getElementById('btn-save-generated').addEventListener('click', saveGeneratedIsland);
+  
+  // Controladores de la pestaña Acerca de
+  const aboutTopBtn = document.getElementById('about-top-btn');
+  if (aboutTopBtn) {
+    aboutTopBtn.addEventListener('click', () => switchTab('about'));
+  }
+  const btnGoToAbout = document.getElementById('btn-go-to-about');
+  if (btnGoToAbout) {
+    btnGoToAbout.addEventListener('click', () => switchTab('about'));
+  }
+  const btnCopyEmail = document.getElementById('btn-copy-about-email');
+  if (btnCopyEmail) {
+    btnCopyEmail.addEventListener('click', () => {
+      navigator.clipboard.writeText('fandres.camargo@gmail.com').then(() => {
+        const icon = btnCopyEmail.querySelector('.material-symbols-rounded');
+        if (icon) {
+          icon.textContent = 'check';
+          setTimeout(() => {
+            icon.textContent = 'content_copy';
+          }, 2000);
+        }
+      }).catch(err => {
+        console.error('Error al copiar correo:', err);
+      });
+    });
+  }
   
   // Sub-pestañas de modo (IA vs Manual vs Importar)
   document.getElementById('btn-mode-ai').addEventListener('click', () => toggleGenerateMode('ai'));
@@ -3444,6 +3473,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Panel inicial por defecto
   initLearnPanel();
+  
+  // Inicializar controladores de donación multi-opción
+  initDonationControls();
 });
 
 // ==================================================================
@@ -4178,6 +4210,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Generar Islas",
     sidebar_methodology: "Metodología y Guía",
     sidebar_settings: "Configuración",
+    sidebar_about: "Acerca de",
     
     lbl_practice_collection: "Colección de Práctica:",
     lbl_all_islands: "Todas las Islas",
@@ -4245,6 +4278,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Generate Islands",
     sidebar_methodology: "Methodology & Guide",
     sidebar_settings: "Settings",
+    sidebar_about: "About",
     
     lbl_practice_collection: "Practice Collection:",
     lbl_all_islands: "All Islands",
@@ -4312,6 +4346,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Gerar Ilhas",
     sidebar_methodology: "Metodologia e Guia",
     sidebar_settings: "Configuração",
+    sidebar_about: "Sobre",
     
     lbl_practice_collection: "Coleção de Prática:",
     lbl_all_islands: "Todas as Ilhas",
@@ -4379,6 +4414,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Générer des Îles",
     sidebar_methodology: "Méthodologie & Guide",
     sidebar_settings: "Configuration",
+    sidebar_about: "À propos",
     
     lbl_practice_collection: "Collection d'Entraînement:",
     lbl_all_islands: "Toutes les Îles",
@@ -4446,6 +4482,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Inseln Generieren",
     sidebar_methodology: "Methodik & Anleitung",
     sidebar_settings: "Einstellungen",
+    sidebar_about: "Über",
     
     lbl_practice_collection: "Übungssammlung:",
     lbl_all_islands: "Alle Inseln",
@@ -4513,6 +4550,7 @@ const UI_TRANSLATIONS = {
     sidebar_generate: "Generare Isole",
     sidebar_methodology: "Metodologia e Guida",
     sidebar_settings: "Impostazioni",
+    sidebar_about: "Informazioni",
     
     lbl_practice_collection: "Collezione di Pratica:",
     lbl_all_islands: "Tutte le Isole",
@@ -4584,19 +4622,22 @@ function applyUiLanguage(langCode) {
   const sideGenerate = document.querySelector('[data-tab="generate"] .nav-label');
   const sideMethodology = document.querySelector('[data-tab="methodology"] .nav-label');
   const sideSettings = document.querySelector('[data-tab="settings"] .nav-label');
+  const sideAbout = document.querySelector('[data-tab="about"] .nav-label');
   
   if (sideLearn) sideLearn.textContent = t.sidebar_learn;
   if (sidePractice) sidePractice.textContent = t.sidebar_practice;
   if (sideGenerate) sideGenerate.textContent = t.sidebar_generate;
   if (sideMethodology) sideMethodology.textContent = t.sidebar_methodology;
   if (sideSettings) sideSettings.textContent = t.sidebar_settings;
+  if (sideAbout) sideAbout.textContent = t.sidebar_about || "Acerca de";
   
   const titleMap = {
     learn: t.sidebar_learn,
     practice: t.sidebar_practice,
     generate: t.sidebar_generate,
     methodology: t.sidebar_methodology,
-    settings: t.sidebar_settings
+    settings: t.sidebar_settings,
+    about: t.sidebar_about || "Acerca de"
   };
   
   window.uiTitleMap = titleMap;
@@ -4824,3 +4865,70 @@ function applyUiLanguage(langCode) {
   const lblDetL2 = document.getElementById('lbl-detail-l2');
   if (lblDetL2) lblDetL2.textContent = t.lbl_detail_l2;
 }
+
+// Lógica de cambio de sub-pestañas de donaciones
+function switchDonationTab(tabId) {
+  // Desactivar todos los botones de donaciones
+  document.querySelectorAll('.donation-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Ocultar todos los paneles de donaciones
+  document.querySelectorAll('.donation-tab-panel').forEach(panel => {
+    panel.classList.add('hidden');
+  });
+  
+  // Activar el botón seleccionado
+  const activeBtn = document.querySelector(`.donation-tab-btn[data-donation-tab="${tabId}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+  }
+  
+  // Mostrar el panel seleccionado
+  const activePanel = document.getElementById(`donation-panel-${tabId}`);
+  if (activePanel) {
+    activePanel.classList.remove('hidden');
+  }
+}
+
+// Inicializar controladores de eventos de donaciones y feedback
+function initDonationControls() {
+  // Event listeners para los botones de pestañas
+  document.querySelectorAll('.donation-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.getAttribute('data-donation-tab');
+      switchDonationTab(tabId);
+    });
+  });
+  
+  // Inyectar dinámicamente la URL actual para la redirección de FormSubmit.co
+  const redirectInput = document.getElementById('feedback-redirect-url');
+  if (redirectInput) {
+    // Si la app está en un hash o subruta, redirigir limpio a la misma página
+    redirectInput.value = window.location.origin + window.location.pathname + '#about';
+  }
+
+  // Auto-rellenar el formulario con los datos del perfil si ya está autenticado
+  autofillFeedbackForm();
+}
+
+// Auto-completar los datos de nombre y correo del formulario de sugerencias
+function autofillFeedbackForm() {
+  const fbName = document.getElementById('fb-name');
+  const fbEmail = document.getElementById('fb-email');
+  
+  if (appState && appState.profile) {
+    if (fbName) {
+      const firstName = appState.profile.firstName || '';
+      const lastName = appState.profile.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) {
+        fbName.value = fullName;
+      }
+    }
+    if (fbEmail && appState.profile.email) {
+      fbEmail.value = appState.profile.email;
+    }
+  }
+}
+
