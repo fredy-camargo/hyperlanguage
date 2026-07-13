@@ -42,9 +42,16 @@ const DEFAULT_STATE = {
 
 let appState = { ...DEFAULT_STATE };
 
-// Cargar estado de localStorage
+// Cargar estado de localStorage con migración desde la clave anterior
 function loadAppState() {
-  const localData = localStorage.getItem('hyperpolyglot_harness_state');
+  let localData = localStorage.getItem('polyglotlab_state');
+  if (!localData) {
+    // Intentar migrar desde la versión antigua 'hyperpolyglot_harness_state'
+    localData = localStorage.getItem('hyperpolyglot_harness_state');
+    if (localData) {
+      localStorage.setItem('polyglotlab_state', localData);
+    }
+  }
   if (localData) {
     try {
       appState = JSON.parse(localData);
@@ -88,7 +95,7 @@ function loadAppState() {
 
 // Guardar estado en localStorage
 function saveAppState() {
-  localStorage.setItem('hyperpolyglot_harness_state', JSON.stringify(appState));
+  localStorage.setItem('polyglotlab_state', JSON.stringify(appState));
 }
 
 // Mostrar diálogo de confirmación personalizado
@@ -225,9 +232,9 @@ function switchTab(tabId) {
     practice: 'Practicar (Recall Loop)',
     generate: 'Generar Contexto Inteligente',
     methodology: 'Metodología y Guía de Uso',
-    settings: 'Configuración del Arnés'
+    settings: 'Configuración del Laboratorio'
   };
-  document.getElementById('view-title').textContent = titleMap[tabId] || 'Hyperpolyglot Harness';
+  document.getElementById('view-title').textContent = titleMap[tabId] || 'PolyglotLab';
   
   // Ejecutar inicializadores específicos de paneles
   if (tabId === 'learn') initLearnPanel();
@@ -2034,7 +2041,7 @@ async function exportPracticeToMp3() {
   
   try {
     const zip = new JSZip();
-    let readmeText = `HYPERPOLYGLOT HARNESS - EXPORTACIÓN DE PRÁCTICA DE ORATORIA\n`;
+    let readmeText = `POLYGLOTLAB - EXPORTACIÓN DE PRÁCTICA DE ORATORIA\n`;
     readmeText += `Fecha: ${new Date().toLocaleString()}\n`;
     readmeText += `==========================================================\n\n`;
     
@@ -3388,6 +3395,40 @@ async function openExportOptionsModal() {
   confirmBtn.addEventListener('click', onConfirm);
 }
 
+function stripMp3Metadata(arrayBuffer) {
+  const view = new DataView(arrayBuffer);
+  let offset = 0;
+  let len = arrayBuffer.byteLength;
+
+  // 1. Quitar cabecera ID3v2 si existe (empieza con 'ID3' = [0x49, 0x44, 0x33])
+  if (len > 10 && view.getUint8(0) === 0x49 && view.getUint8(1) === 0x44 && view.getUint8(2) === 0x33) {
+    const b3 = view.getUint8(6);
+    const b2 = view.getUint8(7);
+    const b1 = view.getUint8(8);
+    const b0 = view.getUint8(9);
+    // Tamaño es synchsafe de 4 bytes (7 bits significativos por byte)
+    const size = (b3 << 21) | (b2 << 14) | (b1 << 7) | b0;
+    const headerSize = 10 + size;
+    if (headerSize < len) {
+      offset = headerSize;
+    }
+  }
+
+  // 2. Quitar cabecera ID3v1 al final si existe (los últimos 128 bytes si empiezan con 'TAG' = [0x54, 0x41, 0x47])
+  let endOffset = len;
+  if (len - offset > 128) {
+    const tagOffset = len - 128;
+    if (view.getUint8(tagOffset) === 0x54 && view.getUint8(tagOffset + 1) === 0x41 && view.getUint8(tagOffset + 2) === 0x47) {
+      endOffset = tagOffset;
+    }
+  }
+
+  if (offset > 0 || endOffset < len) {
+    return arrayBuffer.slice(offset, endOffset);
+  }
+  return arrayBuffer;
+}
+
 async function exportIslandToMp3(rangeSelection) {
   const island = appState.islands[currentIslandIndex];
   if (!island || island.sentences.length === 0) {
@@ -3437,7 +3478,7 @@ async function exportIslandToMp3(rangeSelection) {
     const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
     const url = `${baseUrl}/audio/speech`;
     
-    let readmeText = `HYPERPOLYGLOT HARNESS - EXPORTACIÓN DE ISLA LINGÜÍSTICA\n`;
+    let readmeText = `POLYGLOTLAB - EXPORTACIÓN DE ISLA LINGÜÍSTICA\n`;
     readmeText += `Isla: ${island.name}\n`;
     readmeText += `Idioma: ${island.language}\n`;
     readmeText += `Voz: ${voice} | Velocidad: ${speed}x\n`;
@@ -3446,14 +3487,27 @@ async function exportIslandToMp3(rangeSelection) {
     readmeText += `Fecha: ${new Date().toLocaleString()}\n`;
     readmeText += `==========================================================\n\n`;
 
-    // 1. Dividir las oraciones a exportar en grupos (chunks) de máximo 30
+    // 1. Precargar archivos de silencio MP3 digitalmente puros (2.5s y 1s = 3.5s total)
+    progressText.textContent = "Precargando pistas de silencio...";
+    let silence25Buffer = null;
+    let silence10Buffer = null;
+    try {
+      const r25 = await fetch('/assets/silence_2_5s.mp3');
+      if (r25.ok) silence25Buffer = await r25.arrayBuffer();
+      const r10 = await fetch('/assets/silence_1s.mp3');
+      if (r10.ok) silence10Buffer = await r10.arrayBuffer();
+    } catch (err) {
+      console.warn("No se pudieron precargar los silencios locales, usando fallback de red en silencio:", err);
+    }
+
+    // 2. Dividir las oraciones a exportar en grupos (chunks) de máximo 30
     const chunkSize = 30;
     const chunks = [];
     for (let i = 0; i < sentencesToExport.length; i += chunkSize) {
       chunks.push(sentencesToExport.slice(i, i + chunkSize));
     }
 
-    // 2. Procesar cada chunk de forma secuencial
+    // 3. Procesar cada chunk de forma secuencial
     for (let c = 0; c < chunks.length; c++) {
       const currentChunk = chunks[c];
       const startNum = c * chunkSize + 1;
@@ -3498,17 +3552,24 @@ async function exportIslandToMp3(rangeSelection) {
         
         // Agregar silencio de 3.5 segundos entre frase y frase (excepto la última del chunk)
         if (i < currentChunk.length - 1) {
-          try {
-            const silenceResponse = await fetch(`/api/silence?duration=3.5&voice=${encodeURIComponent(voice)}`);
-            if (silenceResponse.ok) {
-              const silenceBlob = await silenceResponse.blob();
-              if (silenceBlob) {
-                const silenceBuffer = await silenceBlob.arrayBuffer();
-                audioBuffers.push(silenceBuffer);
+          if (silence25Buffer && silence10Buffer) {
+            // Añadir los dos buffers que componen 3.5s de silencio absoluto
+            audioBuffers.push(silence25Buffer.slice(0));
+            audioBuffers.push(silence10Buffer.slice(0));
+          } else {
+            // Fallback de red inestable en desarrollo si no se encuentran los assets locales
+            try {
+              const silenceResponse = await fetch(`/api/silence?duration=3.5&voice=${encodeURIComponent(voice)}`);
+              if (silenceResponse.ok) {
+                const silenceBlob = await silenceResponse.blob();
+                if (silenceBlob) {
+                  const silenceBuffer = await silenceBlob.arrayBuffer();
+                  audioBuffers.push(silenceBuffer);
+                }
               }
+            } catch (silenceErr) {
+              console.error("Error al obtener silencio de fallback de red:", silenceErr);
             }
-          } catch (silenceErr) {
-            console.error("Error al obtener silencio para la exportación:", silenceErr);
           }
         }
         
@@ -3517,12 +3578,15 @@ async function exportIslandToMp3(rangeSelection) {
         readmeText += `    Palabra Clave: ${sentence.word_targeted || 'General'}\n\n`;
       }
       
-      // 3. Concatenar los audios de este chunk en un único archivo
+      // 4. Concatenar los audios de este chunk eliminando cabeceras ID3 para evitar clics
       progressText.textContent = `Consolidando audio parte ${c + 1}/${chunks.length}...`;
-      const combinedLength = audioBuffers.reduce((acc, b) => acc + b.byteLength, 0);
+      
+      const cleanBuffers = audioBuffers.map(buf => stripMp3Metadata(buf));
+      const combinedLength = cleanBuffers.reduce((acc, b) => acc + b.byteLength, 0);
       const combinedBuffer = new Uint8Array(combinedLength);
+      
       let offset = 0;
-      for (const buffer of audioBuffers) {
+      for (const buffer of cleanBuffers) {
         combinedBuffer.set(new Uint8Array(buffer), offset);
         offset += buffer.byteLength;
       }
@@ -3545,24 +3609,40 @@ async function exportIslandToMp3(rangeSelection) {
     const content = await zip.generateAsync({ type: "blob" });
     const filename = `${island.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_isla_audio.zip`;
     
-    const response = await fetch(`/api/save-export?filename=${encodeURIComponent(filename)}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream'
-      },
-      body: content
-    });
-    const resData = await response.json();
-    if (!resData.success) {
-      throw new Error("No se pudo guardar la exportación en el servidor.");
+    // Descargar el archivo. Intentar guardar en servidor (harness local) y hacer fallback en navegador
+    let downloadUrl = null;
+    try {
+      const response = await fetch(`/api/save-export?filename=${encodeURIComponent(filename)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream'
+        },
+        body: content
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        if (resData.success) {
+          downloadUrl = resData.url;
+        }
+      }
+    } catch (saveErr) {
+      console.warn("No se pudo guardar la copia en el backend (esperado en produccion estática):", saveErr);
+    }
+    
+    if (!downloadUrl) {
+      downloadUrl = URL.createObjectURL(content);
     }
     
     const a = document.createElement('a');
-    a.href = resData.url;
+    a.href = downloadUrl;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    if (!downloadUrl.startsWith('/')) {
+      // Si se uso URL.createObjectURL, liberar memoria tras descargar
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+    }
     
     alert("¡Isla de audio exportada con éxito en un archivo ZIP!");
   } catch (err) {

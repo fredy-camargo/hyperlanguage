@@ -1,4 +1,4 @@
-# dev_server.py - Servidor local ligero para el Hyperpolyglot PWA
+# dev_server.py - Servidor local ligero para el PolyglotLab PWA
 import http.server
 import socketserver
 import socket
@@ -117,46 +117,78 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def handle_api_silence(self):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
-        duration_str = params.get('duration', ['2.5'])[0]
-        voice = params.get('voice', ['en-US-JennyNeural'])[0]
+        duration_str = params.get('duration', ['3.5'])[0]
         
         try:
-            duration_ms = int(float(duration_str) * 1000)
+            duration = float(duration_str)
         except ValueError:
-            duration_ms = 2500
+            duration = 3.5
             
-        # Inyección SSML limpia para evitar lectura literal de etiquetas
-        injected_text = f'</prosody><break time="{duration_ms}ms"/><prosody>'
+        assets_dir = os.path.join(os.getcwd(), "assets")
+        s25_path = os.path.join(assets_dir, "silence_2_5s.mp3")
+        s10_path = os.path.join(assets_dir, "silence_1s.mp3")
+        s05_path = os.path.join(assets_dir, "silence_500ms.mp3")
         
-        temp_fd, temp_path = tempfile.mkstemp(suffix=".mp3")
-        os.close(temp_fd)
+        mp3_data = b""
         
+        # Intentar responder con silencios digitales puros si están disponibles en assets
+        if duration == 3.5 and os.path.exists(s25_path) and os.path.exists(s10_path):
+            try:
+                with open(s25_path, 'rb') as f:
+                    mp3_data += f.read()
+                with open(s10_path, 'rb') as f:
+                    mp3_data += f.read()
+            except Exception as e:
+                print(f"Error leyendo silencios de assets: {e}")
+                mp3_data = b""
+        elif duration == 3.0 and os.path.exists(s25_path) and os.path.exists(s05_path):
+            try:
+                with open(s25_path, 'rb') as f:
+                    mp3_data += f.read()
+                with open(s05_path, 'rb') as f:
+                    mp3_data += f.read()
+            except Exception as e:
+                print(f"Error leyendo silencios de assets: {e}")
+                mp3_data = b""
+                
+        # Fallback a la generación SSML de Edge TTS si no hay archivos locales de silencio
+        if not mp3_data:
+            duration_ms = int(duration * 1000)
+            voice = params.get('voice', ['en-US-JennyNeural'])[0]
+            injected_text = f'</prosody><break time="{duration_ms}ms"/><prosody>'
+            
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".mp3")
+            os.close(temp_fd)
+            
+            try:
+                async def main_silence():
+                    communicate = edge_tts.Communicate(text=injected_text, voice=voice)
+                    await communicate.save(temp_path)
+                    
+                asyncio.run(main_silence())
+                
+                with open(temp_path, 'rb') as f:
+                    mp3_data = f.read()
+            except Exception as e:
+                print(f"Error generando silencio dinámico: {e}")
+                self.send_error(500, f"Error generating silence: {str(e)}")
+                return
+            finally:
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+                        
         try:
-            async def main_silence():
-                communicate = edge_tts.Communicate(text=injected_text, voice=voice)
-                await communicate.save(temp_path)
-                
-            asyncio.run(main_silence())
-            
-            with open(temp_path, 'rb') as f:
-                mp3_data = f.read()
-                
             self.send_response(200)
             self.send_header('Content-Type', 'audio/mpeg')
             self.send_header('Content-Length', str(len(mp3_data)))
             self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
             self.end_headers()
             self.wfile.write(mp3_data)
-            
         except Exception as e:
-            print(f"Error generando silencio: {e}")
-            self.send_error(500, f"Error generating silence: {str(e)}")
-        finally:
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
+            print(f"Error enviando silencio: {e}")
 
     def do_POST(self):
         if self.path.startswith('/api/download-helper'):
@@ -253,7 +285,7 @@ def main():
     })
 
     print("==================================================================")
-    print("      HYPERPOLYGLOT HARNESS - SERVIDOR LOCAL DE DESARROLLO        ")
+    print("            POLYGLOTLAB - SERVIDOR LOCAL DE DESARROLLO            ")
     print("==================================================================")
     print(f"Servidor iniciado localmente en: http://localhost:{PORT}")
     print(f"Para verlo desde tu Android / iOS / Laptop, abre en el navegador:")
