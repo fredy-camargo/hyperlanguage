@@ -31,7 +31,13 @@
         </div>
         
         <form id="onboarding-form" class="form-container">
-          <div class="form-row">
+          <!-- Selector de modo si Firebase está activo -->
+          <div id="auth-mode-selector" class="auth-toggle hidden" style="margin-bottom: 20px; display: flex; justify-content: center; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px;">
+            <span id="btn-mode-register" class="auth-toggle-btn active" style="cursor: pointer; padding: 6px 16px; font-weight: 600; font-size: 14px; color: hsl(var(--md-sys-color-primary)); border-bottom: 2px solid hsl(var(--md-sys-color-primary)); transition: all 0.2s;">Registrarse</span>
+            <span id="btn-mode-login" class="auth-toggle-btn" style="cursor: pointer; padding: 6px 16px; font-weight: 500; font-size: 14px; margin-left: 12px; color: var(--md-sys-color-secondary); transition: all 0.2s;">Iniciar Sesión</span>
+          </div>
+
+          <div class="form-row" id="onboarding-name-row">
             <div class="form-group">
               <label for="profile-first-name">Nombre</label>
               <input type="text" id="profile-first-name" required placeholder="Ej. Mikel">
@@ -46,8 +52,14 @@
             <label for="profile-email">Correo Electrónico</label>
             <input type="email" id="profile-email" required placeholder="correo@ejemplo.com">
           </div>
+
+          <!-- Campo de Contraseña (oculto por defecto si Firebase no está activo) -->
+          <div class="form-group hidden" id="onboarding-password-group" style="margin-top: 12px;">
+            <label for="profile-password">Contraseña (Mínimo 6 caracteres)</label>
+            <input type="password" id="profile-password" placeholder="Tu contraseña">
+          </div>
           
-          <div class="form-group">
+          <div class="form-group" id="onboarding-l1-group">
             <label for="profile-l1">Idioma Nativo (L1)</label>
             <select id="profile-l1">
               <option value="Español" selected>Español</option>
@@ -59,8 +71,8 @@
             </select>
           </div>
           
-          <button type="submit" class="btn btn-primary btn-full btn-lg">
-            <span>Comenzar Aventura</span>
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-onboarding-submit" style="margin-top: 20px;">
+            <span id="onboarding-submit-text">Comenzar Aventura</span>
             <span class="material-symbols-rounded">arrow_forward</span>
           </button>
         </form>
@@ -1293,6 +1305,11 @@
 
   <!-- JSZip for exporting MP3s to ZIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- Firebase SDKs (compat mode) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <!-- Main JavaScript File -->
   <script src="app.js?v=1.3"></script>

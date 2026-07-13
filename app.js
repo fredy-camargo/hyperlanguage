@@ -1,5 +1,34 @@
 // app.js - Client-Side State, TTS Karaoke Loop & LLM BYOK Integrator
 
+// CONFIGURACIÓN DE FIREBASE (PRODUCCIÓN)
+// Reemplaza los valores de abajo con las credenciales de tu proyecto de Firebase.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDPJQmTVtWDLzeAOoIyCaV0JNy8doKg9Ck",
+  authDomain: "polyglotlab-31c84.firebaseapp.com",
+  projectId: "polyglotlab-31c84",
+  storageBucket: "polyglotlab-31c84.firebasestorage.app",
+  messagingSenderId: "247174107684",
+  appId: "1:247174107684:web:0d2f34fe9d859f61fb3eb1"
+};
+
+let firebaseApp = null;
+let firebaseAuth = null;
+let firebaseDb = null;
+let isFirebaseEnabled = false;
+
+// Inicializar Firebase de forma segura si las claves son válidas
+if (typeof firebase !== 'undefined' && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('REPLACE_')) {
+  try {
+    firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseAuth = firebase.auth();
+    firebaseDb = firebase.firestore();
+    isFirebaseEnabled = true;
+    console.log("PolyglotLab: Conexión con Firebase establecida de manera exitosa.");
+  } catch (err) {
+    console.error("Error al inicializar Firebase:", err);
+  }
+}
+
 // 1. STATE & ALMACENAMIENTO LOCAL
 const DEFAULT_STATE = {
   profile: null, // { firstName, lastName, email, l1 }
@@ -93,9 +122,22 @@ function loadAppState() {
   }
 }
 
-// Guardar estado en localStorage
+// Guardar estado en localStorage y sincronizar con Firestore si Firebase está activo
 function saveAppState() {
   localStorage.setItem('polyglotlab_state', JSON.stringify(appState));
+  
+  if (isFirebaseEnabled && firebaseAuth && firebaseAuth.currentUser) {
+    const user = firebaseAuth.currentUser;
+    firebaseDb.collection("users").doc(user.uid).set({
+      profile: appState.profile,
+      settings: appState.settings,
+      islands: appState.islands,
+      metrics: appState.metrics,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true }).catch(err => {
+      console.warn("No se pudo sincronizar con Firestore (sigue funcionando local-first):", err);
+    });
+  }
 }
 
 // Mostrar diálogo de confirmación personalizado
@@ -1782,6 +1824,13 @@ function evaluateRecallAttempt() {
     appState.metrics.sessionsCompleted += 1;
   }
   saveAppState();
+  logLearningTelemetry({
+    activityType: 'recall_written',
+    accuracy: accuracy,
+    sentenceL2: correctAnswer,
+    sentenceL1: sentence.l1,
+    wordTargeted: sentence.word_targeted || ''
+  });
   renderMetrics();
 }
 
@@ -1966,6 +2015,13 @@ function evaluatePronunciationAttempt() {
   appState.metrics.pronAccuracySum += accuracy;
   
   saveAppState();
+  logLearningTelemetry({
+    activityType: 'recall_speech',
+    accuracy: accuracy,
+    sentenceL2: correctAnswer,
+    sentenceL1: sentence.l1,
+    wordTargeted: sentence.word_targeted || ''
+  });
   renderMetrics();
 }
 
@@ -2912,6 +2968,55 @@ function saveProfileEditForm(e) {
 }
 
 // 8. ONBOARDING & SETUP INICIAL
+let authMode = 'register'; // 'register' o 'login'
+
+function setupFirebaseAuthToggle() {
+  if (!isFirebaseEnabled) return;
+  
+  // Mostrar selector de modo y contraseña
+  document.getElementById('auth-mode-selector').classList.remove('hidden');
+  document.getElementById('onboarding-password-group').classList.remove('hidden');
+  document.getElementById('profile-password').setAttribute('required', 'true');
+  
+  const btnRegister = document.getElementById('btn-mode-register');
+  const btnLogin = document.getElementById('btn-mode-login');
+  const nameRow = document.getElementById('onboarding-name-row');
+  const l1Group = document.getElementById('onboarding-l1-group');
+  const submitText = document.getElementById('onboarding-submit-text');
+  
+  btnRegister.addEventListener('click', () => {
+    authMode = 'register';
+    btnRegister.classList.add('active');
+    btnRegister.style.color = 'hsl(var(--md-sys-color-primary))';
+    btnRegister.style.borderBottom = '2px solid hsl(var(--md-sys-color-primary))';
+    btnLogin.classList.remove('active');
+    btnLogin.style.color = 'var(--md-sys-color-secondary)';
+    btnLogin.style.borderBottom = 'none';
+    
+    nameRow.classList.remove('hidden');
+    l1Group.classList.remove('hidden');
+    document.getElementById('profile-first-name').setAttribute('required', 'true');
+    document.getElementById('profile-last-name').setAttribute('required', 'true');
+    submitText.textContent = "Comenzar Aventura";
+  });
+  
+  btnLogin.addEventListener('click', () => {
+    authMode = 'login';
+    btnLogin.classList.add('active');
+    btnLogin.style.color = 'hsl(var(--md-sys-color-primary))';
+    btnLogin.style.borderBottom = '2px solid hsl(var(--md-sys-color-primary))';
+    btnRegister.classList.remove('active');
+    btnRegister.style.color = 'var(--md-sys-color-secondary)';
+    btnRegister.style.borderBottom = 'none';
+    
+    nameRow.classList.add('hidden');
+    l1Group.classList.add('hidden');
+    document.getElementById('profile-first-name').removeAttribute('required');
+    document.getElementById('profile-last-name').removeAttribute('required');
+    submitText.textContent = "Iniciar Sesión";
+  });
+}
+
 function checkOnboarding() {
   const onboardingScreen = document.getElementById('onboarding-screen');
   if (!appState.profile) {
@@ -2922,20 +3027,80 @@ function checkOnboarding() {
   }
 }
 
-function handleOnboardingForm(e) {
+async function handleOnboardingForm(e) {
   e.preventDefault();
   
+  const submitBtn = document.getElementById('btn-onboarding-submit');
+  submitBtn.disabled = true;
+  const originalText = document.getElementById('onboarding-submit-text').textContent;
+  document.getElementById('onboarding-submit-text').textContent = "Procesando...";
+
+  const email = document.getElementById('profile-email').value.trim();
+  const password = document.getElementById('profile-password') ? document.getElementById('profile-password').value : '';
   const firstName = document.getElementById('profile-first-name').value.trim();
   const lastName = document.getElementById('profile-last-name').value.trim();
-  const email = document.getElementById('profile-email').value.trim();
   const l1 = document.getElementById('profile-l1').value;
-  
-  appState.profile = { firstName, lastName, email, l1 };
-  saveAppState();
-  
-  document.getElementById('onboarding-screen').classList.add('hidden');
-  updateUserDisplayBadge();
-  switchTab('learn');
+
+  if (isFirebaseEnabled) {
+    try {
+      if (authMode === 'register') {
+        const userCredential = await firebaseAuth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        appState.profile = { firstName, lastName, email, l1 };
+        
+        await firebaseDb.collection("users").doc(user.uid).set({
+          profile: appState.profile,
+          settings: appState.settings,
+          islands: appState.islands,
+          metrics: appState.metrics,
+          lastUpdated: new Date().toISOString()
+        });
+        
+        saveAppState();
+      } else {
+        const userCredential = await firebaseAuth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        const userDoc = await firebaseDb.collection("users").doc(user.uid).get();
+        if (userDoc.exists) {
+          const cloudData = userDoc.data();
+          appState.profile = cloudData.profile || null;
+          appState.settings = cloudData.settings || appState.settings;
+          appState.islands = cloudData.islands || appState.islands;
+          appState.metrics = cloudData.metrics || appState.metrics;
+        } else {
+          appState.profile = { firstName: 'Usuario', lastName: 'Polyglot', email, l1: 'Español' };
+          await firebaseDb.collection("users").doc(user.uid).set({
+            profile: appState.profile,
+            settings: appState.settings,
+            islands: appState.islands,
+            metrics: appState.metrics,
+            lastUpdated: new Date().toISOString()
+          });
+        }
+        
+        saveAppState();
+      }
+      
+      document.getElementById('onboarding-screen').classList.add('hidden');
+      updateUserDisplayBadge();
+      switchTab('learn');
+      
+    } catch (err) {
+      console.error("Error de autenticación en Firebase:", err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      submitBtn.disabled = false;
+      document.getElementById('onboarding-submit-text').textContent = originalText;
+    }
+  } else {
+    appState.profile = { firstName, lastName, email, l1 };
+    saveAppState();
+    document.getElementById('onboarding-screen').classList.add('hidden');
+    updateUserDisplayBadge();
+    switchTab('learn');
+  }
 }
 
 function updateUserDisplayBadge() {
@@ -2946,6 +3111,51 @@ function updateUserDisplayBadge() {
     if (avatarCharEl) {
       avatarCharEl.textContent = appState.profile.firstName.charAt(0).toUpperCase();
     }
+  }
+}
+
+// Lógica de escucha de Firebase Auth al iniciar la app
+function initFirebaseAuthStateListener() {
+  if (!isFirebaseEnabled) return;
+  
+  firebaseAuth.onAuthStateChanged(async (user) => {
+    if (user) {
+      console.log("Sesión activa de Firebase detectada:", user.email);
+      try {
+        const userDoc = await firebaseDb.collection("users").doc(user.uid).get();
+        if (userDoc.exists) {
+          const cloudData = userDoc.data();
+          appState.profile = cloudData.profile || null;
+          appState.settings = cloudData.settings || appState.settings;
+          appState.islands = cloudData.islands || appState.islands;
+          appState.metrics = cloudData.metrics || appState.metrics;
+          
+          localStorage.setItem('polyglotlab_state', JSON.stringify(appState));
+          
+          updateUserDisplayBadge();
+          checkOnboarding();
+        }
+      } catch (err) {
+        console.error("Error sincronizando sesión activa:", err);
+      }
+    }
+  });
+}
+
+// Función para reportar telemetría de aprendizaje
+async function logLearningTelemetry(data) {
+  if (!isFirebaseEnabled || !firebaseAuth || !firebaseAuth.currentUser) return;
+  
+  const user = firebaseAuth.currentUser;
+  try {
+    await firebaseDb.collection("learning_telemetry").add({
+      userId: user.uid,
+      timestamp: new Date().toISOString(),
+      ...data
+    });
+    console.log("Telemetría de aprendizaje enviada.");
+  } catch (err) {
+    console.warn("No se pudo registrar la telemetría en Firestore:", err);
   }
 }
 
@@ -2968,6 +3178,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Inicializar UI
   initTheme();
+  setupFirebaseAuthToggle();
+  initFirebaseAuthStateListener();
   checkOnboarding();
   initNavigation();
   
