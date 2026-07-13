@@ -97,11 +97,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   font-family: var(--font-body);
   background-color: hsl(var(--md-sys-color-background));
   color: hsl(var(--md-sys-color-on-surface));
   overflow-x: hidden;
+  max-width: 100%;
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
@@ -658,8 +659,8 @@ input:checked + .slider:before {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   z-index: 100;
@@ -667,6 +668,11 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   animation: fadeIn var(--transition-normal);
+}
+
+#onboarding-screen {
+  background-color: hsl(var(--md-sys-color-background)) !important;
+  backdrop-filter: none !important;
 }
 
 .modal-overlay.hidden {
@@ -677,6 +683,13 @@ input:checked + .slider:before {
   max-width: 480px;
   width: 90%;
   animation: slideUp var(--transition-normal);
+}
+
+@media (max-width: 480px) {
+  .onboarding-card {
+    padding: 24px 16px !important;
+    width: 95% !important;
+  }
 }
 
 .icon-hero {

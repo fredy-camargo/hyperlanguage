@@ -33,7 +33,7 @@ if (typeof firebase !== 'undefined' && FIREBASE_CONFIG.apiKey && !FIREBASE_CONFI
 const DEFAULT_STATE = {
   profile: null, // { firstName, lastName, email, l1 }
   settings: {
-    theme: 'system',
+    theme: 'light',
     apiProvider: 'openai',
     apiKey: '',
     apiUrl: '',
@@ -2969,7 +2969,7 @@ function saveProfileEditForm(e) {
 }
 
 // 8. ONBOARDING & SETUP INICIAL
-let authMode = 'register'; // 'register' o 'login'
+let authMode = 'login'; // 'login' o 'register' por defecto
 
 function setupFirebaseAuthToggle() {
   if (!isFirebaseEnabled) return;
@@ -2983,8 +2983,28 @@ function setupFirebaseAuthToggle() {
   const btnLogin = document.getElementById('btn-mode-login');
   const nameRow = document.getElementById('onboarding-name-row');
   const l1Group = document.getElementById('onboarding-l1-group');
+  const termsGroup = document.getElementById('onboarding-terms-group');
+  const checkboxTerms = document.getElementById('profile-terms');
   const submitText = document.getElementById('onboarding-submit-text');
   
+  // 1. Configurar estado inicial de LOGIN por defecto al arrancar
+  authMode = 'login';
+  btnLogin.classList.add('active');
+  btnLogin.style.color = 'hsl(var(--md-sys-color-primary))';
+  btnLogin.style.borderBottom = '2px solid hsl(var(--md-sys-color-primary))';
+  btnRegister.classList.remove('active');
+  btnRegister.style.color = 'var(--md-sys-color-secondary)';
+  btnRegister.style.borderBottom = 'none';
+  
+  nameRow.classList.add('hidden');
+  l1Group.classList.add('hidden');
+  termsGroup.classList.add('hidden');
+  if (checkboxTerms) checkboxTerms.removeAttribute('required');
+  document.getElementById('profile-first-name').removeAttribute('required');
+  document.getElementById('profile-last-name').removeAttribute('required');
+  submitText.textContent = "Iniciar Sesión";
+  
+  // 2. Conmutar a modo REGISTRO
   btnRegister.addEventListener('click', () => {
     authMode = 'register';
     btnRegister.classList.add('active');
@@ -2996,11 +3016,14 @@ function setupFirebaseAuthToggle() {
     
     nameRow.classList.remove('hidden');
     l1Group.classList.remove('hidden');
+    termsGroup.classList.remove('hidden');
+    if (checkboxTerms) checkboxTerms.setAttribute('required', 'true');
     document.getElementById('profile-first-name').setAttribute('required', 'true');
     document.getElementById('profile-last-name').setAttribute('required', 'true');
     submitText.textContent = "Comenzar Aventura";
   });
   
+  // 3. Conmutar a modo INICIAR SESIÓN
   btnLogin.addEventListener('click', () => {
     authMode = 'login';
     btnLogin.classList.add('active');
@@ -3012,10 +3035,39 @@ function setupFirebaseAuthToggle() {
     
     nameRow.classList.add('hidden');
     l1Group.classList.add('hidden');
+    termsGroup.classList.add('hidden');
+    if (checkboxTerms) checkboxTerms.removeAttribute('required');
     document.getElementById('profile-first-name').removeAttribute('required');
     document.getElementById('profile-last-name').removeAttribute('required');
     submitText.textContent = "Iniciar Sesión";
   });
+
+  // 4. Modal explicativo para los links de términos y privacidad
+  const linkTerms = document.getElementById('link-terms');
+  const linkPrivacy = document.getElementById('link-privacy');
+  
+  if (linkTerms) {
+    linkTerms.addEventListener('click', (e) => {
+      e.preventDefault();
+      alert("Términos y Condiciones de Uso de PolyglotLab:\n\n" +
+            "1. Propósito: PolyglotLab es una herramienta personal local-first para el aprendizaje práctico de idiomas basada en la adquisición por contexto.\n" +
+            "2. Llaves de API (BYOK): Eres propietario y único responsable del uso y confidencialidad de tus llaves de API (OpenAI u otros proveedores).\n" +
+            "3. Datos locales: Toda la información de tu perfil, historial de estudio e islas creadas se guarda de forma segura en la memoria de tu navegador (LocalStorage).\n" +
+            "4. Sincronización: Si habilitas Firebase, tu progreso se respaldará en servidores seguros únicamente para sincronización de tus dispositivos.");
+    });
+  }
+  
+  if (linkPrivacy) {
+    linkPrivacy.addEventListener('click', (e) => {
+      e.preventDefault();
+      alert("Autorización para el Tratamiento de Datos Personales:\n\n" +
+            "De conformidad con las leyes de protección de datos, al registrarte autorizas a PolyglotLab a almacenar tu Nombre y Correo Electrónico con los siguientes fines únicos:\n\n" +
+            "- Creación y gestión de tu cuenta de usuario.\n" +
+            "- Sincronización en la nube de tu progreso de estudio.\n" +
+            "- Envío seguro de comentarios y sugerencias para la mejora de la app.\n\n" +
+            "Tus datos de contacto están protegidos y nunca serán transferidos, vendidos o utilizados con fines comerciales o publicitarios.");
+    });
+  }
 }
 
 function checkOnboarding() {

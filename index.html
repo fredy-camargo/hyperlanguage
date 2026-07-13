@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="system">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -71,6 +71,14 @@
             </select>
           </div>
           
+          <!-- Checkbox de Términos y Condiciones (Oculto por defecto para Iniciar Sesión) -->
+          <div class="form-group hidden" id="onboarding-terms-group" style="margin-top: 16px; display: flex; align-items: flex-start; gap: 8px;">
+            <input type="checkbox" id="profile-terms" style="width: auto; margin-top: 3px; cursor: pointer;">
+            <label for="profile-terms" style="font-size: 12px; line-height: 1.5; color: hsl(var(--md-sys-color-on-surface-variant)); cursor: pointer;">
+              Acepto los <a href="#" id="link-terms" style="color: hsl(var(--md-sys-color-primary)); font-weight: 600; text-decoration: none;">Términos y Condiciones</a> y autorizo el <a href="#" id="link-privacy" style="color: hsl(var(--md-sys-color-primary)); font-weight: 600; text-decoration: none;">Tratamiento de Datos Personales</a>.
+            </label>
+          </div>
+          
           <button type="submit" class="btn btn-primary btn-full btn-lg" id="btn-onboarding-submit" style="margin-top: 20px;">
             <span id="onboarding-submit-text">Comenzar Aventura</span>
             <span class="material-symbols-rounded">arrow_forward</span>
@@ -130,8 +138,11 @@
     <main class="main-content">
       
       <!-- Top Bar -->
-      <header class="top-bar" style="position: relative;">
-        <h2 id="view-title">Aprender (Karaoke)</h2>
+      <header class="top-bar" style="position: relative; display: flex; align-items: center; justify-content: space-between;">
+        <div class="top-bar-brand" style="display: flex; align-items: center; gap: 10px;">
+          <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo" style="height: 36px; width: 36px; object-fit: contain;">
+          <h2 id="view-title" style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">Aprender (Karaoke)</h2>
+        </div>
         
         <!-- Large Evolving Brain Widget -->
         <div class="top-bar-brain-widget">
@@ -1371,6 +1382,10 @@
       <a href="#settings" class="mobile-nav-link" data-tab="settings">
         <span class="material-symbols-rounded">settings</span>
         <span class="mobile-nav-label">Ajustes</span>
+      </a>
+      <a href="#about" class="mobile-nav-link" data-tab="about">
+        <span class="material-symbols-rounded">info</span>
+        <span class="mobile-nav-label">Acerca de</span>
       </a>
     </nav>
 
