@@ -291,6 +291,60 @@ let currentSentenceIndex = 0;
 let isPlaying = false;
 let currentUtterance = null;
 let wordRanges = []; // Mapeo de caracteres para el Karaoke
+window.karaokeQueue = [];
+
+function buildKaraokeQueue() {
+  const island = appState.islands[currentIslandIndex];
+  window.karaokeQueue = [];
+  if (!island || !island.sentences || island.sentences.length === 0) return;
+  
+  // Obtener los niveles de dificultad que están seleccionados (activos) en la UI
+  const activeLevels = [];
+  document.querySelectorAll('.diff-chip.active').forEach(btn => {
+    activeLevels.push(parseInt(btn.getAttribute('data-level')));
+  });
+  
+  // Obtener el tipo de orden
+  const orderSelect = document.getElementById('karaoke-order-select');
+  const orderType = orderSelect ? orderSelect.value : 'normal';
+  
+  // Filtrar
+  const filtered = [];
+  island.sentences.forEach((sentence, idx) => {
+    if (!sentence.speech_sr) {
+      sanitizeSentenceSRMetadata(sentence);
+    }
+    const box = sentence.speech_sr.box || 1;
+    if (activeLevels.includes(box)) {
+      filtered.push({
+        originalIndex: idx,
+        sentence: sentence
+      });
+    }
+  });
+  
+  // Ordenar
+  if (orderType === 'fsrs' && filtered.length > 0) {
+    const now = new Date();
+    filtered.sort((a, b) => {
+      const srA = a.sentence.speech_sr;
+      const srB = b.sentence.speech_sr;
+      
+      const elapsedA = srA.last_review ? (now.getTime() - new Date(srA.last_review).getTime()) / (24 * 60 * 60 * 1000) : 100;
+      const elapsedB = srB.last_review ? (now.getTime() - new Date(srB.last_review).getTime()) / (24 * 60 * 60 * 1000) : 100;
+      
+      const rA = Math.pow(1 + elapsedA / (9 * (srA.stability || 1.0)), -0.5);
+      const rB = Math.pow(1 + elapsedB / (9 * (srB.stability || 1.0)), -0.5);
+      
+      if (rA !== rB) {
+        return rA - rB;
+      }
+      return (srA.stability || 1.0) - (srB.stability || 1.0);
+    });
+  }
+  
+  window.karaokeQueue = filtered;
+}
 
 // Diccionario de códigos de idioma para TTS
 const LANG_CODES = {
@@ -304,6 +358,10 @@ const LANG_CODES = {
 
 function initLearnPanel() {
   renderIslandSelectors();
+  buildKaraokeQueue();
+  if (currentSentenceIndex >= window.karaokeQueue.length) {
+    currentSentenceIndex = 0;
+  }
   loadCurrentSentence();
 }
 
@@ -423,6 +481,7 @@ function renderIslandSelectors() {
       stopTTS();
       currentIslandIndex = index;
       currentSentenceIndex = 0;
+      buildKaraokeQueue();
       renderIslandSelectors();
       loadCurrentSentence();
     });
@@ -432,6 +491,7 @@ function renderIslandSelectors() {
       stopTTS();
       currentIslandIndex = index;
       currentSentenceIndex = 0;
+      buildKaraokeQueue();
       renderIslandSelectors();
       loadCurrentSentence();
       playTTS();
@@ -473,11 +533,11 @@ function loadCurrentSentence() {
   const progressPercent = document.getElementById('player-progress-percentage');
   const progressFill = document.getElementById('player-progress-fill');
   
-  if (!island || !island.sentences || island.sentences.length === 0) {
-    document.getElementById('player-island-name').textContent = "Ninguna Isla";
-    document.getElementById('player-lang-badge').textContent = "N/A";
-    document.getElementById('karaoke-l1').textContent = "Crea una isla lingüística para comenzar.";
-    document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada.</span>';
+  if (!island || window.karaokeQueue.length === 0) {
+    document.getElementById('player-island-name').textContent = island ? island.name : "Ninguna Isla";
+    document.getElementById('player-lang-badge').textContent = island ? island.language : "N/A";
+    document.getElementById('karaoke-l1').textContent = island ? "Ninguna frase coincide con los filtros de dificultad." : "Crea una isla lingüística para comenzar.";
+    document.getElementById('karaoke-l2').innerHTML = '<span class="placeholder-text">Ninguna oración cargada que cumpla con los filtros de dificultad.</span>';
     
     if (progressText) progressText.textContent = "Frase 0 de 0";
     if (progressPercent) progressPercent.textContent = "0%";
@@ -486,14 +546,15 @@ function loadCurrentSentence() {
   }
   
   const currentNum = currentSentenceIndex + 1;
-  const totalNum = island.sentences.length;
+  const totalNum = window.karaokeQueue.length;
   const percent = Math.round((currentNum / totalNum) * 100);
   
   if (progressText) progressText.textContent = `Frase ${currentNum} de ${totalNum}`;
   if (progressPercent) progressPercent.textContent = `${percent}%`;
   if (progressFill) progressFill.style.width = `${percent}%`;
   
-  const sentence = island.sentences[currentSentenceIndex];
+  const queueItem = window.karaokeQueue[currentSentenceIndex];
+  const sentence = queueItem.sentence;
   document.getElementById('player-island-name').textContent = island.name;
   document.getElementById('player-lang-badge').textContent = island.language;
   document.getElementById('karaoke-l1').textContent = sentence.l1;
@@ -541,7 +602,10 @@ function loadCurrentSentence() {
 
   const masteryContainer = document.getElementById('karaoke-sentence-mastery-container');
   if (masteryContainer) {
-    const box = sentence.box !== undefined ? sentence.box : 1;
+    if (!sentence.speech_sr) {
+      sanitizeSentenceSRMetadata(sentence);
+    }
+    const box = sentence.speech_sr.box || 1;
     const percent = box * 25;
     
     let levelName = "Semilla (Por repasar)";
@@ -713,11 +777,9 @@ function playTTS() {
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
     
-    // Control de bucles y avance
+    // Bucle continuo de la isla si está activo (checked)
     const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
     if (repeatPhrase) {
-      setTimeout(playTTS, 1500);
-    } else {
       setTimeout(() => {
         advanceSentence(1);
         playTTS();
@@ -991,8 +1053,6 @@ function setupAzureAudioHighlighting(audio, textL2) {
     
     const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
     if (repeatPhrase) {
-      setTimeout(playTTS, 1500);
-    } else {
       setTimeout(() => {
         advanceSentence(1);
         playTTS();
@@ -1073,8 +1133,6 @@ function setupOpenAiAudioHighlighting(audio, textL2) {
     
     const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
     if (repeatPhrase) {
-      setTimeout(playTTS, 1500);
-    } else {
       setTimeout(() => {
         advanceSentence(1);
         playTTS();
@@ -1140,12 +1198,12 @@ function clearHighlights() {
 
 function advanceSentence(offset) {
   const island = appState.islands[currentIslandIndex];
-  if (!island || island.sentences.length === 0) return;
+  if (!island || window.karaokeQueue.length === 0) return;
   
   const wasPlaying = isPlaying;
   stopTTS();
   
-  currentSentenceIndex = (currentSentenceIndex + offset + island.sentences.length) % island.sentences.length;
+  currentSentenceIndex = (currentSentenceIndex + offset + window.karaokeQueue.length) % window.karaokeQueue.length;
   loadCurrentSentence();
   
   if (wasPlaying) {
@@ -1188,14 +1246,32 @@ function sanitizeSentenceSRMetadata(s) {
 }
 
 function gradeActiveSentence(grade) {
-  if (practiceSentences.length === 0) return;
+  console.log("gradeActiveSentence invoked with grade:", grade);
+  console.log("practiceSentences length:", practiceSentences.length);
+  console.log("currentPracticeIndex:", currentPracticeIndex);
+  if (practiceSentences.length === 0) {
+    console.warn("practiceSentences is empty!");
+    return;
+  }
   const sentence = practiceSentences[currentPracticeIndex];
-  if (!sentence) return;
+  console.log("Active sentence:", sentence);
+  if (!sentence) {
+    console.warn("No active sentence found at index:", currentPracticeIndex);
+    return;
+  }
   
   const island = appState.islands.find(isl => isl.id === sentence.islandId);
-  if (!island) return;
+  console.log("Found island:", island);
+  if (!island) {
+    console.warn("No island found for ID:", sentence.islandId);
+    return;
+  }
   const dbSentence = island.sentences.find(s => s.id === sentence.id);
-  if (!dbSentence) return;
+  console.log("Found dbSentence:", dbSentence);
+  if (!dbSentence) {
+    console.warn("No dbSentence found for ID:", sentence.id);
+    return;
+  }
   
   sanitizeSentenceSRMetadata(dbSentence);
   
@@ -1234,11 +1310,18 @@ function gradeActiveSentence(grade) {
   sr.stability = S;
   sr.difficulty = D;
   
-  // Compatibilidad general
-  dbSentence.box = dbSentence.writing_sr.box;
-  dbSentence.stability = dbSentence.writing_sr.stability;
-  dbSentence.difficulty = dbSentence.writing_sr.difficulty;
-  dbSentence.mastery = dbSentence.writing_sr.box;
+  // Compatibilidad general basada en el modo activo
+  if (isSpeech) {
+    dbSentence.box = dbSentence.speech_sr.box;
+    dbSentence.stability = dbSentence.speech_sr.stability;
+    dbSentence.difficulty = dbSentence.speech_sr.difficulty;
+    dbSentence.mastery = dbSentence.speech_sr.box;
+  } else {
+    dbSentence.box = dbSentence.writing_sr.box;
+    dbSentence.stability = dbSentence.writing_sr.stability;
+    dbSentence.difficulty = dbSentence.writing_sr.difficulty;
+    dbSentence.mastery = dbSentence.writing_sr.box;
+  }
   
   const nextDate = new Date();
   nextDate.setTime(now.getTime() + S * 24 * 60 * 60 * 1000);
@@ -3325,6 +3408,27 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-prev-sentence').addEventListener('click', () => advanceSentence(-1));
   document.getElementById('btn-next-sentence').addEventListener('click', () => advanceSentence(1));
   
+  // Orden y Filtros de Karaoke
+  const orderSelect = document.getElementById('karaoke-order-select');
+  if (orderSelect) {
+    orderSelect.addEventListener('change', () => {
+      stopTTS();
+      buildKaraokeQueue();
+      currentSentenceIndex = 0;
+      loadCurrentSentence();
+    });
+  }
+  
+  document.querySelectorAll('.diff-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      stopTTS();
+      chip.classList.toggle('active');
+      buildKaraokeQueue();
+      currentSentenceIndex = 0;
+      loadCurrentSentence();
+    });
+  });
+  
   // Controladores de Calificación de Repetición Espaciada (FSRS/Leitner)
   document.getElementById('btn-sr-again').addEventListener('click', () => gradeActiveSentence(1));
   document.getElementById('btn-sr-hard').addEventListener('click', () => gradeActiveSentence(2));
@@ -4322,7 +4426,12 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Retención Estimada:",
     lbl_detail_stability: "Estabilidad:",
     lbl_detail_box: "Nivel de Dominio:",
-    lbl_detail_l2: "Frase Objetivo (L2):"
+    lbl_detail_l2: "Frase Objetivo (L2):",
+    lbl_loop_label: "Autoplay de la Isla",
+    lbl_karaoke_order: "Orden de Reproducción",
+    opt_order_normal: "Secuencial",
+    opt_order_fsrs: "Repetición Espaciada (FSRS)",
+    lbl_filter_difficulty: "Filtrar por Dominio de Memoria"
   },
   en: {
     sidebar_learn: "Learn (Karaoke)",
@@ -4390,7 +4499,12 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Estimated Retention:",
     lbl_detail_stability: "Stability:",
     lbl_detail_box: "Mastery Level:",
-    lbl_detail_l2: "Target Sentence (L2):"
+    lbl_detail_l2: "Target Sentence (L2):",
+    lbl_loop_label: "Island Autoplay",
+    lbl_karaoke_order: "Play Order",
+    opt_order_normal: "Sequential",
+    opt_order_fsrs: "Spaced Repetition (FSRS)",
+    lbl_filter_difficulty: "Filter by Memory Stage"
   },
   pt: {
     sidebar_learn: "Aprender (Karaoke)",
@@ -4706,6 +4820,22 @@ function applyUiLanguage(langCode) {
   
   const lblPracticeColl = document.querySelector('label[for="recall-island-select"]');
   if (lblPracticeColl) lblPracticeColl.textContent = t.lbl_practice_collection;
+  
+  // Traducir controles de Karaoke
+  const lblLoopLabel = document.getElementById('lbl-loop-label');
+  if (lblLoopLabel) lblLoopLabel.textContent = t.lbl_loop_label || "Bucle de Frase";
+  
+  const lblKaraokeOrder = document.getElementById('lbl-karaoke-order');
+  if (lblKaraokeOrder) lblKaraokeOrder.textContent = t.lbl_karaoke_order || "Orden de Reproducción";
+  
+  const optOrderNormal = document.getElementById('opt-order-normal');
+  if (optOrderNormal) optOrderNormal.textContent = t.opt_order_normal || "Secuencial";
+  
+  const optOrderFsrs = document.getElementById('opt-order-fsrs');
+  if (optOrderFsrs) optOrderFsrs.textContent = t.opt_order_fsrs || "Repetición Espaciada (FSRS)";
+  
+  const lblFilterDifficulty = document.getElementById('lbl-filter-difficulty');
+  if (lblFilterDifficulty) lblFilterDifficulty.textContent = t.lbl_filter_difficulty || "Filtrar por Dominio de Memoria";
   
   const select = document.getElementById('recall-island-select');
   if (select) {

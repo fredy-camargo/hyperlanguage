@@ -1996,10 +1996,10 @@ input:checked + .slider:before {
   align-items: start;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .support-feedback-container {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
   }
 }
 
@@ -2023,10 +2023,94 @@ input:checked + .slider:before {
   transition: all 0.2s ease-in-out;
 }
 
+/* Chips de Filtros de Dificultad */
+.difficulty-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
 
+.diff-chip {
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid hsl(var(--md-sys-color-outline-variant));
+  background-color: hsl(var(--md-sys-color-surface-container-low));
+  color: hsl(var(--md-sys-color-on-surface-variant));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  user-select: none;
+}
 
+.diff-chip:hover {
+  background-color: hsl(var(--md-sys-color-surface-container-high));
+  border-color: hsl(var(--md-sys-color-outline));
+}
 
+.diff-chip.active {
+  background-color: hsla(var(--md-sys-color-primary), 0.12);
+  border-color: hsl(var(--md-sys-color-primary));
+  color: hsl(var(--md-sys-color-primary));
+  box-shadow: 0 2px 6px hsla(var(--md-sys-color-primary), 0.15);
+}
 
+.diff-chip.active:hover {
+  background-color: hsla(var(--md-sys-color-primary), 0.18);
+}
 
+.about-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.about-logo-container {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  border: 3px solid hsl(var(--md-sys-color-primary));
+  margin-bottom: 16px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.about-logo-container img {
+  width: 140%;
+  height: 140%;
+  object-fit: contain;
+  position: absolute;
+}
+
+@media (max-width: 768px) {
+  .about-brand-header {
+    margin-bottom: 16px;
+  }
+  .about-logo-container {
+    width: 100px;
+    height: 100px;
+    border-width: 2px;
+    margin-bottom: 8px;
+  }
+  .about-brand-header h2 {
+    font-size: 26px !important;
+  }
+  .about-brand-header p.subtitle {
+    font-size: 13px !important;
+    padding: 0 16px;
+  }
+}
 
 
