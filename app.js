@@ -38,11 +38,82 @@ const DEFAULT_STATE = {
     apiKey: '',
     apiUrl: '',
     apiTtsKey: '',
-    ttsEngine: 'browser',
+    ttsEngine: 'azure',
     ttsVoiceBrowser: '',
-    ttsVoiceOpenAI: 'alloy'
+    ttsVoiceOpenAI: 'alloy',
+    ttsVoiceAzure: 'en-US-GuyNeural'
   },
   islands: [
+    {
+      id: 'island_pres_en',
+      name: 'Presentación Personal (Inglés)',
+      language: 'Inglés',
+      sentences: [
+        { id: 's_pres_en_01', l1: 'Hola, buenas tardes, mi nombre es Andrés.', l2: 'Hello, good afternoon, my name is Andres.', word_targeted: 'Name', mastery: 0 },
+        { id: 's_pres_en_02', l1: 'Soy de Bogotá, Colombia.', l2: 'I am from Bogota, Colombia.', word_targeted: 'Origin', mastery: 0 },
+        { id: 's_pres_en_03', l1: 'Tengo treinta y seis años.', l2: 'I am thirty-six years old.', word_targeted: 'Age', mastery: 0 },
+        { id: 's_pres_en_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'I work in financial planning and data analytics.', word_targeted: 'Profession', mastery: 0 },
+        { id: 's_pres_en_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'I am currently finishing my master\'s degree.', word_targeted: 'Studies', mastery: 0 },
+        { id: 's_pres_en_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'In my free speed, I like to train calisthenics and ride my bike.', word_targeted: 'Hobbies', mastery: 0 },
+        { id: 's_pres_en_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'I have a nine-year-old daughter and we really enjoy playing video games together.', word_targeted: 'Family', mastery: 0 }
+      ]
+    },
+    {
+      id: 'island_pres_pt',
+      name: 'Apresentação Pessoal (Português)',
+      language: 'Portugués',
+      sentences: [
+        { id: 's_pres_pt_01', l1: 'Hola, buenas tardes, mi nombre es Andrés.', l2: 'Olá, boa tarde, o meu nome é Andrés.', word_targeted: 'Nome', mastery: 0 },
+        { id: 's_pres_pt_02', l1: 'Soy de Bogotá, Colombia.', l2: 'Sou de Bogotá, Colômbia.', word_targeted: 'Origem', mastery: 0 },
+        { id: 's_pres_pt_03', l1: 'Tengo treinta y seis años.', l2: 'Tenho trinta e seis anos.', word_targeted: 'Idade', mastery: 0 },
+        { id: 's_pres_pt_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'Trabalho na área de planejamento financeiro e análise de dados.', word_targeted: 'Profissão', mastery: 0 },
+        { id: 's_pres_pt_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'Atualmente estou terminando meu mestrado.', word_targeted: 'Estudos', mastery: 0 },
+        { id: 's_pres_pt_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'No meu tempo livre gosto de treinar calistenia e andar de bicicleta.', word_targeted: 'Hobbies', mastery: 0 },
+        { id: 's_pres_pt_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'Tenho uma filha de nove anos e gostamos muito de jogar videogame juntos.', word_targeted: 'Família', mastery: 0 }
+      ]
+    },
+    {
+      id: 'island_pres_fr',
+      name: 'Présentation Personnelle (Francés)',
+      language: 'Francés',
+      sentences: [
+        { id: 's_pres_fr_01', l1: 'Hola, buenas tardes, mi nombre es Andrés.', l2: 'Bonjour, bon après-midi, je m\'appelle Andrés.', word_targeted: 'Nom', mastery: 0 },
+        { id: 's_pres_fr_02', l1: 'Soy de Bogotá, Colombia.', l2: 'Je viens de Bogota, en Colombie.', word_targeted: 'Origine', mastery: 0 },
+        { id: 's_pres_fr_03', l1: 'Tengo treinta y seis años.', l2: 'J\'ai trente-six ans.', word_targeted: 'Âge', mastery: 0 },
+        { id: 's_pres_fr_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'Je travaille dans le domaine de la planification financière et de l\'analyse de données.', word_targeted: 'Profession', mastery: 0 },
+        { id: 's_pres_fr_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'Je termine actuellement mon master.', word_targeted: 'Études', mastery: 0 },
+        { id: 's_pres_fr_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'Pendant mon temps libre, j\'aime m\'entraîner à la callisthénie et faire du vélo.', word_targeted: 'Loisirs', mastery: 0 },
+        { id: 's_pres_fr_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'J\'ai une fille de neuf ans et nous aimons beaucoup jouer aux jeux vidéo ensemble.', word_targeted: 'Famille', mastery: 0 }
+      ]
+    },
+    {
+      id: 'island_pres_de',
+      name: 'Persönliche Vorstellung (Alemán)',
+      language: 'Alemán',
+      sentences: [
+        { id: 's_pres_de_01', l1: 'Hola, buenas tardes, mi nombre es Andrés.', l2: 'Hallo, guten Tag, mein Name ist Andrés.', word_targeted: 'Name', mastery: 0 },
+        { id: 's_pres_de_02', l1: 'Soy de Bogotá, Colombia.', l2: 'Ich komme aus Bogota, Kolumbien.', word_targeted: 'Herkunft', mastery: 0 },
+        { id: 's_pres_de_03', l1: 'Tengo treinta y seis años.', l2: 'Ich bin sechsunddreißig Jahre alt.', word_targeted: 'Alter', mastery: 0 },
+        { id: 's_pres_de_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'Ich arbeite im Bereich Finanzplanung und Datenanalyse.', word_targeted: 'Beruf', mastery: 0 },
+        { id: 's_pres_de_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'Derzeit beende ich mein Masterstudium.', word_targeted: 'Studium', mastery: 0 },
+        { id: 's_pres_de_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'In meiner Freizeit trainiere ich gerne Calisthenics und fahre Rad.', word_targeted: 'Hobbys', mastery: 0 },
+        { id: 's_pres_de_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'Ich habe eine neunjährige Tochter und wir spielen sehr gerne zusammen Videospiele.', word_targeted: 'Familie', mastery: 0 }
+      ]
+    },
+    {
+      id: 'island_pres_it',
+      name: 'Presentazione Personale (Italiano)',
+      language: 'Italiano',
+      sentences: [
+        { id: 's_pres_it_01', l1: 'Hola, buenas tardes, mi nombre es Andrés.', l2: 'Ciao, buon pomeriggio, il mio nome è Andrés.', word_targeted: 'Nome', mastery: 0 },
+        { id: 's_pres_it_02', l1: 'Soy de Bogotá, Colombia.', l2: 'Vengo da Bogotà, Colombia.', word_targeted: 'Origine', mastery: 0 },
+        { id: 's_pres_it_03', l1: 'Tengo treinta y seis años.', l2: 'Ho trentasei anni.', word_targeted: 'Età', mastery: 0 },
+        { id: 's_pres_it_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'Lavoro nell\'area della pianificazione finanziaria e dell\'analisi dei dati.', word_targeted: 'Professione', mastery: 0 },
+        { id: 's_pres_it_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'Attualmente sto finendo il mio master.', word_targeted: 'Studi', mastery: 0 },
+        { id: 's_pres_it_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'Nel mio tempo libero mi piace allenarmi alla calistenia e andare in bicicletta.', word_targeted: 'Hobby', mastery: 0 },
+        { id: 's_pres_it_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'Ho una figlia di nove anni e ci piace molto giocare ai videogiochi insieme.', word_targeted: 'Famiglia', mastery: 0 }
+      ]
+    },
     {
       id: 'island_default_01',
       name: 'Finanzas Corporativas y Datos',
@@ -89,12 +160,19 @@ function loadAppState() {
       if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
       if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
       
+      // Asegurar que las islas predefinidas multilingües de presentación estén presentes
+      const hasPresIsland = appState.islands.some(isl => isl.id === 'island_pres_en');
+      if (!hasPresIsland) {
+        const predefined = DEFAULT_STATE.islands.filter(isl => isl.id.startsWith('island_pres_'));
+        appState.islands.unshift(...predefined);
+      }
+      
       // Asegurar claves específicas nuevas
       if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
-      if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'browser';
+      if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'azure';
       if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
       if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
-      if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-JennyNeural';
+      if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-GuyNeural';
       if (appState.settings.uiLanguage === undefined) appState.settings.uiLanguage = 'es';
       
       // Asegurar nuevas métricas
@@ -246,6 +324,16 @@ function switchTab(tabId) {
   // Detener TTS activo si cambiamos de pestaña
   stopTTS();
   if (window.speechSynthesis) window.speechSynthesis.cancel();
+  
+  // Ocultar el widget de cerebro en metodología, configuración y acerca de
+  const brainWidget = document.querySelector('.top-bar-brain-widget');
+  if (brainWidget) {
+    if (['methodology', 'settings', 'about'].includes(tabId)) {
+      brainWidget.classList.add('hidden');
+    } else {
+      brainWidget.classList.remove('hidden');
+    }
+  }
   
   // Ocultar todos los paneles
   document.querySelectorAll('.tab-panel').forEach(panel => {

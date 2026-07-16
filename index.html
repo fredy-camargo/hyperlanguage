@@ -248,22 +248,6 @@
                       <input type="range" id="tts-speed" min="0.5" max="2.0" step="0.05" value="1.0" style="width: 100%;">
                       <span id="speed-val">1.0x</span>
                     </div>
-                    
-                    <div class="settings-group">
-                      <label for="tts-engine">Motor de Voz</label>
-                      <select id="tts-engine" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
-                        <option value="browser" selected>Navegador (Gratis)</option>
-                        <option value="openai">OpenAI (Premium)</option>
-                        <option value="azure">Microsoft Azure (Neuronal Gratis)</option>
-                      </select>
-                    </div>
-
-                    <div class="settings-group">
-                      <label for="tts-voice">Seleccionar Voz</label>
-                      <select id="tts-voice" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
-                        <!-- Dinámico -->
-                      </select>
-                    </div>
 
                     <div class="toggle-container" style="align-self: center;">
                       <label class="switch">
@@ -289,6 +273,22 @@
                         <button type="button" class="diff-chip active" data-level="3" id="chip-level-3">🌿 Planta</button>
                         <button type="button" class="diff-chip active" data-level="4" id="chip-level-4">🌳 Árbol</button>
                       </div>
+                    </div>
+
+                    <div class="settings-group">
+                      <label for="tts-engine">Motor de Voz</label>
+                      <select id="tts-engine" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <option value="browser">Navegador (Gratis)</option>
+                        <option value="openai">OpenAI (Premium)</option>
+                        <option value="azure" selected>Microsoft Azure (Neuronal Gratis)</option>
+                      </select>
+                    </div>
+
+                    <div class="settings-group">
+                      <label for="tts-voice">Seleccionar Voz</label>
+                      <select id="tts-voice" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit;">
+                        <!-- Dinámico -->
+                      </select>
                     </div>
                   </div>
                 </div>
