@@ -3096,6 +3096,9 @@ function setupFirebaseAuthToggle() {
   document.getElementById('profile-last-name').removeAttribute('required');
   submitText.textContent = "Iniciar Sesión";
   
+  const forgotPwdContainer = document.getElementById('forgot-password-container');
+  if (forgotPwdContainer) forgotPwdContainer.classList.remove('hidden');
+  
   // 2. Conmutar a modo REGISTRO
   btnRegister.addEventListener('click', () => {
     authMode = 'register';
@@ -3113,6 +3116,8 @@ function setupFirebaseAuthToggle() {
     document.getElementById('profile-first-name').setAttribute('required', 'true');
     document.getElementById('profile-last-name').setAttribute('required', 'true');
     submitText.textContent = "Comenzar Aventura";
+    
+    if (forgotPwdContainer) forgotPwdContainer.classList.add('hidden');
   });
   
   // 3. Conmutar a modo INICIAR SESIÓN
@@ -3132,6 +3137,8 @@ function setupFirebaseAuthToggle() {
     document.getElementById('profile-first-name').removeAttribute('required');
     document.getElementById('profile-last-name').removeAttribute('required');
     submitText.textContent = "Iniciar Sesión";
+    
+    if (forgotPwdContainer) forgotPwdContainer.classList.remove('hidden');
   });
 
   // 4. Modal explicativo para los links de términos y privacidad
@@ -3159,6 +3166,73 @@ function setupFirebaseAuthToggle() {
             "- Envío seguro de comentarios y sugerencias para la mejora de la app.\n\n" +
             "Tus datos de contacto están protegidos y nunca serán transferidos, vendidos o utilizados con fines comerciales o publicitarios.");
     });
+  }
+}
+
+async function handleForgotPassword(e) {
+  e.preventDefault();
+  
+  if (!isFirebaseEnabled || !firebaseAuth) {
+    alert("La sincronización en la nube (Firebase) no está activa. No es necesario recuperar contraseñas locales.");
+    return;
+  }
+  
+  const emailInput = document.getElementById('profile-email');
+  const email = emailInput ? emailInput.value.trim() : '';
+  
+  if (!email) {
+    alert("Por favor, ingresa tu correo electrónico en el campo superior antes de restablecer tu contraseña.");
+    if (emailInput) emailInput.focus();
+    return;
+  }
+  
+  // Validar formato básico de correo electrónico
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert("Por favor, ingresa un correo electrónico con formato válido.");
+    if (emailInput) emailInput.focus();
+    return;
+  }
+  
+  try {
+    const linkForgot = document.getElementById('link-forgot-password');
+    const originalText = linkForgot ? linkForgot.textContent : '¿Olvidaste tu contraseña?';
+    if (linkForgot) {
+      linkForgot.textContent = "Enviando enlace...";
+      linkForgot.style.pointerEvents = 'none';
+      linkForgot.style.opacity = '0.6';
+    }
+    
+    await firebaseAuth.sendPasswordResetEmail(email);
+    
+    alert(`¡Correo de restablecimiento enviado con éxito a ${email}!\n\nRevisa tu bandeja de entrada (y la carpeta de spam si es necesario) para seguir el enlace de recuperación.`);
+    
+    if (linkForgot) {
+      linkForgot.textContent = originalText;
+      linkForgot.style.pointerEvents = 'auto';
+      linkForgot.style.opacity = '1';
+    }
+  } catch (error) {
+    console.error("Error al enviar correo de recuperación:", error);
+    
+    // Traducción amigable de errores comunes de Firebase Auth
+    let message = error.message;
+    if (error.code === 'auth/user-not-found') {
+      message = "No existe ninguna cuenta de usuario registrada con este correo electrónico.";
+    } else if (error.code === 'auth/invalid-email') {
+      message = "El formato del correo electrónico ingresado no es válido.";
+    } else if (error.code === 'auth/too-many-requests') {
+      message = "Hemos detectado demasiadas solicitudes de recuperación para este correo electrónico. Por favor, inténtalo más tarde.";
+    }
+    
+    alert("No pudimos enviar el correo de recuperación:\n\n" + message);
+    
+    const linkForgot = document.getElementById('link-forgot-password');
+    if (linkForgot) {
+      linkForgot.textContent = '¿Olvidaste tu contraseña?';
+      linkForgot.style.pointerEvents = 'auto';
+      linkForgot.style.opacity = '1';
+    }
   }
 }
 
@@ -3340,6 +3414,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Asignar controladores
   document.getElementById('theme-btn').addEventListener('click', rotateTheme);
   document.getElementById('onboarding-form').addEventListener('submit', handleOnboardingForm);
+  const linkForgot = document.getElementById('link-forgot-password');
+  if (linkForgot) {
+    linkForgot.addEventListener('click', handleForgotPassword);
+  }
   document.getElementById('settings-form').addEventListener('submit', saveSettingsForm);
   document.getElementById('profile-edit-form').addEventListener('submit', saveProfileEditForm);
   document.getElementById('gen-island-form').addEventListener('submit', handleGenerateIsland);
