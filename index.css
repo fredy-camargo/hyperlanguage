@@ -2074,24 +2074,19 @@ input:checked + .slider:before {
 .about-logo-container {
   width: 160px;
   height: 160px;
-  border-radius: 50%;
-  background-color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-lg);
   overflow: hidden;
-  border: 3px solid hsl(var(--md-sys-color-primary));
   margin-bottom: 16px;
   position: relative;
   flex-shrink: 0;
 }
 
 .about-logo-container img {
-  width: 140%;
-  height: 140%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  position: absolute;
 }
 
 @media (max-width: 768px) {

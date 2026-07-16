@@ -143,6 +143,50 @@ const DEFAULT_STATE = {
 let appState = { ...DEFAULT_STATE };
 
 // Cargar estado de localStorage con migración desde la clave anterior
+function sanitizeAppState() {
+  if (!appState) appState = { ...DEFAULT_STATE };
+  if (!appState.islands) appState.islands = [...DEFAULT_STATE.islands];
+  if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
+  if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
+
+  // 1. Inyectar islas de presentación si no existen
+  const hasPresIsland = appState.islands.some(isl => isl.id === 'island_pres_en');
+  if (!hasPresIsland) {
+    const predefined = DEFAULT_STATE.islands.filter(isl => isl.id.startsWith('island_pres_'));
+    appState.islands.unshift(...predefined);
+  }
+
+  // 2. Asegurar configuraciones predeterminadas de voz
+  if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
+  if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'azure';
+  if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
+  if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
+  if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-GuyNeural';
+  if (appState.settings.uiLanguage === undefined) appState.settings.uiLanguage = 'es';
+
+  // 3. Validar currentIslandIndex de forma segura
+  if (currentIslandIndex === undefined || currentIslandIndex === null || currentIslandIndex < 0 || currentIslandIndex >= appState.islands.length) {
+    currentIslandIndex = 0;
+  }
+
+  // 4. Asegurar métricas
+  if (appState.metrics.streak === undefined) appState.metrics.streak = 0;
+  if (appState.metrics.pronAccuracySum === undefined) appState.metrics.pronAccuracySum = 0;
+  if (appState.metrics.totalPronAttempts === undefined) appState.metrics.totalPronAttempts = 0;
+  if (appState.metrics.wordsCount === undefined) appState.metrics.wordsCount = 0;
+  if (appState.metrics.correctCount === undefined) appState.metrics.correctCount = 0;
+  if (appState.metrics.incorrectCount === undefined) appState.metrics.incorrectCount = 0;
+
+  // 5. Sanear frases
+  appState.islands.forEach(island => {
+    if (island.sentences) {
+      island.sentences.forEach(s => {
+        sanitizeSentenceSRMetadata(s);
+      });
+    }
+  });
+}
+
 function loadAppState() {
   let localData = localStorage.getItem('polyglotlab_state');
   if (!localData) {
@@ -155,48 +199,15 @@ function loadAppState() {
   if (localData) {
     try {
       appState = JSON.parse(localData);
-      // Garantizar estructuras básicas en caso de actualizaciones
-      if (!appState.islands) appState.islands = [...DEFAULT_STATE.islands];
-      if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
-      if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
-      
-      // Asegurar que las islas predefinidas multilingües de presentación estén presentes
-      const hasPresIsland = appState.islands.some(isl => isl.id === 'island_pres_en');
-      if (!hasPresIsland) {
-        const predefined = DEFAULT_STATE.islands.filter(isl => isl.id.startsWith('island_pres_'));
-        appState.islands.unshift(...predefined);
-      }
-      
-      // Asegurar claves específicas nuevas
-      if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
-      if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'azure';
-      if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
-      if (appState.settings.ttsVoiceOpenAI === undefined) appState.settings.ttsVoiceOpenAI = 'alloy';
-      if (appState.settings.ttsVoiceAzure === undefined) appState.settings.ttsVoiceAzure = 'en-US-GuyNeural';
-      if (appState.settings.uiLanguage === undefined) appState.settings.uiLanguage = 'es';
-      
-      // Asegurar nuevas métricas
-      if (appState.metrics.streak === undefined) appState.metrics.streak = 0;
-      if (appState.metrics.pronAccuracySum === undefined) appState.metrics.pronAccuracySum = 0;
-      if (appState.metrics.totalPronAttempts === undefined) appState.metrics.totalPronAttempts = 0;
-      if (appState.metrics.wordsCount === undefined) appState.metrics.wordsCount = 0;
-      if (appState.metrics.correctCount === undefined) appState.metrics.correctCount = 0;
-      if (appState.metrics.incorrectCount === undefined) appState.metrics.incorrectCount = 0;
-
-      // Asegurar que cada frase tenga la propiedad de repetición espaciada (mastery) y metadatos SR
-      appState.islands.forEach(island => {
-        if (island.sentences) {
-          island.sentences.forEach(s => {
-            sanitizeSentenceSRMetadata(s);
-          });
-        }
-      });
+      sanitizeAppState();
     } catch (e) {
       console.error("Error cargando estado local:", e);
       appState = { ...DEFAULT_STATE };
+      sanitizeAppState();
     }
   } else {
     appState = { ...DEFAULT_STATE };
+    sanitizeAppState();
   }
 }
 
@@ -936,13 +947,9 @@ function startBrowserSpeechTimerHighlighting(startTime, textL2, rate) {
 }
 
 function cleanupBrowserSpeechHighlight() {
-  if (window.browserHighlightAnimationFrameId) {
-    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
-    window.browserHighlightAnimationFrameId = null;
-  }
-}
-
-window.highlightAnimationFrameId = null;
+  if (window.browserHwindow.highlightAnimationFrameId = null;
+window.azureHighlightAnimationFrameId = null;
+window.sharedAudioPlayer = new Audio();
 
 async function playOpenAITTS(sentence, speed) {
   const text = sentence.l2;
@@ -1019,10 +1026,10 @@ async function playOpenAITTS(sentence, speed) {
   isPlaying = true;
   document.getElementById('play-pause-icon').textContent = 'pause';
   
-  openAiAudioElement = new Audio(audioUrl);
-  setupOpenAiAudioHighlighting(openAiAudioElement, text);
-  openAiAudioElement.play().catch(e => {
-    console.error("Audio playback failed:", e);
+  window.sharedAudioPlayer.src = audioUrl;
+  setupAudioHighlighting(window.sharedAudioPlayer, text);
+  window.sharedAudioPlayer.play().catch(e => {
+    console.error("OpenAI Audio playback failed:", e);
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
   });
@@ -1033,16 +1040,11 @@ function stopOpenAiAudio() {
     cancelAnimationFrame(window.highlightAnimationFrameId);
     window.highlightAnimationFrameId = null;
   }
-  if (openAiAudioElement) {
-    openAiAudioElement.pause();
-    openAiAudioElement.currentTime = 0;
-    openAiAudioElement = null;
+  if (window.sharedAudioPlayer) {
+    window.sharedAudioPlayer.pause();
   }
   wordHighlightTimings = [];
 }
-
-window.azureHighlightAnimationFrameId = null;
-let azureAudioElement = null;
 
 function playAzureTTS(sentence, speed) {
   const text = sentence.l2;
@@ -1050,15 +1052,14 @@ function playAzureTTS(sentence, speed) {
   
   stopAzureAudio();
   
-  // Utilizar el endpoint local de edge-tts
   const audioUrl = `/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}&speed=${speed}`;
   
   isPlaying = true;
   document.getElementById('play-pause-icon').textContent = 'pause';
   
-  azureAudioElement = new Audio(audioUrl);
-  setupAzureAudioHighlighting(azureAudioElement, text);
-  azureAudioElement.play().catch(e => {
+  window.sharedAudioPlayer.src = audioUrl;
+  setupAudioHighlighting(window.sharedAudioPlayer, text);
+  window.sharedAudioPlayer.play().catch(e => {
     console.error("Azure Audio playback failed:", e);
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
@@ -1070,15 +1071,13 @@ function stopAzureAudio() {
     cancelAnimationFrame(window.azureHighlightAnimationFrameId);
     window.azureHighlightAnimationFrameId = null;
   }
-  if (azureAudioElement) {
-    azureAudioElement.pause();
-    azureAudioElement.currentTime = 0;
-    azureAudioElement = null;
+  if (window.sharedAudioPlayer) {
+    window.sharedAudioPlayer.pause();
   }
   wordHighlightTimings = [];
 }
 
-function setupAzureAudioHighlighting(audio, textL2) {
+function setupAudioHighlighting(audio, textL2) {
   const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
   
   const calculateTimings = () => {
@@ -1102,7 +1101,7 @@ function setupAzureAudioHighlighting(audio, textL2) {
   if (audio.readyState >= 1) {
     calculateTimings();
   } else {
-    audio.addEventListener('loadedmetadata', calculateTimings);
+    audio.onloadedmetadata = calculateTimings;
   }
 
   const updateHighlight = () => {
@@ -1122,16 +1121,18 @@ function setupAzureAudioHighlighting(audio, textL2) {
     }
     
     window.azureHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
+    window.highlightAnimationFrameId = window.azureHighlightAnimationFrameId;
   };
 
-  audio.addEventListener('play', () => {
+  audio.onplay = () => {
     if (window.azureHighlightAnimationFrameId) {
       cancelAnimationFrame(window.azureHighlightAnimationFrameId);
     }
     window.azureHighlightAnimationFrameId = requestAnimationFrame(updateHighlight);
-  });
+    window.highlightAnimationFrameId = window.azureHighlightAnimationFrameId;
+  };
 
-  audio.addEventListener('ended', () => {
+  audio.onended = () => {
     if (window.azureHighlightAnimationFrameId) {
       cancelAnimationFrame(window.azureHighlightAnimationFrameId);
     }
@@ -1146,97 +1147,17 @@ function setupAzureAudioHighlighting(audio, textL2) {
         playTTS();
       }, 2500);
     }
-  });
-  
-  audio.addEventListener('error', (e) => {
+  };
+
+  audio.onerror = (e) => {
     if (window.azureHighlightAnimationFrameId) {
       cancelAnimationFrame(window.azureHighlightAnimationFrameId);
     }
-    console.error("Azure Audio playing error:", e);
+    console.error("Audio playback error:", e);
     clearHighlights();
     isPlaying = false;
     document.getElementById('play-pause-icon').textContent = 'play_arrow';
-  });
-}
-
-function setupOpenAiAudioHighlighting(audio, textL2) {
-  const wordSpans = document.querySelectorAll('#karaoke-l2 .karaoke-word');
-  
-  const calculateTimings = () => {
-    const duration = audio.duration;
-    const wordLengths = Array.from(wordSpans).map(span => span.textContent.length);
-    const totalChars = wordLengths.reduce((sum, len) => sum + len, 0);
-    
-    let cumulativeTime = 0;
-    wordHighlightTimings = Array.from(wordSpans).map((span, index) => {
-      const len = wordLengths[index];
-      const wordDuration = (len / totalChars) * duration;
-      const start = cumulativeTime;
-      const end = cumulativeTime + wordDuration;
-      cumulativeTime = end;
-      return { start, end, index };
-    });
   };
-
-  if (audio.readyState >= 1) {
-    calculateTimings();
-  } else {
-    audio.addEventListener('loadedmetadata', calculateTimings);
-  }
-
-  // Animation frame loop for smooth 60fps word highlighting
-  const updateHighlight = () => {
-    if (!isPlaying || audio.paused || audio.ended) {
-      return;
-    }
-    
-    const currentTime = audio.currentTime;
-    const currentTiming = wordHighlightTimings.find(t => currentTime >= t.start && currentTime <= t.end);
-    
-    if (currentTiming) {
-      const span = wordSpans[currentTiming.index];
-      if (span && !span.classList.contains('active')) {
-        clearHighlights();
-        span.classList.add('active');
-      }
-    }
-    
-    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
-  };
-
-  audio.addEventListener('play', () => {
-    if (window.highlightAnimationFrameId) {
-      cancelAnimationFrame(window.highlightAnimationFrameId);
-    }
-    window.highlightAnimationFrameId = requestAnimationFrame(updateHighlight);
-  });
-
-  audio.addEventListener('ended', () => {
-    if (window.highlightAnimationFrameId) {
-      cancelAnimationFrame(window.highlightAnimationFrameId);
-    }
-    clearHighlights();
-    isPlaying = false;
-    document.getElementById('play-pause-icon').textContent = 'play_arrow';
-    
-    const repeatPhrase = document.getElementById('toggle-infinite-phrase').checked;
-    if (repeatPhrase) {
-      setTimeout(() => {
-        advanceSentence(1);
-        playTTS();
-      }, 2500);
-    }
-  });
-  
-  audio.addEventListener('error', (e) => {
-    if (window.highlightAnimationFrameId) {
-      cancelAnimationFrame(window.highlightAnimationFrameId);
-    }
-    console.error("OpenAI Audio playing error:", e);
-    clearHighlights();
-    isPlaying = false;
-    document.getElementById('play-pause-icon').textContent = 'play_arrow';
-  });
 }
 
 function stopTTS() {
@@ -3356,10 +3277,17 @@ function initFirebaseAuthStateListener() {
           appState.islands = cloudData.islands || appState.islands;
           appState.metrics = cloudData.metrics || appState.metrics;
           
+          sanitizeAppState();
           localStorage.setItem('polyglotlab_state', JSON.stringify(appState));
           
           updateUserDisplayBadge();
           checkOnboarding();
+          
+          // Refrescar la vista en caliente si estamos en aprender (Karaoke)
+          const activeLink = document.querySelector('.sidebar-nav a.active, .mobile-nav-link.active');
+          if (activeLink && activeLink.getAttribute('data-tab') === 'learn') {
+            initLearnPanel();
+          }
         }
       } catch (err) {
         console.error("Error sincronizando sesión activa:", err);
