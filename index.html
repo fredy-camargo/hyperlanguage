@@ -996,6 +996,21 @@
             </div>
           </div>
 
+          <!-- Account Security Card -->
+          <div class="card settings-card margin-top" id="settings-security-card" style="border: 1px solid hsl(var(--md-sys-color-error-container)); margin-top: 16px;">
+            <h3 style="color: hsl(var(--md-sys-color-error)); display: flex; align-items: center; gap: 8px; margin: 0 0 8px 0;">
+              <span class="material-symbols-rounded">security</span>
+              <span>Seguridad de la Cuenta (Nube)</span>
+            </h3>
+            <p class="text-secondary small">Si deseas eliminar de manera irreversible tu cuenta y todos tus datos sincronizados en la nube de Firebase, puedes hacerlo aquí.</p>
+            <div style="margin-top: 16px;">
+              <button type="button" class="btn btn-error" id="btn-delete-account" style="background-color: hsl(var(--md-sys-color-error)); color: hsl(var(--md-sys-color-on-error)); display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                <span class="material-symbols-rounded" style="font-size: 20px;">delete_forever</span>
+                <span>Eliminar Mi Cuenta Permanentemente</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Tarjeta Acerca de en Ajustes -->
           <div class="card settings-card margin-top" style="margin-top: 16px;">
             <h3>Acerca de PolyglotLab</h3>

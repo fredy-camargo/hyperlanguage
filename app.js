@@ -947,7 +947,13 @@ function startBrowserSpeechTimerHighlighting(startTime, textL2, rate) {
 }
 
 function cleanupBrowserSpeechHighlight() {
-  if (window.browserHwindow.highlightAnimationFrameId = null;
+  if (window.browserHighlightAnimationFrameId) {
+    cancelAnimationFrame(window.browserHighlightAnimationFrameId);
+    window.browserHighlightAnimationFrameId = null;
+  }
+}
+
+window.highlightAnimationFrameId = null;
 window.azureHighlightAnimationFrameId = null;
 window.sharedAudioPlayer = new Audio();
 
@@ -3031,6 +3037,16 @@ function loadSettingsPanel() {
   if (uiLangSelect) {
     uiLangSelect.value = appState.settings.uiLanguage || 'es';
   }
+
+  // Visibilidad de tarjeta de seguridad de Firebase
+  const securityCard = document.getElementById('settings-security-card');
+  if (securityCard) {
+    if (isFirebaseEnabled && firebaseAuth && firebaseAuth.currentUser) {
+      securityCard.classList.remove('hidden');
+    } else {
+      securityCard.classList.add('hidden');
+    }
+  }
 }
 
 function saveSettingsForm(e) {
@@ -3058,6 +3074,67 @@ function saveProfileEditForm(e) {
   saveAppState();
   updateUserDisplayBadge();
   alert("Perfil actualizado correctamente.");
+}
+
+async function handleDeleteAccount() {
+  if (!isFirebaseEnabled || !firebaseAuth || !firebaseAuth.currentUser) {
+    alert("No tienes una sesión activa en la nube para eliminar.");
+    return;
+  }
+  
+  const confirmed = await showCustomConfirm(
+    "¿Eliminar tu cuenta permanentemente?",
+    "Esta acción es irreversible. Se borrarán permanentemente tu cuenta de acceso, tu perfil y todas tus islas sincronizadas en la nube de Firebase."
+  );
+  
+  if (!confirmed) return;
+  
+  const btnDelete = document.getElementById('btn-delete-account');
+  const originalText = btnDelete.innerHTML;
+  btnDelete.disabled = true;
+  btnDelete.textContent = "Eliminando cuenta de la nube...";
+  
+  try {
+    const user = firebaseAuth.currentUser;
+    const userId = user.uid;
+    
+    // 1. Borrar documento del usuario en la base de datos Firestore
+    console.log("Eliminando documento de usuario en Firestore:", userId);
+    await firebaseDb.collection("users").doc(userId).delete().catch(err => {
+      console.warn("Advertencia: No se pudo eliminar el documento de Firestore (tal vez no existía):", err);
+    });
+    
+    // 2. Eliminar al usuario de Firebase Auth
+    console.log("Eliminando usuario de Firebase Auth...");
+    await user.delete();
+    
+    // 3. Limpiar estado local
+    localStorage.removeItem('polyglotlab_state');
+    appState = { ...DEFAULT_STATE };
+    
+    alert("¡Tu cuenta y todos tus datos sincronizados han sido eliminados correctamente de la nube!\n\nLa aplicación se reiniciará para que puedas registrarte de nuevo.");
+    window.location.reload();
+  } catch (error) {
+    console.error("Error al eliminar la cuenta:", error);
+    btnDelete.disabled = false;
+    btnDelete.innerHTML = originalText;
+    
+    if (error.code === 'auth/requires-recent-login') {
+      const logOutConfirm = await showCustomConfirm(
+        "Acción requerida por Firebase",
+        "Por seguridad, Firebase requiere que hayas iniciado sesión recientemente antes de eliminar tu cuenta. ¿Deseas simplemente cerrar sesión en este dispositivo para poder registrar una cuenta nueva?"
+      );
+      if (logOutConfirm) {
+        // Cerrar sesión localmente y en Auth
+        await firebaseAuth.signOut().catch(()=>{});
+        localStorage.removeItem('polyglotlab_state');
+        appState = { ...DEFAULT_STATE };
+        window.location.reload();
+      }
+    } else {
+      alert("No se pudo eliminar la cuenta: " + error.message);
+    }
+  }
 }
 
 // 8. ONBOARDING & SETUP INICIAL
@@ -3422,6 +3499,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('profile-edit-form').addEventListener('submit', saveProfileEditForm);
   document.getElementById('gen-island-form').addEventListener('submit', handleGenerateIsland);
   document.getElementById('btn-save-generated').addEventListener('click', saveGeneratedIsland);
+  
+  const btnDeleteAcc = document.getElementById('btn-delete-account');
+  if (btnDeleteAcc) {
+    btnDeleteAcc.addEventListener('click', handleDeleteAccount);
+  }
   
   // Controladores de la pestaña Acerca de
   const aboutTopBtn = document.getElementById('about-top-btn');
