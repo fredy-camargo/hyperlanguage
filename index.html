@@ -28,7 +28,7 @@
           <div style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px; position: relative; flex-shrink: 0;">
             <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
-          <h1>PolyglotLab</h1>
+          <h1 class="app-brand-name" style="font-size: 32px; margin-bottom: 8px;"><span class="brand-letter letter-p">P</span><span class="brand-letter letter-o1">o</span><span class="brand-letter letter-l1">l</span><span class="brand-letter letter-y">y</span><span class="brand-letter letter-g">g</span><span class="brand-letter letter-l2">l</span><span class="brand-letter letter-o2">o</span><span class="brand-letter letter-t">t</span><span class="brand-lab">Lab</span></h1>
           <p class="subtitle text-secondary">Tu herramienta local-first para dominar idiomas inspirada en políglotas de YouTube</p>
         </div>
         
@@ -98,7 +98,7 @@
         <div style="width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; position: relative;">
           <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
-        <span class="logo-text" style="font-size: 18px; font-weight: 700; color: hsl(var(--md-sys-color-primary)); letter-spacing: -0.5px; font-family: var(--font-title);">PolyglotLab</span>
+        <span class="logo-text app-brand-name" style="font-size: 20px;"><span class="brand-letter letter-p">P</span><span class="brand-letter letter-o1">o</span><span class="brand-letter letter-l1">l</span><span class="brand-letter letter-y">y</span><span class="brand-letter letter-g">g</span><span class="brand-letter letter-l2">l</span><span class="brand-letter letter-o2">o</span><span class="brand-letter letter-t">t</span><span class="brand-lab">Lab</span></span>
       </div>
       
       <nav class="nav-links">
@@ -128,8 +128,8 @@
         </a>
       </nav>
       
-      <div class="sidebar-footer">
-        <div class="user-badge">
+      <div class="sidebar-footer" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="user-badge" style="flex: 1;">
           <div class="user-avatar level-1" id="user-avatar-container" style="position: relative; overflow: hidden; width: 44px; height: 44px; border-radius: 50%;">
             <img id="user-avatar-img" src="assets/avatars/brain_level1.png" alt="Brain Avatar" style="width: 100%; height: 100%; object-fit: cover;">
           </div>
@@ -138,6 +138,9 @@
             <span class="user-level text-secondary">Cerebro Novato</span>
           </div>
         </div>
+        <button id="sidebar-logout-btn" class="icon-btn" title="Cerrar sesión" style="color: hsl(var(--md-sys-color-error));">
+          <span class="material-symbols-rounded">logout</span>
+        </button>
       </div>
     </aside>
 
@@ -145,29 +148,43 @@
     <main class="main-content">
       
       <!-- Top Bar -->
-      <header class="top-bar" style="position: relative; display: flex; align-items: center; justify-content: space-between;">
-        <div class="top-bar-brand" style="display: flex; align-items: center; gap: 12px;">
-          <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+      <header class="top-bar" style="position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; width: 100%;">
+        <!-- Zone 1: Left Brand & Title -->
+        <div class="top-bar-brand" style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+          <div style="width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
             <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
-          <h2 id="view-title" style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; font-family: var(--font-title);">Aprender (Karaoke)</h2>
-        </div>
-        
-        <!-- Large Evolving Brain Widget -->
-        <div class="top-bar-brain-widget">
-          <div class="user-avatar level-1" id="top-avatar-container" style="position: relative; overflow: hidden; width: 64px; height: 64px; border-radius: 50%; box-shadow: var(--md-sys-elevation-2); transition: all 0.3s ease;">
-            <img id="top-avatar-img" src="assets/avatars/brain_level1.png" alt="Brain Avatar" style="width: 100%; height: 100%; object-fit: cover;">
-          </div>
-          <span class="user-level" id="top-avatar-level-text" style="font-size: 11px; font-weight: 700; color: hsl(var(--md-sys-color-primary)); text-transform: uppercase; letter-spacing: 0.5px;">Cerebro Novato</span>
+          <h2 id="view-title" style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; font-family: var(--font-title); white-space: nowrap;">Aprender (Karaoke)</h2>
         </div>
 
-        <div class="top-bar-actions">
-          <div class="theme-switch-container" style="display: flex; gap: 8px;">
+        <!-- Zone 2: Center Target Language Selector Pill -->
+        <div class="top-bar-center" style="display: flex; justify-content: center; align-items: center; flex-grow: 1;">
+          <div class="target-lang-selector-pill" id="topbar-target-lang-btn" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; background: hsl(var(--md-sys-color-surface-container-high)); border-radius: 24px; border: 1.5px solid hsl(var(--md-sys-color-primary)); cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);" title="Cambiar idioma objetivo a estudiar">
+            <span id="topbar-target-lang-flag" style="font-size: 20px;">🇺🇸</span>
+            <span id="topbar-target-lang-name" style="font-size: 14px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">Inglés</span>
+            <span class="material-symbols-rounded" style="font-size: 20px; color: hsl(var(--md-sys-color-primary));">arrow_drop_down</span>
+          </div>
+        </div>
+        
+        <!-- Zone 3: Right User Brain Widget & Actions -->
+        <div class="top-bar-right" style="display: flex; align-items: center; gap: 16px; flex-shrink: 0;">
+          <!-- Large Evolving Brain Widget -->
+          <div class="top-bar-brain-widget" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div class="user-avatar level-1" id="top-avatar-container" style="position: relative; overflow: hidden; width: 52px; height: 52px; border-radius: 50%; box-shadow: var(--md-sys-elevation-2); transition: all 0.3s ease;">
+              <img id="top-avatar-img" src="assets/avatars/brain_level1.png" alt="Brain Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <span class="user-level" id="top-avatar-level-text" style="font-size: 10px; font-weight: 700; color: hsl(var(--md-sys-color-primary)); text-transform: uppercase; letter-spacing: 0.5px;">Cerebro Novato</span>
+          </div>
+
+          <div class="top-bar-actions" style="display: flex; align-items: center; gap: 8px;">
             <button id="about-top-btn" class="icon-btn" title="Acerca de PolyglotLab">
               <span class="material-symbols-rounded">info</span>
             </button>
             <button id="theme-btn" class="icon-btn" title="Cambiar tema">
               <span class="material-symbols-rounded" id="theme-icon">dark_mode</span>
+            </button>
+            <button id="topbar-logout-btn" class="icon-btn danger-logout-btn" title="Cerrar sesión" style="color: hsl(var(--md-sys-color-error));">
+              <span class="material-symbols-rounded">logout</span>
             </button>
           </div>
         </div>
@@ -979,6 +996,19 @@
             </form>
           </div>
 
+          <!-- Configuración de Idiomas Objetivo a Estudiar (Multidioma) -->
+          <div class="card settings-card margin-top">
+            <h3>Mis Idiomas Objetivo a Estudiar</h3>
+            <p class="text-secondary small">Administra los idiomas que deseas aprender en paralelo. Puedes cambiar libremente entre tus idiomas activos sin mezclar tus islas ni métricas de aprendizaje.</p>
+            <div id="settings-target-langs-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0;">
+              <!-- Badges dinámicos de idiomas -->
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-open-target-lang-modal-settings" style="display: inline-flex; align-items: center; gap: 6px;">
+              <span class="material-symbols-rounded">translate</span>
+              <span>Gestionar / Añadir Idiomas Objetivo</span>
+            </button>
+          </div>
+
           <!-- Configuración del Idioma de la Interfaz -->
           <div class="card settings-card margin-top">
             <h3 id="ui-settings-title">Idioma de la Interfaz</h3>
@@ -1033,7 +1063,7 @@
               <div class="about-logo-container">
                 <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo">
               </div>
-              <h2 style="font-size: 32px; font-weight: 700; color: hsl(var(--md-sys-color-on-surface)); margin-bottom: 4px; font-family: var(--font-title);">PolyglotLab</h2>
+              <h2 class="app-brand-name" style="font-size: 32px; margin-bottom: 4px;"><span class="brand-letter letter-p">P</span><span class="brand-letter letter-o1">o</span><span class="brand-letter letter-l1">l</span><span class="brand-letter letter-y">y</span><span class="brand-letter letter-g">g</span><span class="brand-letter letter-l2">l</span><span class="brand-letter letter-o2">o</span><span class="brand-letter letter-t">t</span><span class="brand-lab">Lab</span></h2>
               <p class="subtitle text-secondary">Plataforma inteligente local-first para la adquisición de idiomas</p>
               <span class="version-badge" style="margin-top: 8px;">v1.0.2 (Estable)</span>
             </div>
@@ -1569,6 +1599,108 @@
         </button>
       </div>
       
+    </div>
+  </div>
+
+  <!-- Modal overlay para selección de Idioma Objetivo -->
+  <div id="target-lang-modal" class="modal-overlay hidden" style="z-index: 10003;">
+    <div class="modal-card" style="max-width: 500px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span class="material-symbols-rounded text-primary" style="font-size: 28px;">translate</span>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Seleccionar Idioma Objetivo</h3>
+        </div>
+        <button class="icon-btn small-btn" id="btn-close-target-lang-modal" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <p style="margin: 0; font-size: 14px; color: hsl(var(--md-sys-color-on-surface-variant));">
+        Puedes estudiar varios idiomas a la vez. Al cambiar de idioma, tus islas y prácticas se adaptarán automáticamente sin mezclarse.
+      </p>
+
+      <!-- Grid de Idiomas Disponibles -->
+      <div id="target-languages-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; max-height: 260px; overflow-y: auto;">
+        <!-- Tarjetas dinámicas de idioma -->
+      </div>
+
+      <!-- Añadir Nuevo Idioma Objetivo -->
+      <div style="display: flex; gap: 8px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px;">
+        <input type="text" id="new-target-lang-input" placeholder="Ej. Alemán, Italiano, Chino..." style="flex: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); color: inherit; font-size: 14px;">
+        <button type="button" id="btn-add-target-lang" class="btn btn-secondary" style="padding: 10px 16px; border-radius: 12px; font-weight: 600; white-space: nowrap;">
+          <span class="material-symbols-rounded">add</span>
+          <span>Añadir</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal overlay para exportar Islas en TXT / DOC -->
+  <div id="export-txt-doc-modal" class="modal-overlay hidden" style="z-index: 10004;">
+    <div class="modal-card" style="max-width: 520px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span class="material-symbols-rounded text-primary" style="font-size: 28px;">description</span>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 700;">Descargar Isla Lingüística</h3>
+        </div>
+        <button class="icon-btn small-btn" id="btn-close-export-txt-doc" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <div style="background: hsl(var(--md-sys-color-surface-container-low)); padding: 14px; border-radius: 14px; border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+        <span style="font-size: 12px; font-weight: 700; color: hsl(var(--md-sys-color-secondary)); text-transform: uppercase;">Estructura del Archivo</span>
+        <p style="margin: 6px 0 0 0; font-family: monospace; font-size: 13px; color: hsl(var(--md-sys-color-primary)); font-weight: 600;">
+          frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo
+        </p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <label style="font-size: 14px; font-weight: 600;">Selecciona el Formato de Descarga:</label>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <button type="button" id="btn-download-txt" class="btn btn-secondary" style="padding: 16px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; border: 2px solid hsl(var(--md-sys-color-outline)); text-align: center; cursor: pointer;">
+            <span class="material-symbols-rounded text-primary" style="font-size: 32px;">text_snippet</span>
+            <span style="font-weight: 700; font-size: 15px;">Texto Plano (.txt)</span>
+            <span style="font-size: 12px; opacity: 0.8;">UTF-8 Estándar</span>
+          </button>
+          
+          <button type="button" id="btn-download-doc" class="btn btn-secondary" style="padding: 16px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; border: 2px solid hsl(var(--md-sys-color-outline)); text-align: center; cursor: pointer;">
+            <span class="material-symbols-rounded text-accent" style="font-size: 32px;">article</span>
+            <span style="font-weight: 700; font-size: 15px;">Documento Word (.doc)</span>
+            <span style="font-size: 12px; opacity: 0.8;">Compatible MS-Word</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+        <button type="button" id="btn-cancel-export-txt-doc" class="btn btn-sec" style="padding: 8px 20px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal overlay para Gestión de Temas/Grupos de Islas -->
+  <div id="topic-manage-modal" class="modal-overlay hidden" style="z-index: 10005;">
+    <div class="modal-card" style="max-width: 480px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span class="material-symbols-rounded text-primary" style="font-size: 28px;">folder</span>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 700;" id="topic-modal-title">Nuevo Tema / Grupo</h3>
+        </div>
+        <button class="icon-btn small-btn" id="btn-close-topic-modal" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <label for="topic-name-input" style="font-size: 14px; font-weight: 600;">Nombre del Tema o Categoría</label>
+        <input type="text" id="topic-name-input" placeholder="Ej. Conversaciones Diarias, Viajes y Turismo, Negocios..." style="padding: 12px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); color: inherit; font-size: 14px;">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+        <button type="button" id="btn-cancel-topic-modal" class="btn btn-sec" style="padding: 10px 20px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer; font-weight: 600;">Cancelar</button>
+        <button type="button" id="btn-save-topic-modal" class="btn btn-primary" style="padding: 10px 24px; border-radius: 100px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-weight: 600;">Guardar Tema</button>
+      </div>
     </div>
   </div>
 

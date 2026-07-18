@@ -137,7 +137,17 @@ const DEFAULT_STATE = {
     wordsCount: 0,
     correctCount: 0,
     incorrectCount: 0
-  }
+  },
+  targetLanguages: ['Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano'],
+  activeTargetLanguage: 'Inglés',
+  topics: [
+    { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' },
+    { id: 'topic_pres', name: 'Presentación Personal', language: 'all' },
+    { id: 'topic_travel', name: 'Viajes y Turismo', language: 'all' },
+    { id: 'topic_business', name: 'Negocios y Trabajo', language: 'all' },
+    { id: 'topic_social', name: 'Conversaciones Diarias', language: 'all' },
+    { id: 'topic_tech', name: 'Tecnología y Datos', language: 'all' }
+  ]
 };
 
 let appState = { ...DEFAULT_STATE };
@@ -148,6 +158,22 @@ function sanitizeAppState() {
   if (!appState.islands) appState.islands = [...DEFAULT_STATE.islands];
   if (!appState.metrics) appState.metrics = { ...DEFAULT_STATE.metrics };
   if (!appState.settings) appState.settings = { ...DEFAULT_STATE.settings };
+  if (!appState.targetLanguages || appState.targetLanguages.length === 0) {
+    appState.targetLanguages = ['Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano'];
+  }
+  if (!appState.activeTargetLanguage) {
+    appState.activeTargetLanguage = 'Inglés';
+  }
+  if (!appState.topics || appState.topics.length === 0) {
+    appState.topics = [
+      { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' },
+      { id: 'topic_pres', name: 'Presentación Personal', language: 'all' },
+      { id: 'topic_travel', name: 'Viajes y Turismo', language: 'all' },
+      { id: 'topic_business', name: 'Negocios y Trabajo', language: 'all' },
+      { id: 'topic_social', name: 'Conversaciones Diarias', language: 'all' },
+      { id: 'topic_tech', name: 'Tecnología y Datos', language: 'all' }
+    ];
+  }
 
   // 1. Inyectar islas de presentación si no existen
   const hasPresIsland = appState.islands.some(isl => isl.id === 'island_pres_en');
@@ -177,8 +203,19 @@ function sanitizeAppState() {
   if (appState.metrics.correctCount === undefined) appState.metrics.correctCount = 0;
   if (appState.metrics.incorrectCount === undefined) appState.metrics.incorrectCount = 0;
 
-  // 5. Sanear frases
+  // 5. Sanear idiomas y temas de islas
   appState.islands.forEach(island => {
+    if (!island.language) {
+      if (island.id === 'island_pres_pt') island.language = 'Portugués';
+      else if (island.id === 'island_pres_fr') island.language = 'Francés';
+      else if (island.id === 'island_pres_de') island.language = 'Alemán';
+      else if (island.id === 'island_pres_it') island.language = 'Italiano';
+      else island.language = 'Inglés';
+    }
+    if (!island.topicId) {
+      if (island.id.startsWith('island_pres_')) island.topicId = 'topic_pres';
+      else island.topicId = 'topic_business';
+    }
     if (island.sentences) {
       island.sentences.forEach(s => {
         sanitizeSentenceSRMetadata(s);
@@ -222,11 +259,257 @@ function saveAppState() {
       settings: appState.settings,
       islands: appState.islands,
       metrics: appState.metrics,
+      targetLanguages: appState.targetLanguages,
+      activeTargetLanguage: appState.activeTargetLanguage,
+      topics: appState.topics,
       lastUpdated: new Date().toISOString()
     }, { merge: true }).catch(err => {
       console.warn("No se pudo sincronizar con Firestore (sigue funcionando local-first):", err);
     });
   }
+}
+
+// -------------------------------------------------------------
+// SECCIÓN: GESTIÓN MULTIDIOMA OBJETIVO Y TEMAS / CATEGORÍAS
+// -------------------------------------------------------------
+const LANG_FLAGS = {
+  'Inglés': '🇺🇸',
+  'English': '🇺🇸',
+  'Portugués': '🇧🇷',
+  'Portuguese': '🇧🇷',
+  'Francés': '🇫🇷',
+  'French': '🇫🇷',
+  'Alemán': '🇩🇪',
+  'German': '🇩🇪',
+  'Italiano': '🇮🇹',
+  'Italian': '🇮🇹',
+  'Español': '🇪🇸',
+  'Spanish': '🇪🇸',
+  'Chino': '🇨🇳',
+  'Japonés': '🇯🇵'
+};
+
+function getLangFlag(lang) {
+  return LANG_FLAGS[lang] || '🌐';
+}
+
+function getFilteredIslands() {
+  if (!appState || !appState.islands) return [];
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
+  const filtered = appState.islands.filter(isl => isl.language === activeLang);
+  return filtered.length > 0 ? filtered : appState.islands;
+}
+
+function setActiveTargetLanguage(lang) {
+  if (!appState.targetLanguages.includes(lang)) {
+    appState.targetLanguages.push(lang);
+  }
+  appState.activeTargetLanguage = lang;
+  currentIslandIndex = 0;
+  saveAppState();
+  updateTargetLanguageUI();
+  
+  if (typeof renderKaraokeLoop === 'function') renderKaraokeLoop();
+  if (typeof updateIslandsList === 'function') updateIslandsList();
+  if (typeof renderPracticeSentence === 'function') renderPracticeSentence();
+  
+  showNotification(`PolyglotLab: Idioma activo cambiado a ${getLangFlag(lang)} ${lang}`, "success");
+}
+
+function updateTargetLanguageUI() {
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
+  const flag = getLangFlag(activeLang);
+
+  const flagEl = document.getElementById('topbar-target-lang-flag');
+  const nameEl = document.getElementById('topbar-target-lang-name');
+  if (flagEl) flagEl.textContent = flag;
+  if (nameEl) nameEl.textContent = activeLang;
+
+  const gridEl = document.getElementById('target-languages-grid');
+  if (gridEl) {
+    gridEl.innerHTML = appState.targetLanguages.map(lang => {
+      const isActive = lang === activeLang;
+      const count = appState.islands.filter(isl => isl.language === lang).length;
+      return `
+        <div class="target-lang-card ${isActive ? 'active' : ''}" data-lang="${lang}" style="padding: 14px; border-radius: 16px; border: 2px solid ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-outline))'}; background: ${isActive ? 'hsla(var(--md-sys-color-primary), 0.12)' : 'hsl(var(--md-sys-color-surface-container-low))'}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
+          <span style="font-size: 28px;">${getLangFlag(lang)}</span>
+          <span style="font-size: 14px; font-weight: 700; color: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'inherit'};">${lang}</span>
+          <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">${count} ${count === 1 ? 'isla' : 'islas'}</span>
+        </div>
+      `;
+    }).join('');
+
+    gridEl.querySelectorAll('.target-lang-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const lang = card.getAttribute('data-lang');
+        setActiveTargetLanguage(lang);
+        const modal = document.getElementById('target-lang-modal');
+        if (modal) modal.classList.add('hidden');
+      });
+    });
+  }
+
+  const settingsListEl = document.getElementById('settings-target-langs-list');
+  if (settingsListEl) {
+    settingsListEl.innerHTML = appState.targetLanguages.map(lang => {
+      const isActive = lang === activeLang;
+      return `
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-surface-container-high))'}; color: ${isActive ? 'hsl(var(--md-sys-color-on-primary))' : 'inherit'}; border: 1px solid hsl(var(--md-sys-color-outline));">
+          <span>${getLangFlag(lang)}</span>
+          <span>${lang}</span>
+          ${isActive ? '<span class="material-symbols-rounded" style="font-size: 16px;">check_circle</span>' : ''}
+        </span>
+      `;
+    }).join('');
+  }
+}
+
+// -------------------------------------------------------------
+// SECCIÓN: CERRAR SESIÓN (LOGOUT)
+// -------------------------------------------------------------
+async function handleLogout() {
+  const confirmed = await showCustomConfirm(
+    "PolyglotLab: ¿Cerrar Sesión?",
+    "¿Estás seguro de que deseas cerrar sesión? Retornarás a la pantalla de acceso y tus datos locales se conservarán."
+  );
+  if (confirmed) {
+    executeLogout();
+  }
+}
+
+function executeLogout() {
+  try {
+    if (isFirebaseEnabled && firebaseAuth && firebaseAuth.currentUser) {
+      firebaseAuth.signOut().catch(err => console.warn("Firebase signout error:", err));
+    }
+  } catch (err) {
+    console.warn("Logout error:", err);
+  }
+
+  // Resetear perfil y guardar estado limpio
+  appState.profile = null;
+  saveAppState();
+
+  // Ocultar todos los modales activos
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
+
+  // Desplegar modal de login/onboarding
+  const onboardingScreen = document.getElementById('onboarding-screen');
+  if (onboardingScreen) {
+    onboardingScreen.classList.remove('hidden');
+  }
+
+  // Actualizar indicador de usuario
+  const nameEl = document.getElementById('user-display-name');
+  if (nameEl) nameEl.textContent = 'Usuario';
+
+  showNotification("Sesión cerrada correctamente en PolyglotLab.", "info");
+}
+
+// -------------------------------------------------------------
+// SECCIÓN: EXPORTACIÓN E IMPRESIÓN TXT / DOC
+// -------------------------------------------------------------
+let exportTargetIsland = null;
+
+function openExportTxtDocModal(island) {
+  exportTargetIsland = island || appState.islands[currentIslandIndex];
+  const modal = document.getElementById('export-txt-doc-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function exportIslandTxtDoc(island, format) {
+  const target = island || exportTargetIsland || appState.islands[currentIslandIndex];
+  if (!target || !target.sentences || target.sentences.length === 0) {
+    showNotification("La isla seleccionada no contiene oraciones para exportar.", "warning");
+    return;
+  }
+
+  const activeLang = target.language || appState.activeTargetLanguage || 'Inglés';
+  const lines = [];
+
+  target.sentences.forEach(s => {
+    const l1 = (s.l1 || '').trim();
+    const l2 = (s.l2 || '').trim();
+    const keyword = (s.word_targeted || s.target || '').trim();
+    lines.push(`${l1} | ${l2} | ${keyword}`);
+  });
+
+  const rawTextContent = lines.join('\n');
+  const sanitizedName = (target.name || 'isla').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+  if (format === 'txt') {
+    const textWithHeader = `# PolyglotLab - Isla Lingüística: ${target.name}\n# Idioma Objetivo: ${activeLang}\n# Estructura: frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo\n\n` + rawTextContent;
+    const blob = new Blob([textWithHeader], { type: 'text/plain;charset=utf-8' });
+    triggerBlobDownload(blob, `${sanitizedName}_isla.txt`);
+  } else if (format === 'doc') {
+    const htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${escapeHtml(target.name)}</title>
+        <style>
+          body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #1e293b; margin: 20pt; }
+          h1 { color: #2563eb; font-size: 18pt; border-bottom: 2px solid #0ea5e9; padding-bottom: 4pt; margin-bottom: 8pt; }
+          .meta { color: #64748b; font-size: 10pt; margin-bottom: 16pt; background: #f8fafc; padding: 10pt; border-radius: 6pt; border: 1px solid #e2e8f0; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12pt; }
+          th { background-color: #2563eb; color: #ffffff; text-align: left; padding: 8pt; border: 1px solid #1d4ed8; font-size: 10pt; }
+          td { padding: 8pt; border: 1px solid #cbd5e1; vertical-align: top; font-size: 10pt; }
+          tr:nth-child(even) { background-color: #f1f5f9; }
+          .raw-lines { font-family: Consolas, 'Courier New', monospace; font-size: 9.5pt; background: #0f172a; color: #38bdf8; padding: 12pt; border-radius: 6pt; white-space: pre-wrap; margin-top: 16pt; }
+        </style>
+      </head>
+      <body>
+        <h1>PolyglotLab - ${escapeHtml(target.name)}</h1>
+        <div class="meta">
+          <p><strong>Idioma Objetivo:</strong> ${escapeHtml(activeLang)}</p>
+          <p><strong>Estructura Solicitada:</strong> frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo</p>
+        </div>
+        
+        <h3>Vista Tabular</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Frase Idioma Origen (L1)</th>
+              <th>Frase Idioma Objetivo (L2)</th>
+              <th>Palabra Clave Idioma Objetivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${target.sentences.map(s => `
+              <tr>
+                <td>${escapeHtml(s.l1 || '')}</td>
+                <td><strong>${escapeHtml(s.l2 || '')}</strong></td>
+                <td><code>${escapeHtml(s.word_targeted || s.target || '')}</code></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <h3>Vista Formato Plano Estricto (Pipa |)</h3>
+        <div class="raw-lines">${escapeHtml(rawTextContent)}</div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword;charset=utf-8' });
+    triggerBlobDownload(blob, `${sanitizedName}_isla.doc`);
+  }
+
+  showNotification(`Isla "${target.name}" descargada correctamente en .${format.toUpperCase()}`, "success");
+  const modal = document.getElementById('export-txt-doc-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
 
 // Mostrar diálogo de confirmación personalizado
@@ -468,153 +751,204 @@ function renderIslandSelectors() {
   const container = document.getElementById('island-selector-list');
   container.innerHTML = '';
   
-  if (appState.islands.length === 0) {
-    container.innerHTML = '<p class="text-secondary small">No tienes islas de aprendizaje. Genera una en la pestaña de Inteligencia Artificial.</p>';
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
+  const availableIslands = appState.islands.filter(isl => isl.language === activeLang);
+  
+  if (availableIslands.length === 0) {
+    container.innerHTML = `<p class="text-secondary small" style="padding: 12px; text-align: center;">No tienes islas para <strong>${getLangFlag(activeLang)} ${activeLang}</strong>. Genera una en la pestaña de Generar Islas o selecciona otro idioma objetivo.</p>`;
     return;
   }
   
-  appState.islands.forEach((island, index) => {
-    const item = document.createElement('div');
-    item.className = `island-item ${index === currentIslandIndex ? 'active' : ''}`;
-    item.style.display = 'flex';
-    item.style.alignItems = 'center';
-    item.style.justifyContent = 'space-between';
-    item.style.cursor = 'pointer';
-    
-    // Calcular promedio de mastery de la isla (de forma defensiva)
-    let totalMastery = 0;
-    const sentencesList = island.sentences || [];
-    sentencesList.forEach(s => {
-      totalMastery += (s.mastery !== undefined ? s.mastery : 0);
+  // Agrupar islas por topicId
+  const topicsMap = {};
+  if (appState.topics) {
+    appState.topics.forEach(t => {
+      topicsMap[t.id] = { topic: t, islands: [] };
     });
-    const maxPossibleMastery = sentencesList.length * 5;
-    const progressPercent = maxPossibleMastery > 0 ? Math.round((totalMastery / maxPossibleMastery) * 100) : 0;
+  }
 
-    item.innerHTML = `
-      <div class="island-info" style="flex-grow: 1;">
-        <div class="island-title font-semibold">${escapeHtml(island.name)}</div>
-        <div class="island-meta text-secondary small">${sentencesList.length} oraciones • ${escapeHtml(island.language)}</div>
-        <div class="island-progress-bar-container" style="width: 100%; max-width: 180px; height: 6px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; margin-top: 8px; overflow: hidden; position: relative;" title="Dominio del cerebro: ${progressPercent}%">
-          <div style="width: ${progressPercent}%; height: 100%; background-color: hsl(var(--md-sys-color-primary)); border-radius: 3px; transition: width 0.4s ease;"></div>
-        </div>
-        <div class="island-progress-text text-primary" style="font-size: 11px; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
-          <span class="material-symbols-rounded" style="font-size: 12px;">psychology</span>
-          <span>Cerebro al ${progressPercent}%</span>
-        </div>
-      </div>
-      <div class="island-actions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(211, 47, 47, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
-          <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
-        </button>
-        <span class="material-symbols-rounded text-primary btn-play-island" style="cursor: pointer;" title="Reproducir Isla">play_arrow</span>
-      </div>
+  // Fallback para topic_general
+  if (!topicsMap['topic_general']) {
+    topicsMap['topic_general'] = { topic: { id: 'topic_general', name: 'General / Sin Categoría' }, islands: [] };
+  }
+
+  availableIslands.forEach(island => {
+    const topicId = island.topicId && topicsMap[island.topicId] ? island.topicId : 'topic_general';
+    topicsMap[topicId].islands.push(island);
+  });
+
+  // Renderizar carpetas de temas
+  Object.keys(topicsMap).forEach(topicId => {
+    const group = topicsMap[topicId];
+    if (group.islands.length === 0) return; // Ocultar grupos vacíos
+
+    const topicFolder = document.createElement('div');
+    topicFolder.className = 'topic-folder-card';
+    topicFolder.style.cssText = `
+      margin-bottom: 16px;
+      border: 1px solid hsl(var(--md-sys-color-outline-variant));
+      border-radius: 16px;
+      overflow: hidden;
+      background: hsl(var(--md-sys-color-surface-container-low));
     `;
-    
-    // Habilitar Drag & Drop
-    item.setAttribute('draggable', 'true');
-    item.setAttribute('data-index', index);
-    
-    item.addEventListener('dragstart', (e) => {
-      window.draggedIslandIndex = index;
-      e.dataTransfer.setData('text/plain', index);
-      item.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    
-    item.addEventListener('dragend', () => {
-      item.classList.remove('dragging');
-      window.draggedIslandIndex = null;
-      const allItems = container.querySelectorAll('.island-item');
-      allItems.forEach(i => i.classList.remove('drag-over'));
-    });
-    
-    item.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      item.classList.add('drag-over');
-    });
-    
-    item.addEventListener('dragleave', () => {
-      item.classList.remove('drag-over');
-    });
-    
-    item.addEventListener('drop', (e) => {
-      e.preventDefault();
-      item.classList.remove('drag-over');
-      
-      const fromIdx = window.draggedIslandIndex !== undefined && window.draggedIslandIndex !== null ? window.draggedIslandIndex : parseInt(e.dataTransfer.getData('text/plain'), 10);
-      const toIdx = index;
-      
-      if (fromIdx !== toIdx && !isNaN(fromIdx)) {
-        // Guardar ID de la isla activa actualmente para restaurar selección de forma precisa
-        const activeIsland = appState.islands[currentIslandIndex];
-        const activeIslandId = activeIsland ? activeIsland.id : null;
-        
-        // Reordenar array
-        const [moved] = appState.islands.splice(fromIdx, 1);
-        appState.islands.splice(toIdx, 0, moved);
-        
-        // Persistir cambio
-        saveState();
-        
-        // Restaurar índice correcto
-        if (activeIslandId) {
-          const newIdx = appState.islands.findIndex(isl => isl.id === activeIslandId);
-          if (newIdx !== -1) {
-            currentIslandIndex = newIdx;
+
+    const folderHeader = document.createElement('div');
+    folderHeader.className = 'topic-folder-header';
+    folderHeader.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: hsl(var(--md-sys-color-surface-container-high));
+      border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant));
+      font-weight: 700;
+      font-size: 13px;
+      color: hsl(var(--md-sys-color-on-surface));
+    `;
+
+    folderHeader.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="material-symbols-rounded text-primary" style="font-size: 20px;">folder</span>
+        <span>${escapeHtml(group.topic.name)}</span>
+      </div>
+      <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: hsl(var(--md-sys-color-primary-container)); color: hsl(var(--md-sys-color-primary));">
+        ${group.islands.length} ${group.islands.length === 1 ? 'isla' : 'islas'}
+      </span>
+    `;
+
+    const folderBody = document.createElement('div');
+    folderBody.className = 'topic-folder-body';
+    folderBody.style.cssText = `
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    `;
+
+    group.islands.forEach(island => {
+      const index = appState.islands.indexOf(island);
+      const item = document.createElement('div');
+      item.className = `island-item ${index === currentIslandIndex ? 'active' : ''}`;
+      item.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 12px;
+        background: ${index === currentIslandIndex ? 'hsl(var(--md-sys-color-primary-container))' : 'hsl(var(--md-sys-color-surface))'};
+        border: 1px solid ${index === currentIslandIndex ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-outline))'};
+        cursor: pointer;
+      `;
+
+      let totalMastery = 0;
+      const sentencesList = island.sentences || [];
+      sentencesList.forEach(s => {
+        totalMastery += (s.mastery !== undefined ? s.mastery : 0);
+      });
+      const maxPossibleMastery = sentencesList.length * 5;
+      const progressPercent = maxPossibleMastery > 0 ? Math.round((totalMastery / maxPossibleMastery) * 100) : 0;
+
+      const topicOptionsHtml = (appState.topics || []).map(t => 
+        `<option value="${t.id}" ${t.id === (island.topicId || 'topic_general') ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+      ).join('');
+
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div class="island-info" style="flex-grow: 1;">
+            <div class="island-title font-semibold" style="font-size: 14px;">${escapeHtml(island.name)}</div>
+            <div class="island-meta text-secondary small">${sentencesList.length} oraciones • ${escapeHtml(island.language || activeLang)}</div>
+          </div>
+          <div class="island-actions" style="display: flex; gap: 4px; align-items: center;">
+            <button class="icon-btn small-btn btn-export-island" title="Descargar (.txt / .doc)" style="background: none; border: none; color: hsl(var(--md-sys-color-primary)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center;">
+              <span class="material-symbols-rounded" style="font-size: 18px;">download</span>
+            </button>
+            <button class="icon-btn small-btn btn-delete-island" title="Eliminar Isla" style="background: none; border: none; color: hsl(var(--md-sys-color-error)); cursor: pointer; padding: 6px; border-radius: 6px; display: inline-flex; align-items: center;">
+              <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+            </button>
+            <span class="material-symbols-rounded text-primary btn-play-island" style="cursor: pointer; padding: 4px;" title="Reproducir Isla">play_arrow</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed hsl(var(--md-sys-color-outline-variant));">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="island-progress-bar-container" style="width: 80px; height: 5px; background-color: hsl(var(--md-sys-color-surface-variant)); border-radius: 3px; overflow: hidden;">
+              <div style="width: ${progressPercent}%; height: 100%; background-color: hsl(var(--md-sys-color-primary));"></div>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">${progressPercent}%</span>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+            <span class="material-symbols-rounded" style="font-size: 14px; color: hsl(var(--md-sys-color-secondary));">folder_move</span>
+            <select class="change-island-topic-select" data-island-id="${island.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; cursor: pointer;">
+              ${topicOptionsHtml}
+            </select>
+          </div>
+        </div>
+      `;
+
+      const exportEl = item.querySelector('.btn-export-island');
+      const deleteEl = item.querySelector('.btn-delete-island');
+      const playEl = item.querySelector('.btn-play-island');
+      const topicSelectEl = item.querySelector('.change-island-topic-select');
+
+      if (exportEl) {
+        exportEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openExportTxtDocModal(island);
+        });
+      }
+
+      if (deleteEl) {
+        deleteEl.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const confirmed = await showCustomConfirm(
+            `¿Eliminar "${island.name}"?`,
+            `¿Estás seguro de que deseas eliminar la isla "${island.name}"?`
+          );
+          if (confirmed) {
+            stopTTS();
+            appState.islands.splice(index, 1);
+            if (currentIslandIndex >= appState.islands.length) {
+              currentIslandIndex = Math.max(0, appState.islands.length - 1);
+            }
+            saveAppState();
+            renderIslandSelectors();
           }
+        });
+      }
+
+      if (playEl) {
+        playEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          stopTTS();
+          currentIslandIndex = index;
+          currentSentenceIndex = 0;
+          buildKaraokeQueue();
+          renderIslandSelectors();
+          loadCurrentSentence();
+          playTTS();
+        });
+      }
+
+      if (topicSelectEl) {
+        topicSelectEl.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const newTopicId = e.target.value;
+          island.topicId = newTopicId;
+          saveAppState();
+          renderIslandSelectors();
+          showNotification(`Isla movida de tema`, "success");
+        });
+      }
+
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island') || e.target.closest('.btn-export-island') || e.target.closest('.change-island-topic-select')) {
+          return;
         }
-        
-        // Re-renderizar
-        renderIslandSelectors();
-      }
-    });
-    
-    const deleteEl = item.querySelector('.btn-delete-island');
-    const playEl = item.querySelector('.btn-play-island');
-    
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island')) {
-        return;
-      }
-      stopTTS();
-      currentIslandIndex = index;
-      currentSentenceIndex = 0;
-      buildKaraokeQueue();
-      renderIslandSelectors();
-      loadCurrentSentence();
-    });
-    
-    playEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      stopTTS();
-      currentIslandIndex = index;
-      currentSentenceIndex = 0;
-      buildKaraokeQueue();
-      renderIslandSelectors();
-      loadCurrentSentence();
-      playTTS();
-    });
-    
-    deleteEl.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const confirmed = await showCustomConfirm(
-        `¿Eliminar "${island.name}"?`,
-        `¿Estás seguro de que deseas eliminar la isla "${island.name}"? Esta acción no se puede deshacer.`
-      );
-      if (confirmed) {
         stopTTS();
-        appState.islands.splice(index, 1);
-        
-        // Ajustar el índice activo de forma coherente
-        if (currentIslandIndex > index) {
-          currentIslandIndex--;
-        } else if (currentIslandIndex >= appState.islands.length) {
-          currentIslandIndex = Math.max(0, appState.islands.length - 1);
-        }
-        
+        currentIslandIndex = index;
         currentSentenceIndex = 0;
-        saveAppState();
+        buildKaraokeQueue();
         renderIslandSelectors();
         loadCurrentSentence();
       }

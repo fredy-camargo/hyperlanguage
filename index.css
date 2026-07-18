@@ -89,6 +89,36 @@
   }
 }
 
+/* PolyglotLab Brand Name Multi-Color Letter-by-Letter Typography */
+.app-brand-name {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-title);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+.brand-letter {
+  display: inline-block;
+}
+.brand-letter.letter-p { color: #3B82F6; }
+.brand-letter.letter-o1 { color: #EF4444; }
+.brand-letter.letter-l1 { color: #10B981; }
+.brand-letter.letter-y { color: #F59E0B; }
+.brand-letter.letter-g { color: #3B82F6; }
+.brand-letter.letter-l2 { color: #EF4444; }
+.brand-letter.letter-o2 { color: #EF4444; }
+.brand-letter.letter-t { color: #3B82F6; }
+.brand-lab {
+  color: #475569;
+  margin-left: 1px;
+  font-weight: 800;
+  transition: color var(--transition-normal);
+}
+[data-theme="dark"] .brand-lab {
+  color: #CBD5E1;
+}
+
 /* Global Reset & Base */
 * {
   box-sizing: border-box;
