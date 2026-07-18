@@ -951,10 +951,14 @@ function renderIslandSelectors() {
         buildKaraokeQueue();
         renderIslandSelectors();
         loadCurrentSentence();
-      }
+      });
+
+      folderBody.appendChild(item);
     });
-    
-    container.appendChild(item);
+
+    topicFolder.appendChild(folderHeader);
+    topicFolder.appendChild(folderBody);
+    container.appendChild(topicFolder);
   });
 }
 
@@ -5622,5 +5626,245 @@ function autofillFeedbackForm() {
       fbEmail.value = appState.profile.email;
     }
   }
+}
+
+// -------------------------------------------------------------
+// NAVEGACIÓN GLOBAL Y CONTROLADORES DE INTERFAZ POLYGLOTLAB
+// -------------------------------------------------------------
+function switchMainTab(tabId) {
+  if (!tabId) return;
+
+  // Actualizar enlaces del sidebar
+  document.querySelectorAll('.nav-link').forEach(link => {
+    const isTarget = link.getAttribute('data-tab') === tabId || link.getAttribute('href') === `#${tabId}`;
+    if (isTarget) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+
+  // Ocultar todos los paneles de pestañas principales
+  document.querySelectorAll('main.main-content > .workspace-area > section.tab-panel').forEach(panel => {
+    panel.classList.add('hidden');
+  });
+
+  // Mostrar el panel de pestaña seleccionado
+  const targetPanel = document.getElementById(`tab-${tabId}`);
+  if (targetPanel) {
+    targetPanel.classList.remove('hidden');
+  }
+
+  // Actualizar el título de la vista en el topbar
+  const titlesMap = {
+    'learn': 'Aprender (Karaoke)',
+    'practice': 'Practicar (Recall)',
+    'generate': 'Generar Islas',
+    'guide': 'Metodología y Guía',
+    'settings': 'Configuración',
+    'about': 'Acerca de'
+  };
+
+  const titleEl = document.getElementById('view-title');
+  if (titleEl && titlesMap[tabId]) {
+    titleEl.textContent = titlesMap[tabId];
+  }
+
+  // Actualizar hash de URL sin recargar
+  window.location.hash = `#${tabId}`;
+
+  // Actualizaciones según la pestaña
+  if (tabId === 'learn') {
+    initLearnPanel();
+  } else if (tabId === 'practice') {
+    if (typeof buildPracticeQueue === 'function') buildPracticeQueue();
+    if (typeof loadPracticeExercise === 'function') loadPracticeExercise();
+  } else if (tabId === 'settings') {
+    updateTargetLanguageUI();
+  }
+}
+
+function openTargetLangModal() {
+  const modal = document.getElementById('target-lang-modal');
+  if (!modal) return;
+  
+  renderTargetLanguagesGrid();
+  modal.classList.remove('hidden');
+}
+
+function closeTargetLangModal() {
+  const modal = document.getElementById('target-lang-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderTargetLanguagesGrid() {
+  const grid = document.getElementById('target-languages-grid');
+  if (!grid) return;
+
+  grid.innerHTML = '';
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
+
+  (appState.targetLanguages || ['Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano']).forEach(lang => {
+    const isActive = lang === activeLang;
+    const islandCount = (appState.islands || []).filter(isl => isl.language === lang).length;
+    const card = document.createElement('div');
+    card.className = `target-lang-card ${isActive ? 'active' : ''}`;
+    card.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 14px 10px;
+      border-radius: 16px;
+      border: 2px solid ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-outline-variant))'};
+      background: ${isActive ? 'hsl(var(--md-sys-color-primary-container))' : 'hsl(var(--md-sys-color-surface-container-low))'};
+      color: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'inherit'};
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    card.innerHTML = `
+      <span style="font-size: 28px;">${getLangFlag(lang)}</span>
+      <span style="font-weight: 700; font-size: 14px;">${escapeHtml(lang)}</span>
+      <span style="font-size: 11px; opacity: 0.8;">${islandCount} ${islandCount === 1 ? 'isla' : 'islas'}</span>
+      ${isActive ? '<span class="material-symbols-rounded" style="font-size: 18px; margin-top: 2px;">check_circle</span>' : ''}
+    `;
+
+    card.addEventListener('click', () => {
+      setActiveTargetLanguage(lang);
+      renderTargetLanguagesGrid();
+      closeTargetLangModal();
+      showNotification(`Idioma activo cambiado a: ${getLangFlag(lang)} ${lang}`, "success");
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+function handleAddTargetLanguage() {
+  const input = document.getElementById('new-target-lang-input');
+  if (!input) return;
+  
+  const newLang = input.value.trim();
+  if (!newLang) {
+    showNotification("Por favor ingresa el nombre de un idioma.", "warning");
+    return;
+  }
+
+  if (!appState.targetLanguages) appState.targetLanguages = [];
+  if (appState.targetLanguages.map(l => l.toLowerCase()).includes(newLang.toLowerCase())) {
+    showNotification("Ese idioma ya existe en tu lista.", "warning");
+    return;
+  }
+
+  appState.targetLanguages.push(newLang);
+  appState.activeTargetLanguage = newLang;
+  saveAppState();
+
+  input.value = '';
+  renderTargetLanguagesGrid();
+  updateTargetLanguageUI();
+  renderIslandSelectors();
+  buildKaraokeQueue();
+  loadCurrentSentence();
+
+  showNotification(`¡Nuevo idioma "${newLang}" añadido y seleccionado!`, "success");
+}
+
+function initPolyglotLabCore() {
+  console.log("Inicializando PolyglotLab Core Navigation & Controls...");
+
+  // 1. Enlaces de navegación del Sidebar
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const tabId = link.getAttribute('data-tab') || link.getAttribute('href').replace('#', '');
+      switchMainTab(tabId);
+    });
+  });
+
+  // 2. Selector de Idioma Objetivo (Topbar Pill & Modal)
+  const topbarLangBtn = document.getElementById('topbar-target-lang-btn');
+  if (topbarLangBtn) {
+    topbarLangBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTargetLangModal();
+    });
+  }
+
+  const closeLangModalBtn = document.getElementById('btn-close-target-lang-modal');
+  if (closeLangModalBtn) {
+    closeLangModalBtn.addEventListener('click', closeTargetLangModal);
+  }
+
+  const addLangBtn = document.getElementById('btn-add-target-lang');
+  if (addLangBtn) {
+    addLangBtn.addEventListener('click', handleAddTargetLanguage);
+  }
+
+  const newLangInput = document.getElementById('new-target-lang-input');
+  if (newLangInput) {
+    newLangInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddTargetLanguage();
+      }
+    });
+  }
+
+  // 3. Botones de Cierre de Sesión (Topbar y Sidebar)
+  const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+  const topbarLogoutBtn = document.getElementById('topbar-logout-btn');
+
+  if (sidebarLogoutBtn) {
+    sidebarLogoutBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleLogout();
+    });
+  }
+
+  if (topbarLogoutBtn) {
+    topbarLogoutBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleLogout();
+    });
+  }
+
+  // 4. Modal de Exportación TXT/DOC
+  const closeExportBtn = document.getElementById('btn-close-export-txt-doc');
+  const cancelExportBtn = document.getElementById('btn-cancel-export-txt-doc');
+  if (closeExportBtn) closeExportBtn.addEventListener('click', () => {
+    const modal = document.getElementById('export-txt-doc-modal');
+    if (modal) modal.classList.add('hidden');
+  });
+  if (cancelExportBtn) cancelExportBtn.addEventListener('click', () => {
+    const modal = document.getElementById('export-txt-doc-modal');
+    if (modal) modal.classList.add('hidden');
+  });
+
+  // 5. Botón de Acerca de en Topbar
+  const aboutTopBtn = document.getElementById('about-top-btn');
+  if (aboutTopBtn) {
+    aboutTopBtn.addEventListener('click', () => {
+      switchMainTab('about');
+    });
+  }
+
+  // 6. Cargar pestaña inicial basada en hash de la URL o por defecto 'learn'
+  const initialHash = window.location.hash.replace('#', '');
+  const validTabs = ['learn', 'practice', 'generate', 'guide', 'settings', 'about'];
+  const startTab = validTabs.includes(initialHash) ? initialHash : 'learn';
+  switchMainTab(startTab);
+
+  // 7. Actualizar UI inicial del idioma activo
+  updateTargetLanguageUI();
+}
+
+// Escuchar DOMContentLoaded o ejecutar inmediatamente si el documento ya cargó
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPolyglotLabCore);
+} else {
+  initPolyglotLabCore();
 }
 
