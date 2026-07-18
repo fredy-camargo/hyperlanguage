@@ -1791,6 +1791,7 @@ function updateSRUI() {
       });
       
       sproutDiv.addEventListener('click', () => {
+        showGardenItemDetails(refSentence, idx, R, sr, icon, iconName);
         currentPracticeIndex = idx;
         loadPracticeExercise();
       });
@@ -1908,7 +1909,7 @@ function showGardenItemDetails(s, idx, R, sr, icon, iconName) {
   const retEl = document.getElementById('detail-retention');
   const stabEl = document.getElementById('detail-stability');
   const boxEl = document.getElementById('detail-box');
-  const l2El = document.getElementById('detail-l2');
+  const l2El = document.getElementById('detail-l2-text') || document.getElementById('detail-l2');
   
   if (numEl) numEl.textContent = `#${idx + 1}`;
   if (retEl) retEl.textContent = `${(R * 100).toFixed(1)}%`;
@@ -1937,7 +1938,7 @@ function showGardenItemDetails(s, idx, R, sr, icon, iconName) {
   }
   
   if (l2El) {
-    l2El.textContent = s.l2;
+    l2El.textContent = s.textL2 || s.text_l2 || s.l2 || '';
   }
 }
 

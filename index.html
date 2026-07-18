@@ -534,6 +534,41 @@
                   </div>
                 </div>
 
+                <!-- Tarjeta de Detalle / Tooltip de Frase (Jardín de Memoria) -->
+                <div class="card garden-details-card-wrapper" id="garden-details-card" style="margin: 4px 0 12px 0; padding: 16px; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-low)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); width: 100%; box-sizing: border-box;">
+                  <h4 id="lbl-garden-details-title" style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 700;">
+                    <span class="material-symbols-rounded text-primary" style="font-size: 20px;">info</span>
+                    <span>Detalle de Frase (Jardín)</span>
+                  </h4>
+                  <div id="garden-details-content" class="text-secondary small" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    <p id="garden-details-placeholder" style="margin: 0; font-style: italic; font-size: 12px;">Pasa el cursor o toca un brote en el jardín para ver su estado de repetición espaciada.</p>
+                    <div id="garden-details-body" class="hidden" style="display: flex; flex-direction: column; gap: 8px;">
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
+                        <span style="font-weight: 600;" id="lbl-detail-num">Frase:</span>
+                        <span id="detail-num" style="color: hsl(var(--md-sys-color-primary)); font-weight: 700;">#1</span>
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center;">
+                        <div style="background: hsl(var(--md-sys-color-surface)); padding: 6px; border-radius: 8px;">
+                          <span style="display: block; font-size: 10px; opacity: 0.8;" id="lbl-detail-retention">Retención</span>
+                          <span id="detail-retention" style="font-weight: 700; font-size: 12px; color: hsl(var(--md-sys-color-primary));">100%</span>
+                        </div>
+                        <div style="background: hsl(var(--md-sys-color-surface)); padding: 6px; border-radius: 8px;">
+                          <span style="display: block; font-size: 10px; opacity: 0.8;" id="lbl-detail-stability">Estabilidad</span>
+                          <span id="detail-stability" style="font-weight: 700; font-size: 12px;">1.0 días</span>
+                        </div>
+                        <div style="background: hsl(var(--md-sys-color-surface)); padding: 6px; border-radius: 8px;">
+                          <span style="display: block; font-size: 10px; opacity: 0.8;" id="lbl-detail-box">Nivel</span>
+                          <span id="detail-box" style="font-weight: 700; font-size: 12px;">Caja 1</span>
+                        </div>
+                      </div>
+                      <div style="margin-top: 4px; padding: 6px 8px; border-radius: 8px; background: hsl(var(--md-sys-color-surface));">
+                        <span style="display: block; font-size: 10px; opacity: 0.8;" id="lbl-detail-l2">Frase en Idioma Objetivo:</span>
+                        <p id="detail-l2-text" style="margin: 2px 0 0 0; font-weight: 600; font-size: 13px; color: hsl(var(--md-sys-color-on-surface));">...</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Gráfico de Curva de Olvido Ebbinghaus -->
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   <span style="font-size: 13px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));" id="lbl-ebbinghaus-title">Proyección de la Curva de Olvido (Ebbinghaus)</span>
@@ -581,39 +616,6 @@
                   <span class="small text-secondary">Meta de Maestría Diario</span>
                   <div class="progress-bar">
                     <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tarjeta de Detalle de Frase (Jardín de Memoria) -->
-              <div class="card sidebar-card margin-top" id="garden-details-card" style="margin-top: 16px;">
-                <h3 id="lbl-garden-details-title" style="display: flex; align-items: center; gap: 8px;">
-                  <span class="material-symbols-rounded" style="color: hsl(var(--md-sys-color-primary));">info</span>
-                  <span>Detalle de Frase (Jardín)</span>
-                </h3>
-                <div id="garden-details-content" class="text-secondary small" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
-                  <p id="garden-details-placeholder" style="margin: 0; font-style: italic;">Pasa el cursor sobre un brote en el jardín para ver su estado de repetición espaciada.</p>
-                  <div id="garden-details-body" class="hidden" style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
-                      <span style="font-weight: 600;" id="lbl-detail-num">Frase:</span>
-                      <span id="detail-num" style="color: hsl(var(--md-sys-color-primary)); font-weight: 700;">#1</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
-                      <span style="font-weight: 600;" id="lbl-detail-retention">Retención Estimada:</span>
-                      <span id="detail-retention" style="font-weight: 700; color: hsl(var(--md-sys-color-primary));">100%</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
-                      <span style="font-weight: 600;" id="lbl-detail-stability">Estabilidad:</span>
-                      <span id="detail-stability">1.0 días</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 4px;">
-                      <span style="font-weight: 600;" id="lbl-detail-box">Nivel de Dominio:</span>
-                      <span id="detail-box" style="font-weight: 600; padding: 2px 6px; border-radius: 4px; font-size: 10px;">🌱 Semilla</span>
-                    </div>
-                    <div style="margin-top: 6px;">
-                      <span style="font-weight: 600; display: block; margin-bottom: 4px;" id="lbl-detail-l2">Frase Objetivo (L2):</span>
-                      <p id="detail-l2" style="margin: 0; color: hsl(var(--md-sys-color-on-surface)); font-weight: 500; font-size: 13px; line-height: 18px; background: hsl(var(--md-sys-color-surface-container-lowest)); padding: 8px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline-variant)); word-break: break-word;"></p>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1703,6 +1705,34 @@
       </div>
     </div>
   </div>
+
+  <!-- Mobile Bottom Navigation Bar (Visible en dispositivos móviles <= 768px) -->
+  <nav class="mobile-bottom-bar" style="display: none;">
+    <a href="#learn" class="nav-link active" data-tab="learn">
+      <span class="material-symbols-rounded">play_circle</span>
+      <span class="nav-label">Karaoke</span>
+    </a>
+    <a href="#practice" class="nav-link" data-tab="practice">
+      <span class="material-symbols-rounded">fitness_center</span>
+      <span class="nav-label">Recall</span>
+    </a>
+    <a href="#generate" class="nav-link" data-tab="generate">
+      <span class="material-symbols-rounded">psychology</span>
+      <span class="nav-label">Generar</span>
+    </a>
+    <a href="#guide" class="nav-link" data-tab="guide">
+      <span class="material-symbols-rounded">menu_book</span>
+      <span class="nav-label">Método</span>
+    </a>
+    <a href="#settings" class="nav-link" data-tab="settings">
+      <span class="material-symbols-rounded">settings</span>
+      <span class="nav-label">Ajustes</span>
+    </a>
+    <a href="#about" class="nav-link" data-tab="about">
+      <span class="material-symbols-rounded">info</span>
+      <span class="nav-label">Acerca de</span>
+    </a>
+  </nav>
 
   <!-- JSZip for exporting MP3s to ZIP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
