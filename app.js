@@ -320,10 +320,15 @@ function updateTargetLanguageUI() {
   const activeLang = appState.activeTargetLanguage || 'Inglés';
   const flag = getLangFlag(activeLang);
 
-  const flagEl = document.getElementById('topbar-target-lang-flag');
-  const nameEl = document.getElementById('topbar-target-lang-name');
-  if (flagEl) flagEl.textContent = flag;
-  if (nameEl) nameEl.textContent = activeLang;
+  const topFlagEl = document.getElementById('topbar-target-lang-flag');
+  const topNameEl = document.getElementById('topbar-target-lang-name');
+  if (topFlagEl) topFlagEl.textContent = flag;
+  if (topNameEl) topNameEl.textContent = activeLang;
+
+  const sideFlagEl = document.getElementById('sidebar-target-lang-flag');
+  const sideNameEl = document.getElementById('sidebar-target-lang-name');
+  if (sideFlagEl) sideFlagEl.textContent = flag;
+  if (sideNameEl) sideNameEl.textContent = activeLang;
 
   const gridEl = document.getElementById('target-languages-grid');
   if (gridEl) {
@@ -5785,8 +5790,15 @@ function initPolyglotLabCore() {
     });
   });
 
-  // 2. Selector de Idioma Objetivo (Topbar Pill & Modal)
+  // 2. Selector de Idioma Objetivo (Sidebar Card, Topbar Pill & Modal)
+  const sidebarLangBtn = document.getElementById('sidebar-target-lang-btn');
   const topbarLangBtn = document.getElementById('topbar-target-lang-btn');
+  if (sidebarLangBtn) {
+    sidebarLangBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTargetLangModal();
+    });
+  }
   if (topbarLangBtn) {
     topbarLangBtn.addEventListener('click', (e) => {
       e.stopPropagation();

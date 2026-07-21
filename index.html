@@ -118,6 +118,19 @@
           <span class="material-symbols-rounded">menu_book</span>
           <span class="nav-label">Metodología y Guía</span>
         </a>
+
+        <!-- Selector de Idioma Objetivo en la Barra Lateral (Sidebar) -->
+        <div class="sidebar-lang-selector-card" id="sidebar-target-lang-btn" style="margin: 12px 8px; padding: 10px 14px; background: hsl(var(--md-sys-color-surface-container-high)); border: 1.5px solid hsl(var(--md-sys-color-primary)); border-radius: 16px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease; box-shadow: var(--shadow-sm);" title="Cambiar idioma objetivo a estudiar">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span id="sidebar-target-lang-flag" style="font-size: 20px;">🇺🇸</span>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: hsl(var(--md-sys-color-on-surface-variant)); letter-spacing: 0.5px;">Idioma Objetivo</span>
+              <span id="sidebar-target-lang-name" style="font-size: 13px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">Inglés</span>
+            </div>
+          </div>
+          <span class="material-symbols-rounded" style="font-size: 20px; color: hsl(var(--md-sys-color-primary));">arrow_drop_down</span>
+        </div>
+
         <a href="#settings" class="nav-link" data-tab="settings">
           <span class="material-symbols-rounded">settings</span>
           <span class="nav-label">Configuración</span>
@@ -156,17 +169,8 @@
           </div>
           <h2 id="view-title" style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; font-family: var(--font-title); white-space: nowrap;">Aprender (Karaoke)</h2>
         </div>
-
-        <!-- Zone 2: Center Target Language Selector Pill -->
-        <div class="top-bar-center" style="display: flex; justify-content: center; align-items: center; flex-grow: 1;">
-          <div class="target-lang-selector-pill" id="topbar-target-lang-btn" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; background: hsl(var(--md-sys-color-surface-container-high)); border-radius: 24px; border: 1.5px solid hsl(var(--md-sys-color-primary)); cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-sm);" title="Cambiar idioma objetivo a estudiar">
-            <span id="topbar-target-lang-flag" style="font-size: 20px;">🇺🇸</span>
-            <span id="topbar-target-lang-name" style="font-size: 14px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">Inglés</span>
-            <span class="material-symbols-rounded" style="font-size: 20px; color: hsl(var(--md-sys-color-primary));">arrow_drop_down</span>
-          </div>
-        </div>
         
-        <!-- Zone 3: Right User Brain Widget & Actions -->
+        <!-- Zone 2: Right User Brain Widget & Actions -->
         <div class="top-bar-right" style="display: flex; align-items: center; gap: 16px; flex-shrink: 0;">
           <!-- Large Evolving Brain Widget -->
           <div class="top-bar-brain-widget" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
