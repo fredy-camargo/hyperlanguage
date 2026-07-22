@@ -331,10 +331,16 @@
             <div class="panel-sidebar">
               <!-- Island Selector Card -->
               <div class="card sidebar-card">
-                <h3>Tus Islas Lingüísticas</h3>
-                <p class="text-secondary small">Selecciona una colección para reproducir en el Karaoke Loop.</p>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <h3 style="margin: 0; font-size: 16px;">Tus Islas Lingüísticas</h3>
+                  <button type="button" class="btn btn-text btn-sm" id="btn-manage-topics" style="padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid hsl(var(--md-sys-color-primary)); border-radius: 20px; color: hsl(var(--md-sys-color-primary)); cursor: pointer; font-weight: 700; background: hsla(var(--md-sys-color-primary), 0.08);" title="Crear o gestionar categorías">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">folder_special</span>
+                    <span>Categorías</span>
+                  </button>
+                </div>
+                <p class="text-secondary small">Organizadas por categorías para estructurar tu estudio.</p>
                 <div class="island-list" id="island-selector-list">
-                  <!-- Dynamic Islands -->
+                  <!-- Dynamic Islands grouped by topic folders -->
                 </div>
               </div>
             </div>
@@ -681,6 +687,12 @@
                     <option value="Italiano">Italiano</option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label for="gen-island-topic">Categoría / Tema de Estudio</label>
+                  <select id="gen-island-topic">
+                    <!-- Dinámico cargado de appState.topics -->
+                  </select>
+                </div>
               </div>
 
               <div class="form-row">
@@ -757,6 +769,12 @@
                     <option value="Español">Español</option>
                     <option value="Alemán">Alemán</option>
                     <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="manual-island-topic">Categoría / Tema de Estudio</label>
+                  <select id="manual-island-topic">
+                    <!-- Dinámico cargado de appState.topics -->
                   </select>
                 </div>
               </div>
@@ -846,6 +864,12 @@
                     <option value="Español">Español</option>
                     <option value="Alemán">Alemán</option>
                     <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="import-island-topic">Categoría / Tema de Estudio</label>
+                  <select id="import-island-topic">
+                    <!-- Dinámico cargado de appState.topics -->
                   </select>
                 </div>
               </div>
@@ -1757,5 +1781,39 @@
 
   <!-- Main JavaScript File -->
   <script src="app.js?v=1.1"></script>
+  <!-- Modal para Gestionar y Crear Categorías / Temas -->
+  <div id="topic-manager-modal" class="modal-overlay hidden" style="z-index: 10005;">
+    <div class="modal-card" style="max-width: 520px; width: 92%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--md-sys-elevation-3);">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="material-symbols-rounded text-primary" style="font-size: 26px;">folder_special</span>
+          <h3 style="margin: 0; font-size: 19px; font-weight: 700;">Gestionar Categorías de Estudio</h3>
+        </div>
+        <button class="icon-btn small-btn" id="btn-close-topic-modal" style="background: none; border: none; cursor: pointer; color: inherit;">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <!-- Crear Nueva Categoría Form -->
+      <form id="create-topic-form" style="display: flex; gap: 8px; flex-direction: column; background: hsl(var(--md-sys-color-surface-container-low)); padding: 14px; border-radius: 16px; border: 1px solid hsl(var(--md-sys-color-outline-variant));">
+        <label for="new-topic-name-input" style="font-size: 12px; font-weight: 700; color: hsl(var(--md-sys-color-on-surface-variant));">Crear Nueva Categoría:</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="new-topic-name-input" placeholder="Ej. Gramática, Negocios, Canciones..." required style="flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; font-size: 13px;">
+          <button type="submit" class="btn btn-primary btn-sm" style="padding: 10px 16px; border-radius: 10px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+            <span class="material-symbols-rounded" style="font-size: 18px;">create_new_folder</span>
+            <span>Crear</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Lista de Categorías Existentes -->
+      <div>
+        <label style="font-size: 12px; font-weight: 700; color: hsl(var(--md-sys-color-secondary)); display: block; margin-bottom: 8px;">Mis Categorías Actuales:</label>
+        <div id="topics-manager-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding-right: 4px;">
+          <!-- Dynamic topic rows rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

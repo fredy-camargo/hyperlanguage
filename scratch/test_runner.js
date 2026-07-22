@@ -28,6 +28,11 @@ try {
   assert(htmlContent.includes('sidebar-target-lang-btn'), 'index.html contiene el botón del selector de idioma objetivo en la barra lateral (#sidebar-target-lang-btn)');
   assert(htmlContent.includes('topbar-target-lang-btn'), 'index.html contiene el botón del selector de idioma objetivo en el topbar móvil/escritorio (#topbar-target-lang-btn)');
   assert(htmlContent.includes('btn-export-txt-doc-active-island'), 'index.html contiene el botón visible de descarga TXT/DOC en la cabecera del reproductor (#btn-export-txt-doc-active-island)');
+  assert(htmlContent.includes('btn-manage-topics'), 'index.html contiene el botón de gestión de categorías en la barra lateral (#btn-manage-topics)');
+  assert(htmlContent.includes('topic-manager-modal'), 'index.html contiene el modal de gestión y creación de categorías (#topic-manager-modal)');
+  assert(htmlContent.includes('gen-island-topic'), 'index.html contiene el selector de categoría en generación IA (#gen-island-topic)');
+  assert(htmlContent.includes('manual-island-topic'), 'index.html contiene el selector de categoría en creación manual (#manual-island-topic)');
+  assert(htmlContent.includes('import-island-topic'), 'index.html contiene el selector de categoría en importación (#import-island-topic)');
   assert(htmlContent.includes('topbar-logout-btn'), 'index.html contiene el botón de cerrar sesión en topbar (#topbar-logout-btn)');
   assert(htmlContent.includes('sidebar-logout-btn'), 'index.html contiene el botón de cerrar sesión en sidebar (#sidebar-logout-btn)');
   assert(htmlContent.includes('target-lang-modal'), 'index.html contiene el modal de idiomas objetivo (#target-lang-modal)');
@@ -58,6 +63,9 @@ try {
   assert(jsContent.includes('function updateTargetLanguageUI'), 'app.js implementa updateTargetLanguageUI()');
   assert(jsContent.includes('function exportIslandTxtDoc'), 'app.js implementa exportIslandTxtDoc()');
   assert(jsContent.includes('function setupFeedbackForm'), 'app.js implementa la captura asíncrona segura de comentarios y sugerencias (setupFeedbackForm)');
+  assert(jsContent.includes('function openTopicManagerModal'), 'app.js implementa el gestor de categorías (openTopicManagerModal)');
+  assert(jsContent.includes('function createTopic'), 'app.js implementa la creación de categorías personalizadas (createTopic)');
+  assert(jsContent.includes('function populateTopicDropdowns'), 'app.js sincroniza dinámicamente los selectores de categorías (populateTopicDropdowns)');
   assert(jsContent.includes("theme: 'light'") || jsContent.includes("appState.settings.theme = 'light'"), 'app.js fuerza el tema claro (Light Theme) siempre por defecto');
   assert(jsContent.includes('frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo'), 'app.js conserva el formato estricto de exportación');
   assert(jsContent.includes('topic-folder-card'), 'app.js renderiza carpetas visuales para agrupación de islas por temas');

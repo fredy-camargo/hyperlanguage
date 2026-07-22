@@ -743,6 +743,7 @@ function initLearnPanel() {
 }
 
 function renderIslandSelectors() {
+  populateTopicDropdowns();
   const container = document.getElementById('island-selector-list');
   container.innerHTML = '';
   
@@ -845,7 +846,7 @@ function renderIslandSelectors() {
 
       const topicOptionsHtml = (appState.topics || []).map(t => 
         `<option value="${t.id}" ${t.id === (island.topicId || 'topic_general') ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
-      ).join('');
+      ).join('') + `<option value="__create_new__">➕ Crear nueva categoría...</option>`;
 
       item.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
@@ -929,10 +930,18 @@ function renderIslandSelectors() {
         topicSelectEl.addEventListener('change', (e) => {
           e.stopPropagation();
           const newTopicId = e.target.value;
+          if (newTopicId === '__create_new__') {
+            openTopicManagerModal();
+            e.target.value = island.topicId || 'topic_general';
+            return;
+          }
           island.topicId = newTopicId;
+          const topicObj = (appState.topics || []).find(t => t.id === newTopicId);
+          const topicName = topicObj ? topicObj.name : 'General';
           saveAppState();
+          populateTopicDropdowns();
           renderIslandSelectors();
-          showNotification(`Isla movida de tema`, "success");
+          showNotification(`Isla "${island.name}" movida a la categoría: ${topicName}`, "success");
         });
       }
 
@@ -955,6 +964,173 @@ function renderIslandSelectors() {
     topicFolder.appendChild(folderBody);
     container.appendChild(topicFolder);
   });
+}
+
+// -------------------------------------------------------------
+// SECCIÓN: GESTIÓN DE CATEGORÍAS / TEMAS
+// -------------------------------------------------------------
+
+function populateTopicDropdowns() {
+  const selects = [
+    document.getElementById('gen-island-topic'),
+    document.getElementById('manual-island-topic'),
+    document.getElementById('import-island-topic')
+  ];
+
+  const topics = appState.topics || [];
+  
+  selects.forEach(select => {
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '';
+
+    topics.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      select.appendChild(opt);
+    });
+
+    const createOpt = document.createElement('option');
+    createOpt.value = '__create_new__';
+    createOpt.textContent = '➕ Crear nueva categoría...';
+    createOpt.style.fontWeight = 'bold';
+    select.appendChild(createOpt);
+
+    if (currentVal && topics.some(t => t.id === currentVal)) {
+      select.value = currentVal;
+    } else if (topics.length > 0) {
+      select.value = topics[0].id;
+    }
+
+    if (!select.dataset.hasTopicListener) {
+      select.dataset.hasTopicListener = 'true';
+      select.addEventListener('change', (e) => {
+        if (e.target.value === '__create_new__') {
+          openTopicManagerModal();
+          e.target.value = topics[0] ? topics[0].id : 'topic_general';
+        }
+      });
+    }
+  });
+}
+
+function openTopicManagerModal() {
+  const modal = document.getElementById('topic-manager-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    renderTopicManagerList();
+    const input = document.getElementById('new-topic-name-input');
+    if (input) input.focus();
+  }
+}
+
+function closeTopicManagerModal() {
+  const modal = document.getElementById('topic-manager-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderTopicManagerList() {
+  const container = document.getElementById('topics-manager-list');
+  if (!container) return;
+
+  container.innerHTML = '';
+  const topics = appState.topics || [];
+
+  topics.forEach(topic => {
+    const islandCount = appState.islands.filter(isl => (isl.topicId || 'topic_general') === topic.id).length;
+    const isDefault = topic.id === 'topic_general';
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: hsl(var(--md-sys-color-surface-container-lowest));
+      border: 1px solid hsl(var(--md-sys-color-outline-variant));
+    `;
+
+    row.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+        <span class="material-symbols-rounded text-primary" style="font-size: 22px;">folder</span>
+        <span class="font-semibold" style="font-size: 14px; color: hsl(var(--md-sys-color-on-surface));">${escapeHtml(topic.name)}</span>
+        <span style="font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: hsl(var(--md-sys-color-primary-container)); color: hsl(var(--md-sys-color-primary));">
+          ${islandCount} ${islandCount === 1 ? 'isla' : 'islas'}
+        </span>
+      </div>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button type="button" class="icon-btn small-btn btn-edit-topic" title="Renombrar categoría" style="background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: hsl(var(--md-sys-color-primary));">
+          <span class="material-symbols-rounded" style="font-size: 18px;">edit</span>
+        </button>
+        ${!isDefault ? `
+          <button type="button" class="icon-btn small-btn btn-delete-topic" title="Eliminar categoría" style="background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: hsl(var(--md-sys-color-error));">
+            <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+          </button>
+        ` : ''}
+      </div>
+    `;
+
+    row.querySelector('.btn-edit-topic').addEventListener('click', () => renameTopicPrompt(topic));
+    if (!isDefault) {
+      row.querySelector('.btn-delete-topic').addEventListener('click', () => deleteTopic(topic.id));
+    }
+
+    container.appendChild(row);
+  });
+}
+
+function createTopic(name) {
+  const cleanName = name ? name.trim() : '';
+  if (!cleanName) return;
+
+  const id = 'topic_custom_' + Date.now();
+  if (!appState.topics) appState.topics = [];
+
+  appState.topics.push({ id, name: cleanName, language: 'all' });
+  saveAppState();
+  populateTopicDropdowns();
+  renderTopicManagerList();
+  renderIslandSelectors();
+  showNotification(`Categoría "${cleanName}" creada con éxito`, "success");
+}
+
+function renameTopicPrompt(topic) {
+  const newName = prompt(`Renombrar categoría "${topic.name}":`, topic.name);
+  if (newName && newName.trim() && newName.trim() !== topic.name) {
+    topic.name = newName.trim();
+    saveAppState();
+    populateTopicDropdowns();
+    renderTopicManagerList();
+    renderIslandSelectors();
+    showNotification("Categoría actualizada con éxito", "success");
+  }
+}
+
+async function deleteTopic(topicId) {
+  const topic = appState.topics.find(t => t.id === topicId);
+  if (!topic || topicId === 'topic_general') return;
+
+  const confirmed = await showCustomConfirm(
+    `¿Eliminar categoría "${topic.name}"?`,
+    `Las islas de esta categoría se moverán automáticamente a "General / Sin Categoría".`
+  );
+
+  if (confirmed) {
+    appState.islands.forEach(isl => {
+      if (isl.topicId === topicId) {
+        isl.topicId = 'topic_general';
+      }
+    });
+
+    appState.topics = appState.topics.filter(t => t.id !== topicId);
+    saveAppState();
+    populateTopicDropdowns();
+    renderTopicManagerList();
+    renderIslandSelectors();
+    showNotification(`Categoría eliminada. Islas reasignadas a General.`, "success");
+  }
 }
 
 function loadCurrentSentence() {
@@ -2900,11 +3076,14 @@ function displayGeneratedPreview(sentencesArray, targetLang, islandName) {
   
   area.classList.remove('hidden');
   
+  const selectedTopicId = document.getElementById('gen-island-topic')?.value || 'topic_general';
+
   // Guardamos temporalmente en memoria la isla generada
   generatedIslandTemp = {
     id: 'island_' + Date.now(),
     name: islandName || `Isla Generada`,
     language: targetLang,
+    topicId: selectedTopicId === '__create_new__' ? 'topic_general' : selectedTopicId,
     sentences: sentencesArray.map((item, index) => ({
       id: `s_gen_${index}_${Date.now()}`,
       l1: item.l1,
@@ -3069,10 +3248,13 @@ function saveManualIsland() {
     return;
   }
   
+  const selectedTopicId = document.getElementById('manual-island-topic')?.value || 'topic_general';
+  
   const newIsland = {
     id: 'island_manual_' + Date.now(),
     name: name,
     language: lang,
+    topicId: selectedTopicId === '__create_new__' ? 'topic_general' : selectedTopicId,
     sentences: [...manualSentencesTemp]
   };
   
@@ -3296,10 +3478,13 @@ function submitImportedSentences() {
       return;
     }
     
+    const selectedTopicId = document.getElementById('import-island-topic')?.value || 'topic_general';
+
     const newIsland = {
       id: 'island_import_' + Date.now(),
       name: islandName,
       language: l2,
+      topicId: selectedTopicId === '__create_new__' ? 'topic_general' : selectedTopicId,
       sentences: parsedSentencesTemp.map((s, idx) => ({
         id: `s_imp_${Date.now()}_${idx}`,
         l1: s.l1,
@@ -5879,6 +6064,30 @@ function initPolyglotLabCore() {
   if (aboutTopBtn) {
     aboutTopBtn.addEventListener('click', () => {
       switchMainTab('about');
+    });
+  }
+
+  // 6. Botones de Gestión de Categorías de Estudio
+  const btnManageTopics = document.getElementById('btn-manage-topics');
+  const btnCloseTopicModal = document.getElementById('btn-close-topic-modal');
+  const createTopicForm = document.getElementById('create-topic-form');
+
+  if (btnManageTopics) {
+    btnManageTopics.addEventListener('click', () => openTopicManagerModal());
+  }
+
+  if (btnCloseTopicModal) {
+    btnCloseTopicModal.addEventListener('click', () => closeTopicManagerModal());
+  }
+
+  if (createTopicForm) {
+    createTopicForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('new-topic-name-input');
+      if (input && input.value.trim()) {
+        createTopic(input.value.trim());
+        input.value = '';
+      }
     });
   }
 
