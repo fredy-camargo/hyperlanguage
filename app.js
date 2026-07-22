@@ -474,8 +474,8 @@ function exportIslandTxtDoc(island, format) {
         <table>
           <thead>
             <tr>
-              <th>Frase Idioma Origen (L1)</th>
-              <th>Frase Idioma Objetivo (L2)</th>
+              <th>Frase Idioma Nativo</th>
+              <th>Frase Idioma Objetivo</th>
               <th>Palabra Clave Idioma Objetivo</th>
             </tr>
           </thead>
@@ -3810,7 +3810,9 @@ async function logLearningTelemetry(data) {
 
 // 9. AUXILIAR UTILS & EVENT BINDINGS
 function escapeHtml(unsafe) {
-  return unsafe
+  if (unsafe === null || unsafe === undefined) return '';
+  const str = String(unsafe);
+  return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -4946,7 +4948,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Retención Estimada:",
     lbl_detail_stability: "Estabilidad:",
     lbl_detail_box: "Nivel de Dominio:",
-    lbl_detail_l2: "Frase Objetivo (L2):",
+    lbl_detail_l2: "Frase Idioma Objetivo:",
     lbl_loop_label: "Autoplay de la Isla",
     lbl_karaoke_order: "Orden de Reproducción",
     opt_order_normal: "Secuencial",
@@ -5019,7 +5021,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Estimated Retention:",
     lbl_detail_stability: "Stability:",
     lbl_detail_box: "Mastery Level:",
-    lbl_detail_l2: "Target Sentence (L2):",
+    lbl_detail_l2: "Target Sentence:",
     lbl_loop_label: "Island Autoplay",
     lbl_karaoke_order: "Play Order",
     opt_order_normal: "Sequential",
@@ -5092,7 +5094,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Retenção Estimada:",
     lbl_detail_stability: "Estabilidade:",
     lbl_detail_box: "Nível de Domínio:",
-    lbl_detail_l2: "Frase de Destino (L2):"
+    lbl_detail_l2: "Frase de Destino:",
   },
   fr: {
     sidebar_learn: "Apprendre (Karaoké)",
@@ -5160,7 +5162,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Rétention Estimée:",
     lbl_detail_stability: "Stabilité:",
     lbl_detail_box: "Niveau de Maîtrise:",
-    lbl_detail_l2: "Phrase Cible (L2):"
+    lbl_detail_l2: "Phrase Cible:",
   },
   de: {
     sidebar_learn: "Lernen (Karaoke)",
@@ -5228,7 +5230,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Geschätzte Retention:",
     lbl_detail_stability: "Stabilität:",
     lbl_detail_box: "Meisterschaftsstufe:",
-    lbl_detail_l2: "Zielsatz (L2):"
+    lbl_detail_l2: "Zielsatz:",
   },
   it: {
     sidebar_learn: "Imparare (Karaoke)",
@@ -5296,7 +5298,7 @@ const UI_TRANSLATIONS = {
     lbl_detail_retention: "Ritenzione Stimata:",
     lbl_detail_stability: "Stabilità:",
     lbl_detail_box: "Livello di Padronanza:",
-    lbl_detail_l2: "Frase Target (L2):"
+    lbl_detail_l2: "Frase Target:",
   }
 };
 

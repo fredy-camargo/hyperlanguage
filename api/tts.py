@@ -37,17 +37,7 @@ class handler(BaseHTTPRequestHandler):
                 communicate = edge_tts.Communicate(text, voice, rate=rate_str)
                 await communicate.save(temp_path)
                 
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            if loop.is_running():
-                future = asyncio.ensure_future(main_tts(), loop=loop)
-                loop.run_until_complete(future)
-            else:
-                loop.run_until_complete(main_tts())
+            asyncio.run(main_tts())
             
             with open(temp_path, 'rb') as f:
                 mp3_data = f.read()

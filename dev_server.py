@@ -43,9 +43,13 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def handle_get_export(self):
         try:
             filename = os.path.basename(urllib.parse.urlparse(self.path).path)
-            exports_dir = os.path.join(os.getcwd(), "exports")
-            file_path = os.path.join(exports_dir, filename)
+            exports_dir = os.path.abspath(os.path.join(os.getcwd(), "exports"))
+            file_path = os.path.abspath(os.path.join(exports_dir, filename))
             
+            if not file_path.startswith(exports_dir):
+                self.send_error(403, "Access denied")
+                return
+                
             if not os.path.exists(file_path):
                 self.send_error(404, "Export file not found")
                 return

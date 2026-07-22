@@ -2306,4 +2306,87 @@ input:checked + .slider:before {
   }
 }
 
+/* ==========================================================================
+   POLYGOTLAB PREMIUM MINIMALIST DESIGN SYSTEM ENHANCEMENTS & MICRO-ANIMATIONS
+   ========================================================================== */
+
+/* Glassmorphism & Smooth Backdrop Elevation */
+.glass-card, .island-card, .stat-card, .onboarding-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), border-color var(--transition-normal);
+}
+
+.island-card:hover, .topic-folder-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .island-card:hover, [data-theme="dark"] .topic-folder-card:hover {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Micro-Animations for Buttons */
+.btn {
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Active Recall Visual Pulse & Feedback */
+.recall-feedback-success {
+  animation: pulseSuccess 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.recall-feedback-error {
+  animation: shakeError 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pulseSuccess {
+  0% { transform: scale(0.99); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+  50% { transform: scale(1.01); box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+/* Karaoke Active Sentence Glowing Pulse */
+.playing-sentence-active {
+  position: relative;
+}
+
+.playing-sentence-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 70%;
+  background-color: hsl(var(--md-sys-color-primary));
+  border-radius: 4px;
+  box-shadow: 0 0 8px hsl(var(--md-sys-color-primary));
+  animation: karaokeGlow 1.5s infinite ease-in-out;
+}
+
+@keyframes karaokeGlow {
+  0%, 100% { opacity: 0.6; transform: translateY(-50%) scaleY(0.9); }
+  50% { opacity: 1; transform: translateY(-50%) scaleY(1.1); }
+}
+
+/* Mobile Bottom Bar Blur Effect */
+.mobile-bottom-bar {
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+
 

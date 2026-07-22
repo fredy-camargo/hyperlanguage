@@ -31,12 +31,20 @@ try {
   assert(htmlContent.includes('target-lang-modal'), 'index.html contiene el modal de idiomas objetivo (#target-lang-modal)');
   assert(htmlContent.includes('export-txt-doc-modal'), 'index.html contiene el modal de exportación TXT/DOC (#export-txt-doc-modal)');
 
+  // Verificación estricta de regla de negocio: Ausencia del término prohibido "Mikel"
+  assert(!htmlContent.toLowerCase().includes('mikel'), 'index.html NO contiene el término prohibido "Mikel"');
+  // Verificación estricta de regla de negocio: Ausencia de etiquetas obsoletas (L1) y (L2)
+  assert(!htmlContent.includes('(L1)'), 'index.html NO contiene etiquetas obsoletas (L1)');
+  assert(!htmlContent.includes('(L2)'), 'index.html NO contiene etiquetas obsoletas (L2)');
+
   // 2. Validar index.css
   const cssPath = path.join(__dirname, '..', 'index.css');
   const cssContent = fs.readFileSync(cssPath, 'utf8');
 
   assert(cssContent.includes('.brand-letter.letter-p'), 'index.css define los colores de letra por letra');
   assert(cssContent.includes('.app-brand-name'), 'index.css define la tipografía .app-brand-name');
+  assert(cssContent.includes('backdrop-filter: blur(12px)'), 'index.css implementa efectos glassmorphism avanzados');
+  assert(cssContent.includes('playing-sentence-active'), 'index.css contiene animaciones de resplandor para el Bucle Karaoke');
 
   // 3. Validar app.js
   const jsPath = path.join(__dirname, '..', 'app.js');
@@ -48,6 +56,20 @@ try {
   assert(jsContent.includes('function exportIslandTxtDoc'), 'app.js implementa exportIslandTxtDoc()');
   assert(jsContent.includes('frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo'), 'app.js conserva el formato estricto de exportación');
   assert(jsContent.includes('topic-folder-card'), 'app.js renderiza carpetas visuales para agrupación de islas por temas');
+
+  // Prueba unitaria de robustez anti-XSS para escapeHtml
+  eval(jsContent.slice(jsContent.indexOf('function escapeHtml'), jsContent.indexOf('document.addEventListener')));
+  assert(typeof escapeHtml === 'function', 'escapeHtml está definido en app.js');
+  assert(escapeHtml(null) === '', 'escapeHtml maneja valores nulos de forma segura');
+  assert(escapeHtml(undefined) === '', 'escapeHtml maneja valores indefinidos de forma segura');
+  assert(escapeHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;', 'escapeHtml sanitiza código HTML/JS');
+
+  // 4. Validar archivos de despliegue
+  const vercelExists = fs.existsSync(path.join(__dirname, '..', 'vercel.json'));
+  assert(vercelExists, 'vercel.json está presente para el despliegue automático');
+
+  const firebaseExists = fs.existsSync(path.join(__dirname, '..', 'firebase.json'));
+  assert(firebaseExists, 'firebase.json está presente para la publicación en Firebase Hosting');
 
 } catch (err) {
   console.error("Error durante la ejecución del test suite:", err);
