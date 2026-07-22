@@ -181,6 +181,11 @@
           </div>
 
           <div class="top-bar-actions" style="display: flex; align-items: center; gap: 8px;">
+            <div id="topbar-target-lang-btn" class="target-lang-pill-btn" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: hsl(var(--md-sys-color-surface-container-high)); border: 1.5px solid hsl(var(--md-sys-color-primary)); border-radius: 20px; cursor: pointer; transition: all 0.2s ease;" title="Cambiar idioma objetivo a estudiar">
+              <span id="topbar-target-lang-flag" style="font-size: 16px;">🇺🇸</span>
+              <span id="topbar-target-lang-name" style="font-size: 12px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">Inglés</span>
+              <span class="material-symbols-rounded" style="font-size: 16px; color: hsl(var(--md-sys-color-primary));">expand_more</span>
+            </div>
             <button id="about-top-btn" class="icon-btn" title="Acerca de PolyglotLab">
               <span class="material-symbols-rounded">info</span>
             </button>
@@ -216,6 +221,10 @@
                     <button class="btn btn-text btn-sm" id="btn-edit-active-island" title="Editar frases de esta isla" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
                       <span class="material-symbols-rounded" style="font-size: 18px;">edit</span>
                       <span>Editar</span>
+                    </button>
+                    <button class="btn btn-text btn-sm" id="btn-export-txt-doc-active-island" title="Descargar isla en formato TXT o DOC" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: hsla(var(--md-sys-color-primary), 0.08); border: 1px solid hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-primary)); border-radius: 8px; cursor: pointer; font-weight: 600;">
+                      <span class="material-symbols-rounded" style="font-size: 18px;">description</span>
+                      <span>Descargar TXT/DOC</span>
                     </button>
                     <button class="btn btn-text btn-sm" id="btn-export-active-island" title="Exportar esta isla a MP3" style="padding: 4px 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; background: none; border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 8px; cursor: pointer;">
                       <span class="material-symbols-rounded" style="font-size: 18px;">download</span>

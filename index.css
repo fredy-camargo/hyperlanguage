@@ -2388,5 +2388,17 @@ input:checked + .slider:before {
   -webkit-backdrop-filter: blur(16px) !important;
 }
 
+/* Logo Dark Mode Seamless Blending */
+img[src*="logo_Polyglootlab.png"] {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] img[src*="logo_Polyglootlab.png"] {
+  mix-blend-mode: screen !important;
+  filter: brightness(1.15) contrast(1.1) drop-shadow(0 4px 16px rgba(59, 130, 246, 0.35)) !important;
+}
+
+
 
 

@@ -183,6 +183,7 @@ function sanitizeAppState() {
   }
 
   // 2. Asegurar configuraciones predeterminadas de voz
+  if (!appState.settings.theme || appState.settings.theme === 'system') appState.settings.theme = 'light';
   if (appState.settings.apiTtsKey === undefined) appState.settings.apiTtsKey = '';
   if (appState.settings.ttsEngine === undefined) appState.settings.ttsEngine = 'azure';
   if (appState.settings.ttsVoiceBrowser === undefined) appState.settings.ttsVoiceBrowser = '';
@@ -553,38 +554,27 @@ function showCustomConfirm(title, message) {
 
 // 2. SISTEMA DE TEMAS (MD3)
 function initTheme() {
-  const theme = appState.settings.theme || 'system';
+  if (!appState.settings.theme || appState.settings.theme === 'system') {
+    appState.settings.theme = 'light';
+  }
+  const theme = appState.settings.theme;
   applyTheme(theme);
 }
 
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
+  const targetTheme = theme || 'light';
+  document.documentElement.setAttribute('data-theme', targetTheme);
   const themeIcon = document.getElementById('theme-icon');
   
-  let currentActualTheme = theme;
-  if (theme === 'system') {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    currentActualTheme = isDark ? 'dark' : 'light';
-  }
-  
   if (themeIcon) {
-    themeIcon.textContent = currentActualTheme === 'dark' ? 'light_mode' : 'dark_mode';
+    themeIcon.textContent = targetTheme === 'dark' ? 'light_mode' : 'dark_mode';
   }
 }
 
-// Escuchador de cambios en el tema del sistema
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (appState.settings.theme === 'system') {
-    applyTheme('system');
-  }
-});
-
-// Alternar temas secuencialmente: System -> Light -> Dark
+// Alternar temas secuencialmente: Light -> Dark
 function rotateTheme() {
-  const current = appState.settings.theme || 'system';
-  let next = 'system';
-  if (current === 'system') next = 'light';
-  else if (current === 'light') next = 'dark';
+  const current = appState.settings.theme || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
   
   appState.settings.theme = next;
   saveAppState();
@@ -5846,9 +5836,35 @@ function initPolyglotLabCore() {
     });
   }
 
-  // 4. Modal de Exportación TXT/DOC
+  // 4. Modal de Exportación TXT/DOC y Botones de Descarga
   const closeExportBtn = document.getElementById('btn-close-export-txt-doc');
   const cancelExportBtn = document.getElementById('btn-cancel-export-txt-doc');
+  const downloadTxtBtn = document.getElementById('btn-download-txt');
+  const downloadDocBtn = document.getElementById('btn-download-doc');
+  const exportTxtDocToolbarBtn = document.getElementById('btn-export-txt-doc-active-island');
+
+  if (exportTxtDocToolbarBtn) {
+    exportTxtDocToolbarBtn.addEventListener('click', () => {
+      openExportTxtDocModal(appState.islands[currentIslandIndex]);
+    });
+  }
+
+  if (downloadTxtBtn) {
+    downloadTxtBtn.addEventListener('click', () => {
+      exportIslandTxtDoc(exportTargetIsland, 'txt');
+      const modal = document.getElementById('export-txt-doc-modal');
+      if (modal) modal.classList.add('hidden');
+    });
+  }
+
+  if (downloadDocBtn) {
+    downloadDocBtn.addEventListener('click', () => {
+      exportIslandTxtDoc(exportTargetIsland, 'doc');
+      const modal = document.getElementById('export-txt-doc-modal');
+      if (modal) modal.classList.add('hidden');
+    });
+  }
+
   if (closeExportBtn) closeExportBtn.addEventListener('click', () => {
     const modal = document.getElementById('export-txt-doc-modal');
     if (modal) modal.classList.add('hidden');
@@ -5858,13 +5874,15 @@ function initPolyglotLabCore() {
     if (modal) modal.classList.add('hidden');
   });
 
-  // 5. Botón de Acerca de en Topbar
+  // 5. Botón de Acerca de en Topbar & Formulario de Comentarios / Sugerencias
   const aboutTopBtn = document.getElementById('about-top-btn');
   if (aboutTopBtn) {
     aboutTopBtn.addEventListener('click', () => {
       switchMainTab('about');
     });
   }
+
+  setupFeedbackForm();
 
   // 6. Cargar pestaña inicial basada en hash de la URL o por defecto 'learn'
   const initialHash = window.location.hash.replace('#', '');
@@ -5874,6 +5892,78 @@ function initPolyglotLabCore() {
 
   // 7. Actualizar UI inicial del idioma activo
   updateTargetLanguageUI();
+}
+
+function setupFeedbackForm() {
+  const form = document.getElementById('about-feedback-form');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    const nameInput = document.getElementById('fb-name');
+    const emailInput = document.getElementById('fb-email');
+    const messageInput = document.getElementById('fb-message');
+
+    const message = messageInput ? messageInput.value.trim() : '';
+    const name = nameInput ? nameInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+
+    if (!message) {
+      showNotification("Por favor, ingresa tu mensaje antes de enviar.", "warning");
+      return;
+    }
+
+    const originalBtnHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-rounded spin">sync</span> <span>Enviando...</span>';
+    }
+
+    let sentSuccessfully = false;
+
+    try {
+      const formData = new FormData();
+      formData.append('name', name || 'Usuario PolyglotLab');
+      formData.append('email', email || 'no-email@polyglotlab.local');
+      formData.append('message', message);
+      formData.append('_subject', 'PolyglotLab: Comentarios / Sugerencias');
+      formData.append('_captcha', 'false');
+
+      const response = await fetch('https://formsubmit.co/ajax/fandres.camargo@gmail.com', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        sentSuccessfully = true;
+      }
+    } catch (err) {
+      console.warn("Respaldo activado para el envío de sugerencias.", err);
+    }
+
+    if (!appState.feedbackHistory) appState.feedbackHistory = [];
+    appState.feedbackHistory.push({
+      date: new Date().toISOString(),
+      name: name || 'Anónimo',
+      email: email || 'No especificado',
+      message: message,
+      sentViaNetwork: sentSuccessfully
+    });
+    saveAppState();
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnHTML;
+    }
+
+    form.reset();
+
+    showNotification("¡Muchas gracias! Tu mensaje y sugerencia han sido registrados exitosamente.", "success");
+  });
 }
 
 // Escuchar DOMContentLoaded o ejecutar inmediatamente si el documento ya cargó
