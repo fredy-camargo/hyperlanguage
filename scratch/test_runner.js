@@ -66,6 +66,7 @@ try {
   assert(jsContent.includes('function openTopicManagerModal'), 'app.js implementa el gestor de categorías (openTopicManagerModal)');
   assert(jsContent.includes('function createTopic'), 'app.js implementa la creación de categorías personalizadas (createTopic)');
   assert(jsContent.includes('function populateTopicDropdowns'), 'app.js sincroniza dinámicamente los selectores de categorías (populateTopicDropdowns)');
+  assert(jsContent.includes('Validación Anti-Duplicados'), 'app.js cuenta con validación estricta anti-duplicados para el nombre de categorías');
   assert(jsContent.includes("theme: 'light'") || jsContent.includes("appState.settings.theme = 'light'"), 'app.js fuerza el tema claro (Light Theme) siempre por defecto');
   assert(jsContent.includes('frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo'), 'app.js conserva el formato estricto de exportación');
   assert(jsContent.includes('topic-folder-card'), 'app.js renderiza carpetas visuales para agrupación de islas por temas');

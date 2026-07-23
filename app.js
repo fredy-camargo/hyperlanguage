@@ -141,12 +141,7 @@ const DEFAULT_STATE = {
   targetLanguages: ['Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano'],
   activeTargetLanguage: 'Inglés',
   topics: [
-    { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' },
-    { id: 'topic_pres', name: 'Presentación Personal', language: 'all' },
-    { id: 'topic_travel', name: 'Viajes y Turismo', language: 'all' },
-    { id: 'topic_business', name: 'Negocios y Trabajo', language: 'all' },
-    { id: 'topic_social', name: 'Conversaciones Diarias', language: 'all' },
-    { id: 'topic_tech', name: 'Tecnología y Datos', language: 'all' }
+    { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' }
   ]
 };
 
@@ -166,12 +161,7 @@ function sanitizeAppState() {
   }
   if (!appState.topics || appState.topics.length === 0) {
     appState.topics = [
-      { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' },
-      { id: 'topic_pres', name: 'Presentación Personal', language: 'all' },
-      { id: 'topic_travel', name: 'Viajes y Turismo', language: 'all' },
-      { id: 'topic_business', name: 'Negocios y Trabajo', language: 'all' },
-      { id: 'topic_social', name: 'Conversaciones Diarias', language: 'all' },
-      { id: 'topic_tech', name: 'Tecnología y Datos', language: 'all' }
+      { id: 'topic_general', name: 'General / Sin Categoría', language: 'all' }
     ];
   }
 
@@ -1042,6 +1032,7 @@ function renderTopicManagerList() {
     const isDefault = topic.id === 'topic_general';
 
     const row = document.createElement('div');
+    row.dataset.topicId = topic.id;
     row.style.cssText = `
       display: flex;
       align-items: center;
@@ -1050,6 +1041,7 @@ function renderTopicManagerList() {
       border-radius: 12px;
       background: hsl(var(--md-sys-color-surface-container-lowest));
       border: 1px solid hsl(var(--md-sys-color-outline-variant));
+      transition: all 0.2s ease;
     `;
 
     row.innerHTML = `
@@ -1083,29 +1075,67 @@ function renderTopicManagerList() {
 
 function createTopic(name) {
   const cleanName = name ? name.trim() : '';
-  if (!cleanName) return;
+  if (!cleanName) {
+    showNotification("Por favor, ingresa el nombre de la categoría.", "warning");
+    return null;
+  }
 
-  const id = 'topic_custom_' + Date.now();
   if (!appState.topics) appState.topics = [];
 
-  appState.topics.push({ id, name: cleanName, language: 'all' });
+  // Validación Anti-Duplicados (Insensible a mayúsculas/minúsculas)
+  const existing = appState.topics.find(t => t.name.toLowerCase() === cleanName.toLowerCase());
+  if (existing) {
+    showNotification(`Ya existe una categoría llamada "${existing.name}".`, "warning");
+    return existing;
+  }
+
+  const id = 'topic_custom_' + Date.now();
+  const newTopic = { id, name: cleanName, language: 'all' };
+  appState.topics.push(newTopic);
   saveAppState();
+  
   populateTopicDropdowns();
   renderTopicManagerList();
   renderIslandSelectors();
-  showNotification(`Categoría "${cleanName}" creada con éxito`, "success");
+
+  // Seleccionar automáticamente la categoría recién creada en todos los selectores
+  const selects = [
+    document.getElementById('gen-island-topic'),
+    document.getElementById('manual-island-topic'),
+    document.getElementById('import-island-topic')
+  ];
+  selects.forEach(s => { if (s) s.value = id; });
+
+  // Desplazamiento automático en la lista del modal hacia el nuevo elemento
+  const container = document.getElementById('topics-manager-list');
+  if (container) {
+    container.scrollTop = container.scrollHeight;
+  }
+
+  showNotification(`¡Categoría "${cleanName}" creada exitosamente!`, "success");
+  return newTopic;
 }
 
 function renameTopicPrompt(topic) {
   const newName = prompt(`Renombrar categoría "${topic.name}":`, topic.name);
-  if (newName && newName.trim() && newName.trim() !== topic.name) {
-    topic.name = newName.trim();
-    saveAppState();
-    populateTopicDropdowns();
-    renderTopicManagerList();
-    renderIslandSelectors();
-    showNotification("Categoría actualizada con éxito", "success");
+  if (!newName || !newName.trim()) return;
+
+  const cleanName = newName.trim();
+  if (cleanName === topic.name) return;
+
+  // Comprobar duplicados
+  const existing = appState.topics.find(t => t.id !== topic.id && t.name.toLowerCase() === cleanName.toLowerCase());
+  if (existing) {
+    showNotification(`Ya existe otra categoría llamada "${existing.name}".`, "warning");
+    return;
   }
+
+  topic.name = cleanName;
+  saveAppState();
+  populateTopicDropdowns();
+  renderTopicManagerList();
+  renderIslandSelectors();
+  showNotification(`Categoría renombrada a "${cleanName}"`, "success");
 }
 
 async function deleteTopic(topicId) {
@@ -1114,7 +1144,7 @@ async function deleteTopic(topicId) {
 
   const confirmed = await showCustomConfirm(
     `¿Eliminar categoría "${topic.name}"?`,
-    `Las islas de esta categoría se moverán automáticamente a "General / Sin Categoría".`
+    `Las islas pertenecientes a esta categoría se moverán automáticamente a "General / Sin Categoría".`
   );
 
   if (confirmed) {
@@ -1129,7 +1159,7 @@ async function deleteTopic(topicId) {
     populateTopicDropdowns();
     renderTopicManagerList();
     renderIslandSelectors();
-    showNotification(`Categoría eliminada. Islas reasignadas a General.`, "success");
+    showNotification(`Categoría "${topic.name}" eliminada. Islas reasignadas a General.`, "success");
   }
 }
 
