@@ -1567,8 +1567,8 @@
     </div>
   </div>
 
-  <!-- Modal overlay para confirmaciones personalizadas -->
-  <div id="confirm-dialog-screen" class="modal-overlay hidden" style="z-index: 10001;">
+  <!-- Diálogo de Confirmación Global -->
+  <div id="confirm-dialog-screen" class="modal-overlay hidden" style="z-index: 20000;">
     <div class="modal-card" style="max-width: 400px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <h3 id="confirm-dialog-title" style="margin: 0; font-size: 22px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface));">¿Eliminar Isla?</h3>
@@ -1718,30 +1718,7 @@
     </div>
   </div>
 
-  <!-- Modal overlay para Gestión de Temas/Grupos de Islas -->
-  <div id="topic-manage-modal" class="modal-overlay hidden" style="z-index: 10005;">
-    <div class="modal-card" style="max-width: 480px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
-      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span class="material-symbols-rounded text-primary" style="font-size: 28px;">folder</span>
-          <h3 style="margin: 0; font-size: 20px; font-weight: 700;" id="topic-modal-title">Nuevo Tema / Grupo</h3>
-        </div>
-        <button class="icon-btn small-btn" id="btn-close-topic-modal" style="background: none; border: none; cursor: pointer; color: inherit;">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
 
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <label for="topic-name-input" style="font-size: 14px; font-weight: 600;">Nombre del Tema o Categoría</label>
-        <input type="text" id="topic-name-input" placeholder="Ej. Conversaciones Diarias, Viajes y Turismo, Negocios..." style="padding: 12px; border-radius: 12px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface-container-low)); color: inherit; font-size: 14px;">
-      </div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-        <button type="button" id="btn-cancel-topic-modal" class="btn btn-sec" style="padding: 10px 20px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit; cursor: pointer; font-weight: 600;">Cancelar</button>
-        <button type="button" id="btn-save-topic-modal" class="btn btn-primary" style="padding: 10px 24px; border-radius: 100px; border: none; background: hsl(var(--md-sys-color-primary)); color: hsl(var(--md-sys-color-on-primary)); cursor: pointer; font-weight: 600;">Guardar Tema</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Mobile Bottom Navigation Bar (Visible en dispositivos móviles <= 768px) -->
   <nav class="mobile-bottom-bar" style="display: none;">

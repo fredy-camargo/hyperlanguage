@@ -1012,6 +1012,20 @@ function openTopicManagerModal() {
     renderTopicManagerList();
     const input = document.getElementById('new-topic-name-input');
     if (input) input.focus();
+
+    if (!modal.dataset.hasCloseListener) {
+      modal.dataset.hasCloseListener = 'true';
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeTopicManagerModal();
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+          closeTopicManagerModal();
+        }
+      });
+    }
   }
 }
 

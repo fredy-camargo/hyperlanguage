@@ -24,6 +24,17 @@ try {
   const htmlPath = path.join(__dirname, '..', 'index.html');
   const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
+  // Comprobar ausencia absoluta de IDs duplicados
+  const idMatches = htmlContent.match(/id=["']([^"']+)["']/g) || [];
+  const idCounts = {};
+  idMatches.forEach(m => {
+    const id = m.replace(/id=["']/, '').replace(/["']$/, '');
+    idCounts[id] = (idCounts[id] || 0) + 1;
+  });
+  const dupes = Object.keys(idCounts).filter(id => idCounts[id] > 1);
+  assert(dupes.length === 0, `index.html NO contiene IDs duplicados (Duplicados encontrados: ${dupes.join(', ') || 'Ninguno'})`);
+
+  assert(htmlContent.includes('z-index: 20000;'), 'index.html asigna la capa máxima z-index: 20000 al diálogo de confirmaciones (#confirm-dialog-screen)');
   assert(htmlContent.includes('letter-p'), 'index.html contiene el marcado de marca letra por letra (.letter-p)');
   assert(htmlContent.includes('sidebar-target-lang-btn'), 'index.html contiene el botón del selector de idioma objetivo en la barra lateral (#sidebar-target-lang-btn)');
   assert(htmlContent.includes('topbar-target-lang-btn'), 'index.html contiene el botón del selector de idioma objetivo en el topbar móvil/escritorio (#topbar-target-lang-btn)');
@@ -67,12 +78,15 @@ try {
   assert(jsContent.includes('function createTopic'), 'app.js implementa la creación de categorías personalizadas (createTopic)');
   assert(jsContent.includes('function populateTopicDropdowns'), 'app.js sincroniza dinámicamente los selectores de categorías (populateTopicDropdowns)');
   assert(jsContent.includes('Validación Anti-Duplicados'), 'app.js cuenta con validación estricta anti-duplicados para el nombre de categorías');
+  assert(jsContent.includes("e.key === 'Escape'"), 'app.js permite cerrar el modal de categorías mediante la tecla Escape');
   assert(jsContent.includes("theme: 'light'") || jsContent.includes("appState.settings.theme = 'light'"), 'app.js fuerza el tema claro (Light Theme) siempre por defecto');
   assert(jsContent.includes('frase idioma origen | frase idioma objetivo | palabra clave idioma objetivo'), 'app.js conserva el formato estricto de exportación');
   assert(jsContent.includes('topic-folder-card'), 'app.js renderiza carpetas visuales para agrupación de islas por temas');
 
   // Prueba unitaria de robustez anti-XSS para escapeHtml
-  eval(jsContent.slice(jsContent.indexOf('function escapeHtml'), jsContent.indexOf('document.addEventListener')));
+  const fnStart = jsContent.indexOf('function escapeHtml(unsafe)');
+  const fnEnd = jsContent.indexOf('}', fnStart) + 1;
+  eval(jsContent.slice(fnStart, fnEnd));
   assert(typeof escapeHtml === 'function', 'escapeHtml está definido en app.js');
   assert(escapeHtml(null) === '', 'escapeHtml maneja valores nulos de forma segura');
   assert(escapeHtml(undefined) === '', 'escapeHtml maneja valores indefinidos de forma segura');
