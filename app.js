@@ -863,7 +863,7 @@ function renderIslandSelectors() {
             <span style="font-size: 10px; font-weight: 700; color: hsl(var(--md-sys-color-primary));">${progressPercent}%</span>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();">
+          <div class="topic-select-container" style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();" onmousedown="event.stopPropagation();" onpointerdown="event.stopPropagation();">
             <span class="material-symbols-rounded" style="font-size: 14px; color: hsl(var(--md-sys-color-secondary));">folder_move</span>
             <select class="change-island-topic-select" data-island-id="${island.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; cursor: pointer;">
               ${topicOptionsHtml}
@@ -876,6 +876,7 @@ function renderIslandSelectors() {
       const deleteEl = item.querySelector('.btn-delete-island');
       const playEl = item.querySelector('.btn-play-island');
       const topicSelectEl = item.querySelector('.change-island-topic-select');
+      const topicContainerEl = item.querySelector('.topic-select-container');
 
       if (exportEl) {
         exportEl.addEventListener('click', (e) => {
@@ -916,7 +917,17 @@ function renderIslandSelectors() {
         });
       }
 
+      if (topicContainerEl) {
+        ['click', 'mousedown', 'pointerdown', 'touchstart'].forEach(evt => {
+          topicContainerEl.addEventListener(evt, (e) => e.stopPropagation());
+        });
+      }
+
       if (topicSelectEl) {
+        ['click', 'mousedown', 'pointerdown', 'touchstart'].forEach(evt => {
+          topicSelectEl.addEventListener(evt, (e) => e.stopPropagation());
+        });
+
         topicSelectEl.addEventListener('change', (e) => {
           e.stopPropagation();
           const newTopicId = e.target.value;
@@ -936,7 +947,7 @@ function renderIslandSelectors() {
       }
 
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island') || e.target.closest('.btn-export-island') || e.target.closest('.change-island-topic-select')) {
+        if (e.target.closest('.btn-delete-island') || e.target.closest('.btn-play-island') || e.target.closest('.btn-export-island') || e.target.closest('.change-island-topic-select') || e.target.closest('.topic-select-container')) {
           return;
         }
         stopTTS();
@@ -4806,6 +4817,17 @@ function openEditActiveIslandModal() {
   editingIslandTemp = JSON.parse(JSON.stringify(island));
   document.getElementById('edit-island-name-input').value = editingIslandTemp.name;
   
+  const topicSelect = document.getElementById('edit-island-topic-input');
+  if (topicSelect) {
+    const topics = appState.topics || [];
+    let optionsHtml = topics.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    if (!topics.some(t => t.id === 'topic_general')) {
+      optionsHtml += `<option value="topic_general">General / Sin Categoría</option>`;
+    }
+    topicSelect.innerHTML = optionsHtml;
+    topicSelect.value = editingIslandTemp.topicId || 'topic_general';
+  }
+
   document.getElementById('add-sentence-l1').value = '';
   document.getElementById('add-sentence-l2').value = '';
   document.getElementById('add-sentence-word').value = '';
@@ -4884,6 +4906,7 @@ function addNewSentenceToEditing() {
 
 function saveEditIslandChanges() {
   const nameInput = document.getElementById('edit-island-name-input');
+  const topicSelect = document.getElementById('edit-island-topic-input');
   const name = nameInput.value.trim();
   
   if (!name) {
@@ -4905,13 +4928,17 @@ function saveEditIslandChanges() {
   }
   
   editingIslandTemp.name = name;
+  if (topicSelect) {
+    editingIslandTemp.topicId = topicSelect.value;
+  }
   appState.islands[currentIslandIndex] = JSON.parse(JSON.stringify(editingIslandTemp));
   saveAppState();
   
   document.getElementById('edit-island-screen').classList.add('hidden');
+  populateTopicDropdowns();
   renderIslandSelectors();
   loadCurrentSentence();
-  alert("Isla guardada exitosamente con sus cambios.");
+  showNotification("Isla guardada exitosamente con sus cambios y categoría actualizada.", "success");
 }
 
 // ==================================================================
@@ -4932,7 +4959,7 @@ const TUTORIAL_NARRATIONS = {
     'Portugués': 'Este tutorial mostra a aba de Prática. Aqui você pode escrever sua tradução ou pressionar o microfone para praticar sua pronúncia. O sistema avaliará seus erros em vermelho com um sublinhado ondulado e salvará suas estatísticas.',
     'Francés': 'Ce didacticiel montre l\'onglet Pratique. Ici, vous pouvez écrire votre traduction ou appuyer sur le microphone pour pratiquer votre prononciation. Le système évaluera vos erreurs en rouge avec un soulignement ondulé et enregistrera vos statistiques.',
     'Alemán': 'Dieses Tutorial zeigt die Registerkarte "Praxis". Hier können Sie Ihre Übersetzung schreiben oder das Mikrofon drücken, um Ihre Aussprache zu üben. Das System bewertet Ihre Fehler in Rot mit einer gewellten Unterstreichung und speichert Ihre Statistiken.',
-    'Italiano': 'Questo tutorial mostra la scheda Pratica. Qui puoi scrivere la tua traduzione o premere el microfono para ejercitarti con la pronuncia. Il sistema valuterà i tuoi errori in rosso con una sottolineatura ondulata e salverà le tue statistiche.'
+    'Italiano': 'Questo tutorial mostra la scheda Pratica. Qui puoi scrivere la tua traduzione o premere il microfono per esercitarti con la pronuncia. Il sistema valuterà i tuoi errori in rosso con una sottolineatura ondulata e salverà le tue statistiche.'
   },
   create_islands: {
     'Español': 'Este tutorial enseña cómo crear tus islas de aprendizaje usando tres opciones: generar oraciones con Inteligencia Artificial mediante tu clave API, estructurarlas manualmente una a una, o cargar un archivo plano delimitado.',
@@ -4941,8 +4968,18 @@ const TUTORIAL_NARRATIONS = {
     'Francés': 'Ce didacticiel vous apprend à créer vos îles d\'apprentissage à l\'aide de trois options : générer des phrases avec l\'Intelligence Artificielle à l\'aide de votre clé API, les structurer manuellement une par une, ou charger un fichier plat délimité.',
     'Alemán': 'Dieses Tutorial zeigt Ihnen, wie Sie Ihre Lerninseln mit drei Optionen erstellen: Sätze mit künstlicher Intelligenz über Ihren API-Schlüssel generieren, sie nacheinander manuell strukturieren oder eine begrenzte flache Datei laden.',
     'Italiano': 'Questo tutorial ti insegna come creare le tue isole di apprendimento utilizzando tre opzioni: generare frasi con l\'Intelligenza Artificiale utilizzando la tua chiave API, strutturarle manualmente una per una o caricare un file piatto delimitato.'
+  },
+  categories: {
+    'Español': 'En este tutorial aprenderás a organizar tus islas por categorías personalizadas. Puedes cambiar una isla de categoría usando el selector directo en la tarjeta del panel lateral o desde la opción Editar Isla.',
+    'Inglés': 'In this tutorial you will learn how to organize your islands by custom categories. You can change an island\'s category using the direct selector on the sidebar card or from the Edit Island option.',
+    'Portugués': 'Neste tutorial você aprenderá a organizar suas ilhas por categorias personalizadas. Você pode alterar a categoria de uma ilha usando o seletor direto no cartão da barra lateral ou na opção Editar Ilha.',
+    'Francés': 'Dans ce tutoriel, vous apprendrez à organiser vos îles par catégories personnalisées. Vous pouvez modifier la catégorie d\'une île à l\'aide du sélecteur direct sur la carte latérale ou depuis l\'option Modifier l\'île.',
+    'Alemán': 'In diesem Tutorial lernen Sie, wie Sie Ihre Inseln nach benutzerdefinierten Kategorien organisieren. Sie können die Kategorie einer Insel mit dem direkten Selektor auf der Seitenleistenkarte oder über die Option "Insel bearbeiten" ändern.',
+    'Italiano': 'In questo tutorial imparerai a organizzare le tue isole per categorie personalizzate. Puoi modificare la categoria di un\'isola utilizzando il selettore diretto sulla scheda della barra laterale o dall\'opzione Modifica isola.'
   }
 };
+
+let currentNarrationAudio = null;
 
 function initMethodologyPanel() {
   // Configurar escuchadores de cambio de idioma de doblaje para actualizar texto en pantalla
@@ -4959,7 +4996,7 @@ function initMethodologyPanel() {
 
   // Configurar botones de reproducción de doblaje por voz
   document.querySelectorAll('.btn-play-narration').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.preventDefault();
       const targetBtn = e.currentTarget;
       const type = targetBtn.getAttribute('data-tutorial');
@@ -4967,24 +5004,66 @@ function initMethodologyPanel() {
       if (!select) return;
       
       const lang = select.value;
-      const text = TUTORIAL_NARRATIONS[type][lang];
+      const text = TUTORIAL_NARRATIONS[type] ? TUTORIAL_NARRATIONS[type][lang] : null;
       if (!text) return;
       
-      // Detener cualquier síntesis de voz en curso
+      // Detener cualquier audio o síntesis de voz previa
+      if (currentNarrationAudio) {
+        currentNarrationAudio.pause();
+        currentNarrationAudio = null;
+      }
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
       
-      // Cambiar icono a bocina activa temporalmente
       const icon = targetBtn.querySelector('.material-symbols-rounded');
       const textSpan = targetBtn.querySelector('span:not(.material-symbols-rounded)');
-      
       const originalIcon = icon ? icon.textContent : 'volume_up';
       const originalText = textSpan ? textSpan.textContent : 'Reproducir Doblaje';
       
       if (icon) icon.textContent = 'record_voice_over';
       if (textSpan) textSpan.textContent = 'Hablando...';
-      
+
+      const resetBtnState = () => {
+        if (icon) icon.textContent = originalIcon;
+        if (textSpan) textSpan.textContent = originalText;
+      };
+
+      const azureVoiceMap = {
+        'Español': 'es-ES-AlvaroNeural',
+        'Inglés': 'en-US-GuyNeural',
+        'Portugués': 'pt-BR-AntonioNeural',
+        'Francés': 'fr-FR-HenriNeural',
+        'Alemán': 'de-DE-ConradNeural',
+        'Italiano': 'it-IT-DiegoNeural'
+      };
+
+      // Intentar reproducción con Edge TTS (Azure Neuronal) si el servidor local está activo
+      const azureVoice = azureVoiceMap[lang] || 'es-ES-AlvaroNeural';
+      try {
+        const ttsUrl = `/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(azureVoice)}&speed=0.98`;
+        const res = await fetch(ttsUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const audioUrl = URL.createObjectURL(blob);
+          const audio = new Audio(audioUrl);
+          currentNarrationAudio = audio;
+          audio.onended = () => {
+            resetBtnState();
+            URL.revokeObjectURL(audioUrl);
+          };
+          audio.onerror = () => {
+            resetBtnState();
+            URL.revokeObjectURL(audioUrl);
+          };
+          await audio.play();
+          return;
+        }
+      } catch (err) {
+        console.log("Servidor local TTS no disponible, usando síntesis neuronal de navegador...");
+      }
+
+      // Fallback a Web Speech API con filtro de voces sintéticas de alta definición
       const langCodeMap = {
         'Inglés': 'en-US',
         'Portugués': 'pt-BR',
@@ -4997,10 +5076,29 @@ function initMethodologyPanel() {
       
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = langCode;
+      utter.rate = 0.95;
+      utter.pitch = 1.0;
       
-      // Buscar una voz adecuada del navegador para ese idioma
       if (window.speechSynthesis) {
         const voices = window.speechSynthesis.getVoices();
+        // Buscar voz natural u online
+        const matchedVoice = voices.find(v => v.lang.startsWith(langCode) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Online')))
+          || voices.find(v => v.lang.startsWith(langCode));
+        if (matchedVoice) {
+          utter.voice = matchedVoice;
+        }
+      }
+      
+      utter.onend = resetBtnState;
+      utter.onerror = resetBtnState;
+      
+      window.speechSynthesis.speak(utter);
+    });
+  });
+
+  // Configurar escuchadores de control de videos explicativos (Play, Stop, Reiniciar)
+  initVideoControls();
+}tVoices();
         const matchedVoice = voices.find(v => v.lang.startsWith(langCode));
         if (matchedVoice) {
           utter.voice = matchedVoice;
@@ -6137,13 +6235,33 @@ function initPolyglotLabCore() {
 
   setupFeedbackForm();
 
-  // 6. Cargar pestaña inicial basada en hash de la URL o por defecto 'learn'
+  // 6. Configurar cierre con Escape y clic en backdrop para todos los modales
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal && modal.id !== 'onboarding-screen' && modal.id !== 'confirm-dialog-screen') {
+        modal.classList.add('hidden');
+      }
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const visibleModals = Array.from(document.querySelectorAll('.modal-overlay:not(.hidden)'));
+      visibleModals.forEach(modal => {
+        if (modal.id !== 'onboarding-screen' && modal.id !== 'confirm-dialog-screen') {
+          modal.classList.add('hidden');
+        }
+      });
+    }
+  });
+
+  // 7. Cargar pestaña inicial basada en hash de la URL o por defecto 'learn'
   const initialHash = window.location.hash.replace('#', '');
-  const validTabs = ['learn', 'practice', 'generate', 'guide', 'settings', 'about'];
+  const validTabs = ['learn', 'practice', 'generate', 'methodology', 'guide', 'settings', 'about'];
   const startTab = validTabs.includes(initialHash) ? initialHash : 'learn';
   switchMainTab(startTab);
 
-  // 7. Actualizar UI inicial del idioma activo
+  // 8. Actualizar UI inicial del idioma activo
   updateTargetLanguageUI();
 }
 

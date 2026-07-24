@@ -1467,6 +1467,48 @@
                 </p>
               </div>
 
+              <hr style="border: 0; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); margin: 12px 0;">
+
+              <!-- Tutorial 4: Categories & Multilingual Management -->
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: hsl(var(--md-sys-color-on-surface));">4. Gestión de Categorías y Mover Islas</h4>
+                <div class="tutorial-video-container" id="video-container-categories">
+                  <img id="video-img-categories" src="assets/tutorials/create_islands.webp" alt="Categories and Island Management" data-base-src="assets/tutorials/create_islands.webp">
+                  <div class="video-placeholder-overlay hidden" id="video-placeholder-categories">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span>Video Detenido</span>
+                  </div>
+                  <div class="video-controls-overlay">
+                    <button class="btn-video-control btn-play" data-target="categories" title="Reproducir">
+                      <span class="material-symbols-rounded">play_arrow</span>
+                    </button>
+                    <button class="btn-video-control btn-stop" data-target="categories" title="Detener">
+                      <span class="material-symbols-rounded">stop</span>
+                    </button>
+                    <button class="btn-video-control btn-restart" data-target="categories" title="Reiniciar">
+                      <span class="material-symbols-rounded">replay</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="narration-controls">
+                  <button class="btn btn-primary btn-play-narration" data-tutorial="categories" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">volume_up</span>
+                    <span>Reproducir Doblaje</span>
+                  </button>
+                  <select class="narration-lang" data-tutorial="categories" style="padding: 6px; font-size: 12px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: none; color: inherit;">
+                    <option value="Español" selected>Español</option>
+                    <option value="Inglés">Inglés</option>
+                    <option value="Portugués">Portugués</option>
+                    <option value="Francés">Francés</option>
+                    <option value="Alemán">Alemán</option>
+                    <option value="Italiano">Italiano</option>
+                  </select>
+                </div>
+                <p class="narration-text" id="narration-categories-text">
+                  En este tutorial aprenderás a organizar tus islas por categorías personalizadas. Puedes cambiar una isla de categoría usando el selector directo en la tarjeta del panel lateral o desde la opción Editar Isla.
+                </p>
+              </div>
+
             </div>
           </div>
         </section>
@@ -1515,9 +1557,17 @@
       </div>
       
       <div class="form-container" style="display: flex; flex-direction: column; gap: 16px; flex-grow: 1; overflow-y: auto; padding-right: 8px;">
-        <div class="form-group">
-          <label for="edit-island-name-input" style="font-weight: 600; margin-bottom: 6px; display: block;">Nombre de la Isla</label>
-          <input type="text" id="edit-island-name-input" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: inherit; color: inherit;">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label for="edit-island-name-input" style="font-weight: 600; margin-bottom: 6px; display: block;">Nombre de la Isla</label>
+            <input type="text" id="edit-island-name-input" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: inherit; color: inherit;">
+          </div>
+          <div class="form-group">
+            <label for="edit-island-topic-input" style="font-weight: 600; margin-bottom: 6px; display: block;">Categoría / Tema de Estudio</label>
+            <select id="edit-island-topic-input" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; font-size: 14px; cursor: pointer;">
+              <!-- Opciones dinámicas -->
+            </select>
+          </div>
         </div>
         
         <div class="sentences-editor-section" style="display: flex; flex-direction: column; gap: 8px; flex-grow: 1;">
@@ -1734,7 +1784,7 @@
       <span class="material-symbols-rounded">psychology</span>
       <span class="nav-label">Generar</span>
     </a>
-    <a href="#guide" class="nav-link" data-tab="guide">
+    <a href="#methodology" class="nav-link" data-tab="methodology">
       <span class="material-symbols-rounded">menu_book</span>
       <span class="nav-label">Método</span>
     </a>
