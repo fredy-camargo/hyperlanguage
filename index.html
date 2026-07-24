@@ -99,6 +99,12 @@
           <img src="assets/logo_Polyglootlab.png" alt="PolyglotLab Logo" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
         <span class="logo-text app-brand-name" style="font-size: 20px;"><span class="brand-letter letter-p">P</span><span class="brand-letter letter-o1">o</span><span class="brand-letter letter-l1">l</span><span class="brand-letter letter-y">y</span><span class="brand-letter letter-g">g</span><span class="brand-letter letter-l2">l</span><span class="brand-letter letter-o2">o</span><span class="brand-letter letter-t">t</span><span class="brand-lab">Lab</span></span>
+        
+        <!-- Botón del Código QR Interactivo de la App -->
+        <button type="button" id="btn-open-qr-modal" class="sidebar-qr-btn" title="Escanear o compartir enlace de PolyglotLab" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 100px; border: 1px solid hsl(var(--md-sys-color-primary-container)); background: hsl(var(--md-sys-color-surface-container-high)); color: hsl(var(--md-sys-color-primary)); cursor: pointer; transition: all 0.2s ease; margin-top: 4px; outline: none;">
+          <span class="material-symbols-rounded" style="font-size: 16px;">qr_code_2</span>
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px;">Compartir QR 📱</span>
+        </button>
       </div>
       
       <nav class="nav-links">
@@ -522,9 +528,48 @@
                   </button>
                 </div>
               </div>
+            </div>
+            
+            <div class="panel-sidebar">
+              <!-- Performance Metrics Card -->
+              <div class="card sidebar-card">
+                <h3>Métricas de Sesión</h3>
+                <div class="metrics-grid">
+                  <div class="metric-box" title="Sesiones completadas">
+                    <span class="metric-num" id="metric-sessions">0</span>
+                    <span class="metric-lbl">Sesiones</span>
+                  </div>
+                  <div class="metric-box" title="Precisión promedio en traducción escrita">
+                    <span class="metric-num" id="metric-accuracy">0%</span>
+                    <span class="metric-lbl">Precisión</span>
+                  </div>
+                  <div class="metric-box" title="Racha actual de aciertos consecutivos (85% o más)">
+                    <span class="metric-num" id="metric-streak">0 🔥</span>
+                    <span class="metric-lbl">Racha</span>
+                  </div>
+                  <div class="metric-box" title="Precisión promedio en pronunciación oral">
+                    <span class="metric-num" id="metric-pron-accuracy">0%</span>
+                    <span class="metric-lbl">Precisión Voz</span>
+                  </div>
+                  <div class="metric-box" title="Total de intentos validados">
+                    <span class="metric-num" id="metric-attempts">0</span>
+                    <span class="metric-lbl">Intentos</span>
+                  </div>
+                  <div class="metric-box" title="Total de palabras correctas practicadas">
+                    <span class="metric-num" id="metric-words">0</span>
+                    <span class="metric-lbl">Palabras</span>
+                  </div>
+                </div>
+                <div class="progress-bar-container">
+                  <span class="small text-secondary">Meta de Maestría Diario</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+                  </div>
+                </div>
+              </div>
 
-              <!-- Métricas Avanzadas y Jardín de Memoria (Práctica) -->
-              <div id="sr-analytics-section" style="margin: 20px 0; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-top: 16px; width: 100%;">
+              <!-- Métricas Avanzadas y Jardín de Memoria (Práctica) - Reubicado a la derecha en PC -->
+              <div id="sr-analytics-section" style="margin: 0; display: flex; flex-direction: column; gap: 16px; width: 100%;">
                 
                 <!-- Tarjetas de Métricas -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -554,7 +599,7 @@
                 </div>
 
                 <!-- Tarjeta de Detalle / Tooltip de Frase (Jardín de Memoria) -->
-                <div class="card garden-details-card-wrapper" id="garden-details-card" style="margin: 4px 0 12px 0; padding: 16px; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-low)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); width: 100%; box-sizing: border-box;">
+                <div class="card garden-details-card-wrapper" id="garden-details-card" style="margin: 4px 0 4px 0; padding: 16px; border-radius: 16px; background: hsl(var(--md-sys-color-surface-container-low)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); width: 100%; box-sizing: border-box;">
                   <h4 id="lbl-garden-details-title" style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 700;">
                     <span class="material-symbols-rounded text-primary" style="font-size: 20px;">info</span>
                     <span>Detalle de Frase (Jardín)</span>
@@ -598,45 +643,6 @@
                   </div>
                 </div>
 
-              </div>
-            </div>
-            
-            <div class="panel-sidebar">
-              <!-- Performance Metrics Card -->
-              <div class="card sidebar-card">
-                <h3>Métricas de Sesión</h3>
-                <div class="metrics-grid">
-                  <div class="metric-box" title="Sesiones completadas">
-                    <span class="metric-num" id="metric-sessions">0</span>
-                    <span class="metric-lbl">Sesiones</span>
-                  </div>
-                  <div class="metric-box" title="Precisión promedio en traducción escrita">
-                    <span class="metric-num" id="metric-accuracy">0%</span>
-                    <span class="metric-lbl">Precisión</span>
-                  </div>
-                  <div class="metric-box" title="Racha actual de aciertos consecutivos (85% o más)">
-                    <span class="metric-num" id="metric-streak">0 🔥</span>
-                    <span class="metric-lbl">Racha</span>
-                  </div>
-                  <div class="metric-box" title="Precisión promedio en pronunciación oral">
-                    <span class="metric-num" id="metric-pron-accuracy">0%</span>
-                    <span class="metric-lbl">Precisión Voz</span>
-                  </div>
-                  <div class="metric-box" title="Total de intentos validados">
-                    <span class="metric-num" id="metric-attempts">0</span>
-                    <span class="metric-lbl">Intentos</span>
-                  </div>
-                  <div class="metric-box" title="Total de palabras correctas practicadas">
-                    <span class="metric-num" id="metric-words">0</span>
-                    <span class="metric-lbl">Palabras</span>
-                  </div>
-                </div>
-                <div class="progress-bar-container">
-                  <span class="small text-secondary">Meta de Maestría Diario</span>
-                  <div class="progress-bar">
-                    <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1839,6 +1845,37 @@
         <div id="topics-manager-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding-right: 4px;">
           <!-- Dynamic topic rows rendered by JS -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Código QR Ampliado -->
+  <div class="modal-overlay hidden" id="qr-code-modal" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 360px; text-align: center; position: relative; padding: 24px; border-radius: 24px;">
+      <!-- Botón de Cierre X -->
+      <button type="button" class="btn-icon modal-close-btn" id="btn-close-qr-modal" title="Cerrar ventana QR" style="position: absolute; top: 16px; right: 16px; border: none; background: hsl(var(--md-sys-color-surface-variant)); color: hsl(var(--md-sys-color-on-surface-variant)); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+        <span class="material-symbols-rounded" style="font-size: 20px;">close</span>
+      </button>
+      
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; margin-top: 8px;">
+        <span class="material-symbols-rounded text-primary" style="font-size: 32px;">qr_code_2</span>
+        <h3 style="margin: 0; font-size: 19px; font-weight: 700; color: hsl(var(--md-sys-color-on-surface));">Acceso Directo App</h3>
+      </div>
+      
+      <p class="small text-secondary" style="margin-bottom: 16px; font-size: 12px; line-height: 1.5;">Escanea este código QR con la cámara de tu celular para abrir <strong>PolyglotLab</strong> al instante:</p>
+      
+      <div style="background: white; padding: 16px; border-radius: 20px; border: 2px dashed hsl(var(--md-sys-color-outline-variant)); display: inline-block; margin-bottom: 16px; box-shadow: var(--shadow-md);">
+        <svg id="large-qr-code-svg" width="210" height="210" viewBox="0 0 33 33" shape-rendering="crispEdges" style="display: block;">
+          <!-- Inline SVG QR Code Generated by script -->
+        </svg>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+        <button type="button" class="btn btn-primary btn-full" id="btn-copy-app-link" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 100px; font-weight: 700; font-size: 13px;">
+          <span class="material-symbols-rounded" style="font-size: 18px;">content_copy</span>
+          <span id="copy-link-btn-text">Copiar Link de la App</span>
+        </button>
+        <span class="small text-secondary" style="font-size: 11px; opacity: 0.8;">https://polyglotlab-xi.vercel.app/</span>
       </div>
     </div>
   </div>

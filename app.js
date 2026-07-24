@@ -304,7 +304,7 @@ function setActiveTargetLanguage(lang) {
   
   if (typeof renderKaraokeLoop === 'function') renderKaraokeLoop();
   if (typeof updateIslandsList === 'function') updateIslandsList();
-  if (typeof renderPracticeSentence === 'function') renderPracticeSentence();
+  if (typeof initPracticePanel === 'function') initPracticePanel();
   
   showNotification(`PolyglotLab: Idioma activo cambiado a ${getLangFlag(lang)} ${lang}`, "success");
 }
@@ -2114,74 +2114,95 @@ function updateSRUI() {
       const sr = isSpeech ? refSentence.speech_sr : refSentence.writing_sr;
       sumStability += sr.stability || 1.0;
     });
-    const avgStability = sumStability / practiceSentences.length;
+    const avgStability = (practiceSentences.length > 0) ? (sumStability / practiceSentences.length) : 1.0;
     
-    const lineY90 = 10 + (1.0 - 0.90) * 80;
-    const refLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    refLine.setAttribute("x1", "0");
-    refLine.setAttribute("y1", lineY90.toString());
-    refLine.setAttribute("x2", "400");
-    refLine.setAttribute("y2", lineY90.toString());
-    refLine.setAttribute("stroke", "rgba(255, 0, 0, 0.25)");
-    refLine.setAttribute("stroke-dasharray", "4,4");
-    svg.appendChild(refLine);
-    
-    const refText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    refText.setAttribute("x", "5");
-    refText.setAttribute("y", (lineY90 - 4).toString());
-    refText.setAttribute("fill", "hsl(var(--md-sys-color-error))");
-    refText.setAttribute("font-size", "9px");
-    refText.setAttribute("font-weight", "600");
-    refText.textContent = "Umbral de repaso (90%)";
-    svg.appendChild(refText);
-    
-    let pathD = "";
+    // Defs para gradiente y sombra
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <linearGradient id="ebbinghaus-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="hsl(var(--md-sys-color-primary))" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="hsl(var(--md-sys-color-primary))" stop-opacity="0.02"/>
+      </linearGradient>
+    `;
+    svg.appendChild(defs);
+
+    // Líneas de grilla horizontales
+    [0.90, 0.50].forEach(level => {
+      const y = 10 + (1.0 - level) * 75;
+      const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      gridLine.setAttribute("x1", "0");
+      gridLine.setAttribute("y1", y.toString());
+      gridLine.setAttribute("x2", "400");
+      gridLine.setAttribute("y2", y.toString());
+      gridLine.setAttribute("stroke", level === 0.90 ? "hsl(var(--md-sys-color-accent))" : "hsl(var(--md-sys-color-outline-variant))");
+      gridLine.setAttribute("stroke-dasharray", "3,3");
+      gridLine.setAttribute("stroke-opacity", "0.6");
+      svg.appendChild(gridLine);
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", "6");
+      label.setAttribute("y", (y - 3).toString());
+      label.setAttribute("fill", level === 0.90 ? "hsl(var(--md-sys-color-accent))" : "hsl(var(--md-sys-color-on-surface-variant))");
+      label.setAttribute("font-size", "9px");
+      label.setAttribute("font-weight", "700");
+      label.textContent = level === 0.90 ? "Umbral Óptimo (90%)" : "Retención 50%";
+      svg.appendChild(label);
+    });
+
     const steps = 30;
+    let pathPoints = [];
+    let areaPoints = [];
+
     for (let d = 0; d <= steps; d++) {
       const x = (d / steps) * 400;
       const R = Math.pow(1 + d / (9 * avgStability), -0.5);
-      const y = 10 + (1.0 - R) * 80;
-      
-      if (d === 0) {
-        pathD += `M ${x} ${y}`;
-      } else {
-        pathD += ` L ${x} ${y}`;
-      }
+      const y = 10 + (1.0 - R) * 75;
+      pathPoints.push(`${d === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+      if (d === 0) areaPoints.push(`M ${x.toFixed(1)} 90 L ${x.toFixed(1)} ${y.toFixed(1)}`);
+      else areaPoints.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
     }
-    
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", pathD);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "hsl(var(--md-sys-color-primary))");
-    path.setAttribute("stroke-width", "2.5");
-    svg.appendChild(path);
-    
-    const daysLabels = [
-      { day: 0, text: "Hoy" },
-      { day: 10, text: "10d" },
-      { day: 20, text: "20d" },
-      { day: 30, text: "30d" }
-    ];
-    
-    daysLabels.forEach(l => {
-      const x = (l.day / steps) * 400;
-      
-      const gridLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      gridLine.setAttribute("x1", x.toString());
-      gridLine.setAttribute("y1", "10");
-      gridLine.setAttribute("x2", x.toString());
-      gridLine.setAttribute("y2", "90");
-      gridLine.setAttribute("stroke", "rgba(0, 0, 0, 0.05)");
-      svg.appendChild(gridLine);
-      
-      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.setAttribute("x", x.toString());
-      label.setAttribute("y", "98");
-      label.setAttribute("text-anchor", "middle");
-      label.setAttribute("fill", "hsl(var(--md-sys-color-on-surface-variant))");
-      label.setAttribute("font-size", "9px");
-      label.textContent = l.text;
-      svg.appendChild(label);
+    areaPoints.push(`L 400 90 Z`);
+
+    // Área sombreada con gradiente
+    const areaPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    areaPath.setAttribute("d", areaPoints.join(" "));
+    areaPath.setAttribute("fill", "url(#ebbinghaus-gradient)");
+    svg.appendChild(areaPath);
+
+    // Trazo de la curva principal
+    const mainPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    mainPath.setAttribute("d", pathPoints.join(" "));
+    mainPath.setAttribute("fill", "none");
+    mainPath.setAttribute("stroke", "hsl(var(--md-sys-color-primary))");
+    mainPath.setAttribute("stroke-width", "3");
+    mainPath.setAttribute("stroke-linecap", "round");
+    svg.appendChild(mainPath);
+
+    // Marcadores de tiempo (Puntos interactivos)
+    const keyDays = [0, 1, 7, 14, 30];
+    keyDays.forEach(day => {
+      const x = (day / steps) * 400;
+      const R = Math.pow(1 + day / (9 * avgStability), -0.5);
+      const y = 10 + (1.0 - R) * 75;
+
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", x.toFixed(1));
+      circle.setAttribute("cy", y.toFixed(1));
+      circle.setAttribute("r", day === 0 ? "5" : "3.5");
+      circle.setAttribute("fill", day === 0 ? "hsl(var(--md-sys-color-primary))" : "hsl(var(--md-sys-color-surface))");
+      circle.setAttribute("stroke", "hsl(var(--md-sys-color-primary))");
+      circle.setAttribute("stroke-width", "2");
+      svg.appendChild(circle);
+
+      const dayText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      dayText.setAttribute("x", x.toFixed(1));
+      dayText.setAttribute("y", "98");
+      dayText.setAttribute("text-anchor", day === 0 ? "start" : (day === 30 ? "end" : "middle"));
+      dayText.setAttribute("fill", "hsl(var(--md-sys-color-on-surface-variant))");
+      dayText.setAttribute("font-size", "9px");
+      dayText.setAttribute("font-weight", "600");
+      dayText.textContent = day === 0 ? "Hoy" : `${day}d`;
+      svg.appendChild(dayText);
     });
   }
 }
@@ -2245,16 +2266,22 @@ function populateRecallIslandSelect() {
   const select = document.getElementById('recall-island-select');
   if (!select) return;
   const currentSelection = select.value || 'fsrs';
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
+  
   select.innerHTML = `
     <option value="fsrs">🧠 Repaso Inteligente (FSRS)</option>
-    <option value="all">Todas las Islas</option>
+    <option value="all">Todas las Islas (${activeLang})</option>
   `;
+  
   appState.islands.forEach(island => {
-    const opt = document.createElement('option');
-    opt.value = island.id || `island_${Math.random()}`;
-    opt.textContent = island.name;
-    select.appendChild(opt);
+    if (island.language === activeLang) {
+      const opt = document.createElement('option');
+      opt.value = island.id || `island_${Math.random()}`;
+      opt.textContent = island.name;
+      select.appendChild(opt);
+    }
   });
+  
   const optionExists = Array.from(select.options).some(opt => opt.value === currentSelection);
   select.value = optionExists ? currentSelection : 'fsrs';
 }
@@ -2262,10 +2289,11 @@ function populateRecallIslandSelect() {
 function buildPracticeQueue() {
   const select = document.getElementById('recall-island-select');
   const filterVal = select ? select.value : 'fsrs';
+  const activeLang = appState.activeTargetLanguage || 'Inglés';
   practiceSentences = [];
   
   appState.islands.forEach(island => {
-    if (filterVal === 'fsrs' || filterVal === 'all' || island.id === filterVal) {
+    if (island.language === activeLang && (filterVal === 'fsrs' || filterVal === 'all' || island.id === filterVal)) {
       island.sentences.forEach(s => {
         sanitizeSentenceSRMetadata(s);
         practiceSentences.push({
@@ -6303,8 +6331,53 @@ function initPolyglotLabCore() {
   const startTab = validTabs.includes(initialHash) ? initialHash : 'learn';
   switchMainTab(startTab);
 
-  // 8. Actualizar UI inicial del idioma activo
+  // 8. Actualizar UI inicial del idioma activo y modal QR
   updateTargetLanguageUI();
+  initQRModalControls();
+}
+
+function initQRModalControls() {
+  const openBtn = document.getElementById('btn-open-qr-modal');
+  const closeBtn = document.getElementById('btn-close-qr-modal');
+  const modal = document.getElementById('qr-code-modal');
+  const copyBtn = document.getElementById('btn-copy-app-link');
+  const largeSvg = document.getElementById('large-qr-code-svg');
+
+  if (largeSvg && largeSvg.children.length <= 1) {
+    largeSvg.innerHTML = `<rect x="2" y="2" width="1" height="1" fill="currentColor"/><rect x="3" y="2" width="1" height="1" fill="currentColor"/><rect x="4" y="2" width="1" height="1" fill="currentColor"/><rect x="5" y="2" width="1" height="1" fill="currentColor"/><rect x="6" y="2" width="1" height="1" fill="currentColor"/><rect x="7" y="2" width="1" height="1" fill="currentColor"/><rect x="8" y="2" width="1" height="1" fill="currentColor"/><rect x="12" y="2" width="1" height="1" fill="currentColor"/><rect x="14" y="2" width="1" height="1" fill="currentColor"/><rect x="17" y="2" width="1" height="1" fill="currentColor"/><rect x="18" y="2" width="1" height="1" fill="currentColor"/><rect x="20" y="2" width="1" height="1" fill="currentColor"/><rect x="22" y="2" width="1" height="1" fill="currentColor"/><rect x="24" y="2" width="1" height="1" fill="currentColor"/><rect x="25" y="2" width="1" height="1" fill="currentColor"/><rect x="26" y="2" width="1" height="1" fill="currentColor"/><rect x="27" y="2" width="1" height="1" fill="currentColor"/><rect x="28" y="2" width="1" height="1" fill="currentColor"/><rect x="29" y="2" width="1" height="1" fill="currentColor"/><rect x="30" y="2" width="1" height="1" fill="currentColor"/><rect x="2" y="3" width="1" height="1" fill="currentColor"/><rect x="8" y="3" width="1" height="1" fill="currentColor"/><rect x="10" y="3" width="1" height="1" fill="currentColor"/><rect x="11" y="3" width="1" height="1" fill="currentColor"/><rect x="13" y="3" width="1" height="1" fill="currentColor"/><rect x="15" y="3" width="1" height="1" fill="currentColor"/><rect x="16" y="3" width="1" height="1" fill="currentColor"/><rect x="18" y="3" width="1" height="1" fill="currentColor"/><rect x="19" y="3" width="1" height="1" fill="currentColor"/><rect x="22" y="3" width="1" height="1" fill="currentColor"/><rect x="24" y="3" width="1" height="1" fill="currentColor"/><rect x="30" y="3" width="1" height="1" fill="currentColor"/><rect x="2" y="4" width="1" height="1" fill="currentColor"/><rect x="4" y="4" width="1" height="1" fill="currentColor"/><rect x="5" y="4" width="1" height="1" fill="currentColor"/><rect x="6" y="4" width="1" height="1" fill="currentColor"/><rect x="8" y="4" width="1" height="1" fill="currentColor"/><rect x="10" y="4" width="1" height="1" fill="currentColor"/><rect x="12" y="4" width="1" height="1" fill="currentColor"/><rect x="14" y="4" width="1" height="1" fill="currentColor"/><rect x="15" y="4" width="1" height="1" fill="currentColor"/><rect x="17" y="4" width="1" height="1" fill="currentColor"/><rect x="20" y="4" width="1" height="1" fill="currentColor"/><rect x="24" y="4" width="1" height="1" fill="currentColor"/><rect x="26" y="4" width="1" height="1" fill="currentColor"/><rect x="27" y="4" width="1" height="1" fill="currentColor"/><rect x="28" y="4" width="1" height="1" fill="currentColor"/><rect x="30" y="4" width="1" height="1" fill="currentColor"/><rect x="2" y="5" width="1" height="1" fill="currentColor"/><rect x="4" y="5" width="1" height="1" fill="currentColor"/><rect x="5" y="5" width="1" height="1" fill="currentColor"/><rect x="6" y="5" width="1" height="1" fill="currentColor"/><rect x="8" y="5" width="1" height="1" fill="currentColor"/><rect x="10" y="5" width="1" height="1" fill="currentColor"/><rect x="11" y="5" width="1" height="1" fill="currentColor"/><rect x="12" y="5" width="1" height="1" fill="currentColor"/><rect x="13" y="5" width="1" height="1" fill="currentColor"/><rect x="14" y="5" width="1" height="1" fill="currentColor"/><rect x="18" y="5" width="1" height="1" fill="currentColor"/><rect x="19" y="5" width="1" height="1" fill="currentColor"/><rect x="21" y="5" width="1" height="1" fill="currentColor"/><rect x="22" y="5" width="1" height="1" fill="currentColor"/><rect x="24" y="5" width="1" height="1" fill="currentColor"/><rect x="26" y="5" width="1" height="1" fill="currentColor"/><rect x="27" y="5" width="1" height="1" fill="currentColor"/><rect x="28" y="5" width="1" height="1" fill="currentColor"/><rect x="30" y="5" width="1" height="1" fill="currentColor"/><rect x="2" y="6" width="1" height="1" fill="currentColor"/><rect x="4" y="6" width="1" height="1" fill="currentColor"/><rect x="5" y="6" width="1" height="1" fill="currentColor"/><rect x="6" y="6" width="1" height="1" fill="currentColor"/><rect x="8" y="6" width="1" height="1" fill="currentColor"/><rect x="11" y="6" width="1" height="1" fill="currentColor"/><rect x="17" y="6" width="1" height="1" fill="currentColor"/><rect x="18" y="6" width="1" height="1" fill="currentColor"/><rect x="21" y="6" width="1" height="1" fill="currentColor"/><rect x="22" y="6" width="1" height="1" fill="currentColor"/><rect x="24" y="6" width="1" height="1" fill="currentColor"/><rect x="26" y="6" width="1" height="1" fill="currentColor"/><rect x="27" y="6" width="1" height="1" fill="currentColor"/><rect x="28" y="6" width="1" height="1" fill="currentColor"/><rect x="30" y="6" width="1" height="1" fill="currentColor"/><rect x="2" y="7" width="1" height="1" fill="currentColor"/><rect x="8" y="7" width="1" height="1" fill="currentColor"/><rect x="12" y="7" width="1" height="1" fill="currentColor"/><rect x="13" y="7" width="1" height="1" fill="currentColor"/><rect x="14" y="7" width="1" height="1" fill="currentColor"/><rect x="17" y="7" width="1" height="1" fill="currentColor"/><rect x="19" y="7" width="1" height="1" fill="currentColor"/><rect x="24" y="7" width="1" height="1" fill="currentColor"/><rect x="30" y="7" width="1" height="1" fill="currentColor"/><rect x="2" y="8" width="1" height="1" fill="currentColor"/><rect x="3" y="8" width="1" height="1" fill="currentColor"/><rect x="4" y="8" width="1" height="1" fill="currentColor"/><rect x="5" y="8" width="1" height="1" fill="currentColor"/><rect x="6" y="8" width="1" height="1" fill="currentColor"/><rect x="7" y="8" width="1" height="1" fill="currentColor"/><rect x="8" y="8" width="1" height="1" fill="currentColor"/><rect x="10" y="8" width="1" height="1" fill="currentColor"/><rect x="12" y="8" width="1" height="1" fill="currentColor"/><rect x="14" y="8" width="1" height="1" fill="currentColor"/><rect x="16" y="8" width="1" height="1" fill="currentColor"/><rect x="18" y="8" width="1" height="1" fill="currentColor"/><rect x="20" y="8" width="1" height="1" fill="currentColor"/><rect x="22" y="8" width="1" height="1" fill="currentColor"/><rect x="24" y="8" width="1" height="1" fill="currentColor"/><rect x="25" y="8" width="1" height="1" fill="currentColor"/><rect x="26" y="8" width="1" height="1" fill="currentColor"/><rect x="27" y="8" width="1" height="1" fill="currentColor"/><rect x="28" y="8" width="1" height="1" fill="currentColor"/><rect x="29" y="8" width="1" height="1" fill="currentColor"/><rect x="30" y="8" width="1" height="1" fill="currentColor"/><rect x="10" y="9" width="1" height="1" fill="currentColor"/><rect x="12" y="9" width="1" height="1" fill="currentColor"/><rect x="14" y="9" width="1" height="1" fill="currentColor"/><rect x="16" y="9" width="1" height="1" fill="currentColor"/><rect x="17" y="9" width="1" height="1" fill="currentColor"/><rect x="18" y="9" width="1" height="1" fill="currentColor"/><rect x="20" y="9" width="1" height="1" fill="currentColor"/><rect x="2" y="10" width="1" height="1" fill="currentColor"/><rect x="8" y="10" width="1" height="1" fill="currentColor"/><rect x="10" y="10" width="1" height="1" fill="currentColor"/><rect x="11" y="10" width="1" height="1" fill="currentColor"/><rect x="19" y="10" width="1" height="1" fill="currentColor"/><rect x="21" y="10" width="1" height="1" fill="currentColor"/><rect x="22" y="10" width="1" height="1" fill="currentColor"/><rect x="23" y="10" width="1" height="1" fill="currentColor"/><rect x="24" y="10" width="1" height="1" fill="currentColor"/><rect x="27" y="10" width="1" height="1" fill="currentColor"/><rect x="28" y="10" width="1" height="1" fill="currentColor"/><rect x="29" y="10" width="1" height="1" fill="currentColor"/><rect x="2" y="11" width="1" height="1" fill="currentColor"/><rect x="4" y="11" width="1" height="1" fill="currentColor"/><rect x="7" y="11" width="1" height="1" fill="currentColor"/><rect x="9" y="11" width="1" height="1" fill="currentColor"/><rect x="14" y="11" width="1" height="1" fill="currentColor"/><rect x="15" y="11" width="1" height="1" fill="currentColor"/><rect x="18" y="11" width="1" height="1" fill="currentColor"/><rect x="20" y="11" width="1" height="1" fill="currentColor"/><rect x="21" y="11" width="1" height="1" fill="currentColor"/><rect x="25" y="11" width="1" height="1" fill="currentColor"/><rect x="26" y="11" width="1" height="1" fill="currentColor"/><rect x="28" y="11" width="1" height="1" fill="currentColor"/><rect x="29" y="11" width="1" height="1" fill="currentColor"/><rect x="2" y="12" width="1" height="1" fill="currentColor"/><rect x="5" y="12" width="1" height="1" fill="currentColor"/><rect x="6" y="12" width="1" height="1" fill="currentColor"/><rect x="8" y="12" width="1" height="1" fill="currentColor"/><rect x="9" y="12" width="1" height="1" fill="currentColor"/><rect x="11" y="12" width="1" height="1" fill="currentColor"/><rect x="14" y="12" width="1" height="1" fill="currentColor"/><rect x="15" y="12" width="1" height="1" fill="currentColor"/><rect x="16" y="12" width="1" height="1" fill="currentColor"/><rect x="17" y="12" width="1" height="1" fill="currentColor"/><rect x="18" y="12" width="1" height="1" fill="currentColor"/><rect x="22" y="12" width="1" height="1" fill="currentColor"/><rect x="25" y="12" width="1" height="1" fill="currentColor"/><rect x="26" y="12" width="1" height="1" fill="currentColor"/><rect x="4" y="13" width="1" height="1" fill="currentColor"/><rect x="5" y="13" width="1" height="1" fill="currentColor"/><rect x="7" y="13" width="1" height="1" fill="currentColor"/><rect x="10" y="13" width="1" height="1" fill="currentColor"/><rect x="12" y="13" width="1" height="1" fill="currentColor"/><rect x="13" y="13" width="1" height="1" fill="currentColor"/><rect x="14" y="13" width="1" height="1" fill="currentColor"/><rect x="15" y="13" width="1" height="1" fill="currentColor"/><rect x="17" y="13" width="1" height="1" fill="currentColor"/><rect x="18" y="13" width="1" height="1" fill="currentColor"/><rect x="22" y="13" width="1" height="1" fill="currentColor"/><rect x="23" y="13" width="1" height="1" fill="currentColor"/><rect x="24" y="13" width="1" height="1" fill="currentColor"/><rect x="27" y="13" width="1" height="1" fill="currentColor"/><rect x="2" y="14" width="1" height="1" fill="currentColor"/><rect x="5" y="14" width="1" height="1" fill="currentColor"/><rect x="8" y="14" width="1" height="1" fill="currentColor"/><rect x="10" y="14" width="1" height="1" fill="currentColor"/><rect x="15" y="14" width="1" height="1" fill="currentColor"/><rect x="18" y="14" width="1" height="1" fill="currentColor"/><rect x="22" y="14" width="1" height="1" fill="currentColor"/><rect x="24" y="14" width="1" height="1" fill="currentColor"/><rect x="30" y="14" width="1" height="1" fill="currentColor"/><rect x="2" y="15" width="1" height="1" fill="currentColor"/><rect x="5" y="15" width="1" height="1" fill="currentColor"/><rect x="6" y="15" width="1" height="1" fill="currentColor"/><rect x="7" y="15" width="1" height="1" fill="currentColor"/><rect x="11" y="15" width="1" height="1" fill="currentColor"/><rect x="12" y="15" width="1" height="1" fill="currentColor"/><rect x="14" y="15" width="1" height="1" fill="currentColor"/><rect x="17" y="15" width="1" height="1" fill="currentColor"/><rect x="21" y="15" width="1" height="1" fill="currentColor"/><rect x="24" y="15" width="1" height="1" fill="currentColor"/><rect x="25" y="15" width="1" height="1" fill="currentColor"/><rect x="26" y="15" width="1" height="1" fill="currentColor"/><rect x="29" y="15" width="1" height="1" fill="currentColor"/><rect x="30" y="15" width="1" height="1" fill="currentColor"/><rect x="4" y="16" width="1" height="1" fill="currentColor"/><rect x="8" y="16" width="1" height="1" fill="currentColor"/><rect x="13" y="16" width="1" height="1" fill="currentColor"/><rect x="17" y="16" width="1" height="1" fill="currentColor"/><rect x="19" y="16" width="1" height="1" fill="currentColor"/><rect x="20" y="16" width="1" height="1" fill="currentColor"/><rect x="24" y="16" width="1" height="1" fill="currentColor"/><rect x="26" y="16" width="1" height="1" fill="currentColor"/><rect x="27" y="16" width="1" height="1" fill="currentColor"/><rect x="28" y="16" width="1" height="1" fill="currentColor"/><rect x="3" y="17" width="1" height="1" fill="currentColor"/><rect x="5" y="17" width="1" height="1" fill="currentColor"/><rect x="7" y="17" width="1" height="1" fill="currentColor"/><rect x="11" y="17" width="1" height="1" fill="currentColor"/><rect x="14" y="17" width="1" height="1" fill="currentColor"/><rect x="18" y="17" width="1" height="1" fill="currentColor"/><rect x="20" y="17" width="1" height="1" fill="currentColor"/><rect x="21" y="17" width="1" height="1" fill="currentColor"/><rect x="22" y="17" width="1" height="1" fill="currentColor"/><rect x="24" y="17" width="1" height="1" fill="currentColor"/><rect x="25" y="17" width="1" height="1" fill="currentColor"/><rect x="28" y="17" width="1" height="1" fill="currentColor"/><rect x="30" y="17" width="1" height="1" fill="currentColor"/><rect x="4" y="18" width="1" height="1" fill="currentColor"/><rect x="8" y="18" width="1" height="1" fill="currentColor"/><rect x="9" y="18" width="1" height="1" fill="currentColor"/><rect x="11" y="18" width="1" height="1" fill="currentColor"/><rect x="17" y="18" width="1" height="1" fill="currentColor"/><rect x="18" y="18" width="1" height="1" fill="currentColor"/><rect x="19" y="18" width="1" height="1" fill="currentColor"/><rect x="27" y="18" width="1" height="1" fill="currentColor"/><rect x="28" y="18" width="1" height="1" fill="currentColor"/><rect x="2" y="19" width="1" height="1" fill="currentColor"/><rect x="4" y="19" width="1" height="1" fill="currentColor"/><rect x="5" y="19" width="1" height="1" fill="currentColor"/><rect x="10" y="19" width="1" height="1" fill="currentColor"/><rect x="12" y="19" width="1" height="1" fill="currentColor"/><rect x="13" y="19" width="1" height="1" fill="currentColor"/><rect x="15" y="19" width="1" height="1" fill="currentColor"/><rect x="16" y="19" width="1" height="1" fill="currentColor"/><rect x="17" y="19" width="1" height="1" fill="currentColor"/><rect x="18" y="19" width="1" height="1" fill="currentColor"/><rect x="20" y="19" width="1" height="1" fill="currentColor"/><rect x="21" y="19" width="1" height="1" fill="currentColor"/><rect x="22" y="19" width="1" height="1" fill="currentColor"/><rect x="24" y="19" width="1" height="1" fill="currentColor"/><rect x="25" y="19" width="1" height="1" fill="currentColor"/><rect x="26" y="19" width="1" height="1" fill="currentColor"/><rect x="28" y="19" width="1" height="1" fill="currentColor"/><rect x="29" y="19" width="1" height="1" fill="currentColor"/><rect x="30" y="19" width="1" height="1" fill="currentColor"/><rect x="2" y="20" width="1" height="1" fill="currentColor"/><rect x="3" y="20" width="1" height="1" fill="currentColor"/><rect x="4" y="20" width="1" height="1" fill="currentColor"/><rect x="5" y="20" width="1" height="1" fill="currentColor"/><rect x="6" y="20" width="1" height="1" fill="currentColor"/><rect x="8" y="20" width="1" height="1" fill="currentColor"/><rect x="9" y="20" width="1" height="1" fill="currentColor"/><rect x="12" y="20" width="1" height="1" fill="currentColor"/><rect x="17" y="20" width="1" height="1" fill="currentColor"/><rect x="18" y="20" width="1" height="1" fill="currentColor"/><rect x="20" y="20" width="1" height="1" fill="currentColor"/><rect x="21" y="20" width="1" height="1" fill="currentColor"/><rect x="27" y="20" width="1" height="1" fill="currentColor"/><rect x="30" y="20" width="1" height="1" fill="currentColor"/><rect x="2" y="21" width="1" height="1" fill="currentColor"/><rect x="12" y="21" width="1" height="1" fill="currentColor"/><rect x="13" y="21" width="1" height="1" fill="currentColor"/><rect x="14" y="21" width="1" height="1" fill="currentColor"/><rect x="15" y="21" width="1" height="1" fill="currentColor"/><rect x="23" y="21" width="1" height="1" fill="currentColor"/><rect x="24" y="21" width="1" height="1" fill="currentColor"/><rect x="25" y="21" width="1" height="1" fill="currentColor"/><rect x="2" y="22" width="1" height="1" fill="currentColor"/><rect x="4" y="22" width="1" height="1" fill="currentColor"/><rect x="8" y="22" width="1" height="1" fill="currentColor"/><rect x="10" y="22" width="1" height="1" fill="currentColor"/><rect x="14" y="22" width="1" height="1" fill="currentColor"/><rect x="16" y="22" width="1" height="1" fill="currentColor"/><rect x="17" y="22" width="1" height="1" fill="currentColor"/><rect x="18" y="22" width="1" height="1" fill="currentColor"/><rect x="19" y="22" width="1" height="1" fill="currentColor"/><rect x="22" y="22" width="1" height="1" fill="currentColor"/><rect x="23" y="22" width="1" height="1" fill="currentColor"/><rect x="24" y="22" width="1" height="1" fill="currentColor"/><rect x="25" y="22" width="1" height="1" fill="currentColor"/><rect x="26" y="22" width="1" height="1" fill="currentColor"/><rect x="28" y="22" width="1" height="1" fill="currentColor"/><rect x="29" y="22" width="1" height="1" fill="currentColor"/><rect x="30" y="22" width="1" height="1" fill="currentColor"/><rect x="10" y="23" width="1" height="1" fill="currentColor"/><rect x="11" y="23" width="1" height="1" fill="currentColor"/><rect x="12" y="23" width="1" height="1" fill="currentColor"/><rect x="13" y="23" width="1" height="1" fill="currentColor"/><rect x="16" y="23" width="1" height="1" fill="currentColor"/><rect x="17" y="23" width="1" height="1" fill="currentColor"/><rect x="20" y="23" width="1" height="1" fill="currentColor"/><rect x="22" y="23" width="1" height="1" fill="currentColor"/><rect x="26" y="23" width="1" height="1" fill="currentColor"/><rect x="27" y="23" width="1" height="1" fill="currentColor"/><rect x="2" y="24" width="1" height="1" fill="currentColor"/><rect x="3" y="24" width="1" height="1" fill="currentColor"/><rect x="4" y="24" width="1" height="1" fill="currentColor"/><rect x="5" y="24" width="1" height="1" fill="currentColor"/><rect x="6" y="24" width="1" height="1" fill="currentColor"/><rect x="7" y="24" width="1" height="1" fill="currentColor"/><rect x="8" y="24" width="1" height="1" fill="currentColor"/><rect x="12" y="24" width="1" height="1" fill="currentColor"/><rect x="14" y="24" width="1" height="1" fill="currentColor"/><rect x="17" y="24" width="1" height="1" fill="currentColor"/><rect x="18" y="24" width="1" height="1" fill="currentColor"/><rect x="21" y="24" width="1" height="1" fill="currentColor"/><rect x="22" y="24" width="1" height="1" fill="currentColor"/><rect x="24" y="24" width="1" height="1" fill="currentColor"/><rect x="26" y="24" width="1" height="1" fill="currentColor"/><rect x="27" y="24" width="1" height="1" fill="currentColor"/><rect x="28" y="24" width="1" height="1" fill="currentColor"/><rect x="2" y="25" width="1" height="1" fill="currentColor"/><rect x="8" y="25" width="1" height="1" fill="currentColor"/><rect x="11" y="25" width="1" height="1" fill="currentColor"/><rect x="13" y="25" width="1" height="1" fill="currentColor"/><rect x="16" y="25" width="1" height="1" fill="currentColor"/><rect x="21" y="25" width="1" height="1" fill="currentColor"/><rect x="22" y="25" width="1" height="1" fill="currentColor"/><rect x="26" y="25" width="1" height="1" fill="currentColor"/><rect x="30" y="25" width="1" height="1" fill="currentColor"/><rect x="2" y="26" width="1" height="1" fill="currentColor"/><rect x="4" y="26" width="1" height="1" fill="currentColor"/><rect x="5" y="26" width="1" height="1" fill="currentColor"/><rect x="6" y="26" width="1" height="1" fill="currentColor"/><rect x="8" y="26" width="1" height="1" fill="currentColor"/><rect x="13" y="26" width="1" height="1" fill="currentColor"/><rect x="15" y="26" width="1" height="1" fill="currentColor"/><rect x="16" y="26" width="1" height="1" fill="currentColor"/><rect x="17" y="26" width="1" height="1" fill="currentColor"/><rect x="18" y="26" width="1" height="1" fill="currentColor"/><rect x="21" y="26" width="1" height="1" fill="currentColor"/><rect x="22" y="26" width="1" height="1" fill="currentColor"/><rect x="23" y="26" width="1" height="1" fill="currentColor"/><rect x="24" y="26" width="1" height="1" fill="currentColor"/><rect x="25" y="26" width="1" height="1" fill="currentColor"/><rect x="26" y="26" width="1" height="1" fill="currentColor"/><rect x="27" y="26" width="1" height="1" fill="currentColor"/><rect x="29" y="26" width="1" height="1" fill="currentColor"/><rect x="30" y="26" width="1" height="1" fill="currentColor"/><rect x="2" y="27" width="1" height="1" fill="currentColor"/><rect x="4" y="27" width="1" height="1" fill="currentColor"/><rect x="5" y="27" width="1" height="1" fill="currentColor"/><rect x="6" y="27" width="1" height="1" fill="currentColor"/><rect x="8" y="27" width="1" height="1" fill="currentColor"/><rect x="11" y="27" width="1" height="1" fill="currentColor"/><rect x="13" y="27" width="1" height="1" fill="currentColor"/><rect x="15" y="27" width="1" height="1" fill="currentColor"/><rect x="16" y="27" width="1" height="1" fill="currentColor"/><rect x="17" y="27" width="1" height="1" fill="currentColor"/><rect x="18" y="27" width="1" height="1" fill="currentColor"/><rect x="19" y="27" width="1" height="1" fill="currentColor"/><rect x="20" y="27" width="1" height="1" fill="currentColor"/><rect x="23" y="27" width="1" height="1" fill="currentColor"/><rect x="27" y="27" width="1" height="1" fill="currentColor"/><rect x="28" y="27" width="1" height="1" fill="currentColor"/><rect x="30" y="27" width="1" height="1" fill="currentColor"/><rect x="2" y="28" width="1" height="1" fill="currentColor"/><rect x="4" y="28" width="1" height="1" fill="currentColor"/><rect x="5" y="28" width="1" height="1" fill="currentColor"/><rect x="6" y="28" width="1" height="1" fill="currentColor"/><rect x="8" y="28" width="1" height="1" fill="currentColor"/><rect x="11" y="28" width="1" height="1" fill="currentColor"/><rect x="12" y="28" width="1" height="1" fill="currentColor"/><rect x="13" y="28" width="1" height="1" fill="currentColor"/><rect x="14" y="28" width="1" height="1" fill="currentColor"/><rect x="15" y="28" width="1" height="1" fill="currentColor"/><rect x="16" y="28" width="1" height="1" fill="currentColor"/><rect x="17" y="28" width="1" height="1" fill="currentColor"/><rect x="21" y="28" width="1" height="1" fill="currentColor"/><rect x="22" y="28" width="1" height="1" fill="currentColor"/><rect x="24" y="28" width="1" height="1" fill="currentColor"/><rect x="25" y="28" width="1" height="1" fill="currentColor"/><rect x="26" y="28" width="1" height="1" fill="currentColor"/><rect x="27" y="28" width="1" height="1" fill="currentColor"/><rect x="28" y="28" width="1" height="1" fill="currentColor"/><rect x="29" y="28" width="1" height="1" fill="currentColor"/><rect x="2" y="29" width="1" height="1" fill="currentColor"/><rect x="8" y="29" width="1" height="1" fill="currentColor"/><rect x="11" y="29" width="1" height="1" fill="currentColor"/><rect x="12" y="29" width="1" height="1" fill="currentColor"/><rect x="13" y="29" width="1" height="1" fill="currentColor"/><rect x="14" y="29" width="1" height="1" fill="currentColor"/><rect x="16" y="29" width="1" height="1" fill="currentColor"/><rect x="17" y="29" width="1" height="1" fill="currentColor"/><rect x="20" y="29" width="1" height="1" fill="currentColor"/><rect x="23" y="29" width="1" height="1" fill="currentColor"/><rect x="24" y="29" width="1" height="1" fill="currentColor"/><rect x="26" y="29" width="1" height="1" fill="currentColor"/><rect x="27" y="29" width="1" height="1" fill="currentColor"/><rect x="28" y="29" width="1" height="1" fill="currentColor"/><rect x="30" y="29" width="1" height="1" fill="currentColor"/><rect x="2" y="30" width="1" height="1" fill="currentColor"/><rect x="3" y="30" width="1" height="1" fill="currentColor"/><rect x="4" y="30" width="1" height="1" fill="currentColor"/><rect x="5" y="30" width="1" height="1" fill="currentColor"/><rect x="6" y="30" width="1" height="1" fill="currentColor"/><rect x="7" y="30" width="1" height="1" fill="currentColor"/><rect x="8" y="30" width="1" height="1" fill="currentColor"/><rect x="10" y="30" width="1" height="1" fill="currentColor"/><rect x="11" y="30" width="1" height="1" fill="currentColor"/><rect x="13" y="30" width="1" height="1" fill="currentColor"/><rect x="15" y="30" width="1" height="1" fill="currentColor"/><rect x="16" y="30" width="1" height="1" fill="currentColor"/><rect x="19" y="30" width="1" height="1" fill="currentColor"/><rect x="20" y="30" width="1" height="1" fill="currentColor"/><rect x="21" y="30" width="1" height="1" fill="currentColor"/><rect x="23" y="30" width="1" height="1" fill="currentColor"/><rect x="26" y="30" width="1" height="1" fill="currentColor"/><rect x="27" y="30" width="1" height="1" fill="currentColor"/><rect x="28" y="30" width="1" height="1" fill="currentColor"/>`;
+  }
+
+  if (openBtn && modal) {
+    openBtn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+    });
+  }
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  }
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const appUrl = 'https://polyglotlab-xi.vercel.app/';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(appUrl).then(() => {
+          showNotification("¡Enlace copiado al portapapeles! Listo para compartir.", "success");
+          const copyTextEl = document.getElementById('copy-link-btn-text');
+          if (copyTextEl) {
+            copyTextEl.textContent = '¡Copiado! ✓';
+            setTimeout(() => { copyTextEl.textContent = 'Copiar Link de la App'; }, 2500);
+          }
+        }).catch(() => {
+          showNotification("Enlace: https://polyglotlab-xi.vercel.app/", "info");
+        });
+      } else {
+        showNotification("Enlace: https://polyglotlab-xi.vercel.app/", "info");
+      }
+    });
+  }
 }
 
 function setupFeedbackForm() {
