@@ -146,6 +146,7 @@ const DEFAULT_STATE = {
 };
 
 let appState = { ...DEFAULT_STATE };
+if (typeof window !== 'undefined') window.appState = appState;
 
 // Cargar estado de localStorage con migración desde la clave anterior
 function sanitizeAppState() {
@@ -218,7 +219,6 @@ function sanitizeAppState() {
 function loadAppState() {
   let localData = localStorage.getItem('polyglotlab_state');
   if (!localData) {
-    // Intentar migrar desde la versión antigua 'hyperpolyglot_harness_state'
     localData = localStorage.getItem('hyperpolyglot_harness_state');
     if (localData) {
       localStorage.setItem('polyglotlab_state', localData);
@@ -230,17 +230,19 @@ function loadAppState() {
       sanitizeAppState();
     } catch (e) {
       console.error("Error cargando estado local:", e);
-      appState = { ...DEFAULT_STATE };
+      appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
       sanitizeAppState();
     }
   } else {
-    appState = { ...DEFAULT_STATE };
+    appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
     sanitizeAppState();
   }
+  if (typeof window !== 'undefined') window.appState = appState;
 }
 
 // Guardar estado en localStorage y sincronizar con Firestore si Firebase está activo
 function saveAppState() {
+  if (typeof window !== 'undefined') window.appState = appState;
   localStorage.setItem('polyglotlab_state', JSON.stringify(appState));
   
   if (isFirebaseEnabled && firebaseAuth && firebaseAuth.currentUser) {
@@ -386,19 +388,18 @@ function executeLogout() {
   appState.profile = null;
   saveAppState();
 
-  // Ocultar todos los modales activos
-  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.add('hidden'));
-
-  // Desplegar modal de login/onboarding
-  const onboardingScreen = document.getElementById('onboarding-screen');
-  if (onboardingScreen) {
-    onboardingScreen.classList.remove('hidden');
-  }
-
-  // Actualizar indicador de usuario
+  // Actualizar indicadores visuales de usuario
   const nameEl = document.getElementById('user-display-name');
   if (nameEl) nameEl.textContent = 'Usuario';
+  const avatarCharEl = document.getElementById('user-avatar-char');
+  if (avatarCharEl) avatarCharEl.textContent = 'U';
 
+  // Ocultar modales no relevantes y forzar la pantalla de acceso
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    if (m.id !== 'onboarding-screen') m.classList.add('hidden');
+  });
+
+  checkOnboarding();
   showNotification("Sesión cerrada correctamente en PolyglotLab.", "info");
 }
 
@@ -506,6 +507,67 @@ function triggerBlobDownload(blob, filename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, 100);
+}
+
+// Sistema de Notificaciones Flotantes (Toasts)
+function showNotification(message, type = 'info') {
+  if (typeof document === 'undefined') return;
+  let toastContainer = document.getElementById('polyglot-toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'polyglot-toast-container';
+    toastContainer.style.position = 'fixed';
+    toastContainer.style.bottom = '24px';
+    toastContainer.style.right = '24px';
+    toastContainer.style.zIndex = '99999';
+    toastContainer.style.display = 'flex';
+    toastContainer.style.flexDirection = 'column';
+    toastContainer.style.gap = '8px';
+    toastContainer.style.pointerEvents = 'none';
+    if (document.body) document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement('div');
+  const bgColors = {
+    success: '#10B981',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6'
+  };
+
+  toast.style.background = bgColors[type] || '#334155';
+  toast.style.color = '#FFFFFF';
+  toast.style.padding = '12px 18px';
+  toast.style.borderRadius = '10px';
+  toast.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.3)';
+  toast.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+  toast.style.fontSize = '14px';
+  toast.style.fontWeight = '500';
+  toast.style.transition = 'all 0.3s ease';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateY(10px)';
+  toast.style.pointerEvents = 'auto';
+  toast.textContent = message;
+
+  if (toastContainer) toastContainer.appendChild(toast);
+
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+  } else {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  }
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 3500);
 }
 
 // Mostrar diálogo de confirmación personalizado
@@ -4050,36 +4112,30 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Cargar estado local
-  loadAppState();
+function initMainFormListeners() {
+  const themeBtn = document.getElementById('theme-btn');
+  if (themeBtn) themeBtn.addEventListener('click', rotateTheme);
   
-  // Aplicar idioma cargado
-  applyUiLanguage(appState.settings.uiLanguage || 'es');
+  const onboardingForm = document.getElementById('onboarding-form');
+  if (onboardingForm) onboardingForm.addEventListener('submit', handleOnboardingForm);
   
-  // Inicializar UI
-  initTheme();
-  setupFirebaseAuthToggle();
-  initFirebaseAuthStateListener();
-  checkOnboarding();
-  initNavigation();
-  
-  // Asignar controladores
-  document.getElementById('theme-btn').addEventListener('click', rotateTheme);
-  document.getElementById('onboarding-form').addEventListener('submit', handleOnboardingForm);
   const linkForgot = document.getElementById('link-forgot-password');
-  if (linkForgot) {
-    linkForgot.addEventListener('click', handleForgotPassword);
-  }
-  document.getElementById('settings-form').addEventListener('submit', saveSettingsForm);
-  document.getElementById('profile-edit-form').addEventListener('submit', saveProfileEditForm);
-  document.getElementById('gen-island-form').addEventListener('submit', handleGenerateIsland);
-  document.getElementById('btn-save-generated').addEventListener('click', saveGeneratedIsland);
+  if (linkForgot) linkForgot.addEventListener('click', handleForgotPassword);
+  
+  const settingsForm = document.getElementById('settings-form');
+  if (settingsForm) settingsForm.addEventListener('submit', saveSettingsForm);
+  
+  const profileForm = document.getElementById('profile-edit-form');
+  if (profileForm) profileForm.addEventListener('submit', saveProfileEditForm);
+  
+  const genForm = document.getElementById('gen-island-form');
+  if (genForm) genForm.addEventListener('submit', handleGenerateIsland);
+  
+  const btnSaveGen = document.getElementById('btn-save-generated');
+  if (btnSaveGen) btnSaveGen.addEventListener('click', saveGeneratedIsland);
   
   const btnDeleteAcc = document.getElementById('btn-delete-account');
-  if (btnDeleteAcc) {
-    btnDeleteAcc.addEventListener('click', handleDeleteAccount);
-  }
+  if (btnDeleteAcc) btnDeleteAcc.addEventListener('click', handleDeleteAccount);
   
   // Controladores de la pestaña Acerca de
   const aboutTopBtn = document.getElementById('about-top-btn');
@@ -4384,7 +4440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Inicializar controladores de donación multi-opción
   initDonationControls();
-});
+}
 
 // ==================================================================
 // 10. FUNCIONES DE APOYO PARA MEJORAS (TTS SELECTION, MP3 & EDIT CRUD)
@@ -5091,29 +5147,6 @@ function initMethodologyPanel() {
       
       utter.onend = resetBtnState;
       utter.onerror = resetBtnState;
-      
-      window.speechSynthesis.speak(utter);
-    });
-  });
-
-  // Configurar escuchadores de control de videos explicativos (Play, Stop, Reiniciar)
-  initVideoControls();
-}tVoices();
-        const matchedVoice = voices.find(v => v.lang.startsWith(langCode));
-        if (matchedVoice) {
-          utter.voice = matchedVoice;
-        }
-      }
-      
-      utter.onend = () => {
-        if (icon) icon.textContent = originalIcon;
-        if (textSpan) textSpan.textContent = originalText;
-      };
-      
-      utter.onerror = () => {
-        if (icon) icon.textContent = originalIcon;
-        if (textSpan) textSpan.textContent = originalText;
-      };
       
       window.speechSynthesis.speak(utter);
     });
@@ -6099,6 +6132,15 @@ function handleAddTargetLanguage() {
 
 function initPolyglotLabCore() {
   console.log("Inicializando PolyglotLab Core Navigation & Controls...");
+
+  // 0. Cargar estado de la aplicación y verificar Onboarding / Autenticación de forma estricta
+  loadAppState();
+  applyUiLanguage(appState.settings ? (appState.settings.uiLanguage || 'es') : 'es');
+  initTheme();
+  setupFirebaseAuthToggle();
+  initFirebaseAuthStateListener();
+  initMainFormListeners();
+  checkOnboarding();
 
   // 1. Enlaces de navegación del Sidebar
   document.querySelectorAll('.nav-link').forEach(link => {
