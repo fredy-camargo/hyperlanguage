@@ -54,7 +54,7 @@ const DEFAULT_STATE = {
         { id: 's_pres_en_03', l1: 'Tengo treinta y seis años.', l2: 'I am thirty-six years old.', word_targeted: 'Age', mastery: 0 },
         { id: 's_pres_en_04', l1: 'Trabajo en el área de planeación financiera y analítica de datos.', l2: 'I work in financial planning and data analytics.', word_targeted: 'Profession', mastery: 0 },
         { id: 's_pres_en_05', l1: 'Actualmente estoy terminando mi maestría.', l2: 'I am currently finishing my master\'s degree.', word_targeted: 'Studies', mastery: 0 },
-        { id: 's_pres_en_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'In my free speed, I like to train calisthenics and ride my bike.', word_targeted: 'Hobbies', mastery: 0 },
+        { id: 's_pres_en_06', l1: 'En mi tiempo libre me gusta entrenar calistenia y andar en bicicleta.', l2: 'In my free time, I like to train calisthenics and ride my bike.', word_targeted: 'Hobbies', mastery: 0 },
         { id: 's_pres_en_07', l1: 'Tengo una hija de nueve años y disfrutamos mucho jugar videojuegos juntos.', l2: 'I have a nine-year-old daughter and we really enjoy playing video games together.', word_targeted: 'Family', mastery: 0 }
       ]
     },
@@ -240,6 +240,32 @@ function loadAppState() {
   if (typeof window !== 'undefined') window.appState = appState;
 }
 
+// Sanitizar configuraciones antes de enviar a la nube (Zero-Trust: nunca subir llaves API BYOK a Firestore)
+function getCloudSafeSettings(settings) {
+  if (!settings) return {};
+  const safeCopy = { ...settings };
+  delete safeCopy.apiKey;
+  delete safeCopy.apiTtsKey;
+  return safeCopy;
+}
+
+// Validar URL de API personalizada para prevenir SSRF y fugas de credenciales por HTTP inseguro
+function validateSafeApiUrl(rawUrl, fallbackUrl) {
+  const trimmed = (rawUrl || '').trim().replace(/\/+$/, '');
+  if (!trimmed) return fallbackUrl;
+  try {
+    const parsed = new URL(trimmed);
+    const isHttps = parsed.protocol === 'https:';
+    const isLocalLoopback = parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1');
+    if (!isHttps && !isLocalLoopback) {
+      throw new Error("Solo se permiten endpoints con protocolo seguro HTTPS (o localhost para modelos locales).");
+    }
+    return trimmed;
+  } catch (err) {
+    throw new Error(err.message || "La URL de API personalizada no tiene un formato válido.");
+  }
+}
+
 // Guardar estado en localStorage y sincronizar con Firestore si Firebase está activo
 function saveAppState() {
   if (typeof window !== 'undefined') window.appState = appState;
@@ -249,7 +275,7 @@ function saveAppState() {
     const user = firebaseAuth.currentUser;
     firebaseDb.collection("users").doc(user.uid).set({
       profile: appState.profile,
-      settings: appState.settings,
+      settings: getCloudSafeSettings(appState.settings),
       islands: appState.islands,
       metrics: appState.metrics,
       targetLanguages: appState.targetLanguages,
@@ -328,10 +354,11 @@ function updateTargetLanguageUI() {
     gridEl.innerHTML = appState.targetLanguages.map(lang => {
       const isActive = lang === activeLang;
       const count = appState.islands.filter(isl => isl.language === lang).length;
+      const safeLang = escapeHtml(lang);
       return `
-        <div class="target-lang-card ${isActive ? 'active' : ''}" data-lang="${lang}" style="padding: 14px; border-radius: 16px; border: 2px solid ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-outline))'}; background: ${isActive ? 'hsla(var(--md-sys-color-primary), 0.12)' : 'hsl(var(--md-sys-color-surface-container-low))'}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
+        <div class="target-lang-card ${isActive ? 'active' : ''}" data-lang="${safeLang}" style="padding: 14px; border-radius: 16px; border: 2px solid ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-outline))'}; background: ${isActive ? 'hsla(var(--md-sys-color-primary), 0.12)' : 'hsl(var(--md-sys-color-surface-container-low))'}; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.2s;">
           <span style="font-size: 28px;">${getLangFlag(lang)}</span>
-          <span style="font-size: 14px; font-weight: 700; color: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'inherit'};">${lang}</span>
+          <span style="font-size: 14px; font-weight: 700; color: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'inherit'};">${safeLang}</span>
           <span style="font-size: 11px; opacity: 0.8; font-weight: 500;">${count} ${count === 1 ? 'isla' : 'islas'}</span>
         </div>
       `;
@@ -351,10 +378,11 @@ function updateTargetLanguageUI() {
   if (settingsListEl) {
     settingsListEl.innerHTML = appState.targetLanguages.map(lang => {
       const isActive = lang === activeLang;
+      const safeLang = escapeHtml(lang);
       return `
         <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: ${isActive ? 'hsl(var(--md-sys-color-primary))' : 'hsl(var(--md-sys-color-surface-container-high))'}; color: ${isActive ? 'hsl(var(--md-sys-color-on-primary))' : 'inherit'}; border: 1px solid hsl(var(--md-sys-color-outline));">
           <span>${getLangFlag(lang)}</span>
-          <span>${lang}</span>
+          <span>${safeLang}</span>
           ${isActive ? '<span class="material-symbols-rounded" style="font-size: 16px;">check_circle</span>' : ''}
         </span>
       `;
@@ -662,56 +690,7 @@ function initNavigation() {
 }
 
 function switchTab(tabId) {
-  // Detener TTS activo si cambiamos de pestaña
-  stopTTS();
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  
-  // Ocultar el widget de cerebro en metodología, configuración y acerca de
-  const brainWidget = document.querySelector('.top-bar-brain-widget');
-  if (brainWidget) {
-    if (['methodology', 'settings', 'about'].includes(tabId)) {
-      brainWidget.classList.add('hidden');
-    } else {
-      brainWidget.classList.remove('hidden');
-    }
-  }
-  
-  // Ocultar todos los paneles
-  document.querySelectorAll('.tab-panel').forEach(panel => {
-    panel.classList.add('hidden');
-  });
-  
-  // Desactivar todos los links de navegación
-  document.querySelectorAll('[data-tab], .mobile-nav-link').forEach(link => {
-    link.classList.remove('active');
-  });
-  
-  // Mostrar panel seleccionado
-  const activePanel = document.getElementById(`tab-${tabId}`);
-  if (activePanel) {
-    activePanel.classList.remove('hidden');
-  }
-  
-  // Activar links correspondientes
-  document.querySelectorAll(`[data-tab="${tabId}"], .mobile-nav-link[data-tab="${tabId}"]`).forEach(link => {
-    link.classList.add('active');
-  });
-  
-  // Actualizar título
-  const titleMap = window.uiTitleMap || {
-    learn: 'Aprender (Karaoke)',
-    practice: 'Practicar (Recall Loop)',
-    generate: 'Generar Contexto Inteligente',
-    methodology: 'Metodología y Guía de Uso',
-    settings: 'Configuración del Laboratorio',
-    about: 'Acerca de PolyglotLab'
-  };
-  document.getElementById('view-title').textContent = titleMap[tabId] || 'PolyglotLab';
-  
-  // Ejecutar inicializadores específicos de paneles
-  if (tabId === 'learn') initLearnPanel();
-  if (tabId === 'practice') initPracticePanel();
-  if (tabId === 'settings') loadSettingsPanel();
+  return switchMainTab(tabId);
 }
 
 // 4. MOTOR TTS Y SINOPSIS KARAOKE
@@ -803,7 +782,7 @@ function renderIslandSelectors() {
   const availableIslands = appState.islands.filter(isl => isl.language === activeLang);
   
   if (availableIslands.length === 0) {
-    container.innerHTML = `<p class="text-secondary small" style="padding: 12px; text-align: center;">No tienes islas para <strong>${getLangFlag(activeLang)} ${activeLang}</strong>. Genera una en la pestaña de Generar Islas o selecciona otro idioma objetivo.</p>`;
+    container.innerHTML = `<p class="text-secondary small" style="padding: 12px; text-align: center;">No tienes islas para <strong>${getLangFlag(activeLang)} ${escapeHtml(activeLang)}</strong>. Genera una en la pestaña de Generar Islas o selecciona otro idioma objetivo.</p>`;
     return;
   }
   
@@ -897,7 +876,7 @@ function renderIslandSelectors() {
       const progressPercent = maxPossibleMastery > 0 ? Math.round((totalMastery / maxPossibleMastery) * 100) : 0;
 
       const topicOptionsHtml = (appState.topics || []).map(t => 
-        `<option value="${t.id}" ${t.id === (island.topicId || 'topic_general') ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+        `<option value="${escapeHtml(t.id)}" ${t.id === (island.topicId || 'topic_general') ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
       ).join('') + `<option value="__create_new__">➕ Crear nueva categoría...</option>`;
 
       item.innerHTML = `
@@ -927,7 +906,7 @@ function renderIslandSelectors() {
 
           <div class="topic-select-container" style="display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation();" onmousedown="event.stopPropagation();" onpointerdown="event.stopPropagation();">
             <span class="material-symbols-rounded" style="font-size: 14px; color: hsl(var(--md-sys-color-secondary));">folder_move</span>
-            <select class="change-island-topic-select" data-island-id="${island.id}" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; cursor: pointer;">
+            <select class="change-island-topic-select" data-island-id="${escapeHtml(island.id)}" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid hsl(var(--md-sys-color-outline)); background: hsl(var(--md-sys-color-surface)); color: inherit; cursor: pointer;">
               ${topicOptionsHtml}
             </select>
           </div>
@@ -1613,7 +1592,7 @@ async function playOpenAITTS(sentence, speed) {
     playPauseBtnIcon.classList.add('spin');
     
     try {
-      const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+      const baseUrl = validateSafeApiUrl(appState.settings.apiUrl, 'https://api.openai.com/v1');
       const url = `${baseUrl}/audio/speech`;
       
       const response = await fetch(url, {
@@ -2270,7 +2249,7 @@ function populateRecallIslandSelect() {
   
   select.innerHTML = `
     <option value="fsrs">🧠 Repaso Inteligente (FSRS)</option>
-    <option value="all">Todas las Islas (${activeLang})</option>
+    <option value="all">Todas las Islas (${escapeHtml(activeLang)})</option>
   `;
   
   appState.islands.forEach(island => {
@@ -2393,11 +2372,13 @@ function loadPracticeExercise() {
   
   const isSpeechMode = (activePracticeMode === 'speech');
   const flipCard = document.getElementById('recall-speech-flip-card');
-  const labelEl = document.querySelector('.recall-prompt p.small');
+  const promptCard = document.querySelector('.recall-prompt-card');
+  const labelEl = document.getElementById('recall-prompt-label');
   
   if (isSpeechMode) {
     if (container) container.classList.add('hidden');
     if (labelEl) labelEl.classList.add('hidden');
+    if (promptCard) promptCard.classList.add('hidden');
     if (flipCard) {
       flipCard.classList.remove('hidden');
       flipCard.classList.remove('flipped');
@@ -2405,6 +2386,7 @@ function loadPracticeExercise() {
       document.getElementById('flip-back-text').textContent = sentence.l2;
     }
   } else {
+    if (promptCard) promptCard.classList.remove('hidden');
     if (container) {
       container.classList.remove('hidden');
       container.textContent = sentence.l1;
@@ -2812,7 +2794,7 @@ function playPracticeSentenceTTS() {
       alert("Por favor, ingresa tu clave API de OpenAI en la pestaña de Ajustes para reproducir la voz.");
       return;
     }
-    const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+    const baseUrl = validateSafeApiUrl(appState.settings.apiUrl, 'https://api.openai.com/v1');
     const url = `${baseUrl}/audio/speech`;
     fetch(url, {
       method: 'POST',
@@ -3108,7 +3090,8 @@ Return strictly a raw valid JSON array matching this schema: [{"l1": "...", "l2"
 
 // Clientes API BYOK
 async function callOpenAI(apiKey, customUrl, prompt) {
-  const url = (customUrl || 'https://api.openai.com/v1') + '/chat/completions';
+  const baseUrl = validateSafeApiUrl(customUrl, 'https://api.openai.com/v1');
+  const url = `${baseUrl}/chat/completions`;
   
   const response = await fetch(url, {
     method: 'POST',
@@ -3137,7 +3120,7 @@ async function callOpenAI(apiKey, customUrl, prompt) {
 
 async function callGemini(apiKey, customUrl, prompt) {
   // Endpoints oficiales v1beta
-  const baseUrl = customUrl || 'https://generativelanguage.googleapis.com';
+  const baseUrl = validateSafeApiUrl(customUrl, 'https://generativelanguage.googleapis.com');
   const url = `${baseUrl}/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
   
   const response = await fetch(url, {
@@ -3166,7 +3149,8 @@ async function callGemini(apiKey, customUrl, prompt) {
 }
 
 async function callAnthropic(apiKey, customUrl, prompt) {
-  const url = (customUrl || 'https://api.anthropic.com/v1') + '/messages';
+  const baseUrl = validateSafeApiUrl(customUrl, 'https://api.anthropic.com/v1');
+  const url = `${baseUrl}/messages`;
   
   const response = await fetch(url, {
     method: 'POST',
@@ -3716,12 +3700,24 @@ function loadSettingsPanel() {
 function saveSettingsForm(e) {
   e.preventDefault();
   
+  const rawApiUrl = document.getElementById('api-url').value.trim();
+  if (rawApiUrl) {
+    try {
+      validateSafeApiUrl(rawApiUrl, '');
+    } catch (err) {
+      showNotification(err.message, "warning");
+      alert(err.message);
+      return;
+    }
+  }
+  
   appState.settings.apiProvider = document.getElementById('api-provider').value;
   appState.settings.apiKey = document.getElementById('api-key').value.trim();
-  appState.settings.apiUrl = document.getElementById('api-url').value.trim();
+  appState.settings.apiUrl = rawApiUrl;
   appState.settings.apiTtsKey = document.getElementById('api-tts-key').value.trim();
   
   saveAppState();
+  showNotification("Configuración de API guardada exitosamente de forma local.", "success");
   alert("Configuración de API guardada exitosamente de forma local.");
 }
 
@@ -4011,7 +4007,7 @@ async function handleOnboardingForm(e) {
         
         await firebaseDb.collection("users").doc(user.uid).set({
           profile: appState.profile,
-          settings: appState.settings,
+          settings: getCloudSafeSettings(appState.settings),
           islands: appState.islands,
           metrics: appState.metrics,
           lastUpdated: new Date().toISOString()
@@ -4026,14 +4022,21 @@ async function handleOnboardingForm(e) {
         if (userDoc.exists) {
           const cloudData = userDoc.data();
           appState.profile = cloudData.profile || null;
-          appState.settings = cloudData.settings || appState.settings;
+          if (cloudData.settings) {
+            appState.settings = {
+              ...appState.settings,
+              ...cloudData.settings,
+              apiKey: appState.settings.apiKey || '',
+              apiTtsKey: appState.settings.apiTtsKey || ''
+            };
+          }
           appState.islands = cloudData.islands || appState.islands;
           appState.metrics = cloudData.metrics || appState.metrics;
         } else {
           appState.profile = { firstName: 'Usuario', lastName: 'Polyglot', email, l1: 'Español' };
           await firebaseDb.collection("users").doc(user.uid).set({
             profile: appState.profile,
-            settings: appState.settings,
+            settings: getCloudSafeSettings(appState.settings),
             islands: appState.islands,
             metrics: appState.metrics,
             lastUpdated: new Date().toISOString()
@@ -4088,7 +4091,14 @@ function initFirebaseAuthStateListener() {
         if (userDoc.exists) {
           const cloudData = userDoc.data();
           appState.profile = cloudData.profile || null;
-          appState.settings = cloudData.settings || appState.settings;
+          if (cloudData.settings) {
+            appState.settings = {
+              ...appState.settings,
+              ...cloudData.settings,
+              apiKey: appState.settings.apiKey || '',
+              apiTtsKey: appState.settings.apiTtsKey || ''
+            };
+          }
           appState.islands = cloudData.islands || appState.islands;
           appState.metrics = cloudData.metrics || appState.metrics;
           
@@ -4282,6 +4292,15 @@ function initMainFormListeners() {
   // Controladores Recall Loop
   document.getElementById('btn-recall-submit').addEventListener('click', evaluateRecallAttempt);
   document.getElementById('btn-recall-hint').addEventListener('click', showHint);
+  const recallUserInput = document.getElementById('recall-user-input');
+  if (recallUserInput) {
+    recallUserInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        evaluateRecallAttempt();
+      }
+    });
+  }
   document.getElementById('btn-recall-next').addEventListener('click', () => {
     currentPracticeIndex = (currentPracticeIndex + 1) % practiceSentences.length;
     loadPracticeExercise();
@@ -4711,7 +4730,7 @@ async function exportIslandToMp3(rangeSelection) {
     const zip = new JSZip();
     const voice = document.getElementById('tts-voice').value || (engine === 'openai' ? 'alloy' : 'en-US-JennyNeural');
     const speed = parseFloat(document.getElementById('tts-speed').value) || 1.0;
-    const baseUrl = appState.settings.apiUrl || 'https://api.openai.com/v1';
+    const baseUrl = validateSafeApiUrl(appState.settings.apiUrl, 'https://api.openai.com/v1');
     const url = `${baseUrl}/audio/speech`;
     
     let readmeText = `POLYGLOTLAB - EXPORTACIÓN DE ISLA LINGÜÍSTICA\n`;
@@ -4904,7 +4923,7 @@ function openEditActiveIslandModal() {
   const topicSelect = document.getElementById('edit-island-topic-input');
   if (topicSelect) {
     const topics = appState.topics || [];
-    let optionsHtml = topics.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    let optionsHtml = topics.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('');
     if (!topics.some(t => t.id === 'topic_general')) {
       optionsHtml += `<option value="topic_general">General / Sin Categoría</option>`;
     }
@@ -5304,7 +5323,7 @@ const UI_TRANSLATIONS = {
     lbl_metric_words: "Palabras",
     lbl_metric_daily_goal: "Meta de Maestría Diario",
     
-    lbl_garden_title: "Jardim da Memória (Isla Activa)",
+    lbl_garden_title: "Jardín de la Memoria (Isla Activa)",
     lbl_garden_seed: "🌱 Semilla",
     lbl_garden_sprout: "🌿 Brote",
     lbl_garden_tree: "🌳 Árbol",
@@ -5461,7 +5480,7 @@ const UI_TRANSLATIONS = {
     lbl_settings_key: "Chave de API",
     lbl_btn_save_settings: "Salvar Configuração de API",
     lbl_settings_profile: "Perfil de Usuário Local",
-    lbl_btn_save_profile: "Atualizar Datos do Perfil",
+    lbl_btn_save_profile: "Atualizar Dados do Perfil",
     lbl_settings_ui_title: "Idioma da Interface",
     lbl_settings_ui_desc: "Selecione o idioma em que deseja exibir a interface do aplicativo.",
     lbl_settings_ui_label: "Idioma do App",
@@ -5889,7 +5908,7 @@ function applyUiLanguage(langCode) {
                                  langCode === 'pt' ? 'Idioma de Destino (TTS Reproduzido)' :
                                  langCode === 'fr' ? 'Langue Cible (TTS Joué)' :
                                  langCode === 'de' ? 'Zielsprache (TTS Abgespielt)' :
-                                 'Lingua di Destinazione (TTS Riprodottò)';
+                                 'Lingua di Destinazione (TTS Riprodotto)';
   }
   
   const settingsTitle = document.querySelector('#tab-settings h3');
@@ -6019,10 +6038,26 @@ function autofillFeedbackForm() {
 // -------------------------------------------------------------
 function switchMainTab(tabId) {
   if (!tabId) return;
+  const normalizedTabId = tabId === 'guide' ? 'methodology' : tabId;
 
-  // Actualizar enlaces del sidebar
-  document.querySelectorAll('.nav-link').forEach(link => {
-    const isTarget = link.getAttribute('data-tab') === tabId || link.getAttribute('href') === `#${tabId}`;
+  // Detener TTS activo si cambiamos de pestaña
+  stopTTS();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+  // Ocultar el widget de cerebro en metodología, configuración y acerca de
+  const brainWidget = document.querySelector('.top-bar-brain-widget');
+  if (brainWidget) {
+    if (['methodology', 'settings', 'about'].includes(normalizedTabId)) {
+      brainWidget.classList.add('hidden');
+    } else {
+      brainWidget.classList.remove('hidden');
+    }
+  }
+
+  // Actualizar enlaces del sidebar y barras móviles
+  document.querySelectorAll('[data-tab], .nav-link, .mobile-nav-link').forEach(link => {
+    const linkTab = link.getAttribute('data-tab') || (link.getAttribute('href') || '').replace('#', '');
+    const isTarget = linkTab === normalizedTabId;
     if (isTarget) {
       link.classList.add('active');
     } else {
@@ -6031,41 +6066,42 @@ function switchMainTab(tabId) {
   });
 
   // Ocultar todos los paneles de pestañas principales
-  document.querySelectorAll('main.main-content > .workspace-area > section.tab-panel').forEach(panel => {
+  document.querySelectorAll('.tab-panel').forEach(panel => {
     panel.classList.add('hidden');
   });
 
   // Mostrar el panel de pestaña seleccionado
-  const targetPanel = document.getElementById(`tab-${tabId}`);
+  const targetPanel = document.getElementById(`tab-${normalizedTabId}`);
   if (targetPanel) {
     targetPanel.classList.remove('hidden');
   }
 
   // Actualizar el título de la vista en el topbar
-  const titlesMap = {
+  const titlesMap = window.uiTitleMap || {
     'learn': 'Aprender (Karaoke)',
-    'practice': 'Practicar (Recall)',
-    'generate': 'Generar Islas',
-    'guide': 'Metodología y Guía',
-    'settings': 'Configuración',
-    'about': 'Acerca de'
+    'practice': 'Practicar (Recall Loop)',
+    'generate': 'Generar Contexto Inteligente',
+    'methodology': 'Metodología y Guía de Uso',
+    'guide': 'Metodología y Guía de Uso',
+    'settings': 'Configuración del Laboratorio',
+    'about': 'Acerca de PolyglotLab'
   };
 
   const titleEl = document.getElementById('view-title');
-  if (titleEl && titlesMap[tabId]) {
-    titleEl.textContent = titlesMap[tabId];
+  if (titleEl) {
+    titleEl.textContent = titlesMap[normalizedTabId] || 'PolyglotLab';
   }
 
   // Actualizar hash de URL sin recargar
-  window.location.hash = `#${tabId}`;
+  window.location.hash = `#${normalizedTabId}`;
 
   // Actualizaciones según la pestaña
-  if (tabId === 'learn') {
+  if (normalizedTabId === 'learn') {
     initLearnPanel();
-  } else if (tabId === 'practice') {
-    if (typeof buildPracticeQueue === 'function') buildPracticeQueue();
-    if (typeof loadPracticeExercise === 'function') loadPracticeExercise();
-  } else if (tabId === 'settings') {
+  } else if (normalizedTabId === 'practice') {
+    initPracticePanel();
+  } else if (normalizedTabId === 'settings') {
+    loadSettingsPanel();
     updateTargetLanguageUI();
   }
 }
@@ -6170,11 +6206,11 @@ function initPolyglotLabCore() {
   initMainFormListeners();
   checkOnboarding();
 
-  // 1. Enlaces de navegación del Sidebar
-  document.querySelectorAll('.nav-link').forEach(link => {
+  // 1. Enlaces de navegación del Sidebar y Barra Inferior Móvil
+  document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      const tabId = link.getAttribute('data-tab') || link.getAttribute('href').replace('#', '');
+      const tabId = link.getAttribute('data-tab') || (link.getAttribute('href') || '').replace('#', '');
       switchMainTab(tabId);
     });
   });
@@ -6271,13 +6307,8 @@ function initPolyglotLabCore() {
     if (modal) modal.classList.add('hidden');
   });
 
-  // 5. Botón de Acerca de en Topbar & Formulario de Comentarios / Sugerencias
-  const aboutTopBtn = document.getElementById('about-top-btn');
-  if (aboutTopBtn) {
-    aboutTopBtn.addEventListener('click', () => {
-      switchMainTab('about');
-    });
-  }
+  // 5. Formulario de Comentarios / Sugerencias y Atajos de Teclado Globales
+  // (El botón about-top-btn ya tiene listener en initMainFormListeners)
 
   // 6. Botones de Gestión de Categorías de Estudio
   const btnManageTopics = document.getElementById('btn-manage-topics');
@@ -6314,16 +6345,40 @@ function initPolyglotLabCore() {
     });
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const visibleModals = Array.from(document.querySelectorAll('.modal-overlay:not(.hidden)'));
-      visibleModals.forEach(modal => {
-        if (modal.id !== 'onboarding-screen' && modal.id !== 'confirm-dialog-screen') {
-          modal.classList.add('hidden');
+  if (!document.documentElement.dataset.polyglotKeyListener) {
+    document.documentElement.dataset.polyglotKeyListener = 'true';
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const visibleModals = Array.from(document.querySelectorAll('.modal-overlay:not(.hidden)'));
+        visibleModals.forEach(modal => {
+          if (modal.id !== 'onboarding-screen' && modal.id !== 'confirm-dialog-screen') {
+            modal.classList.add('hidden');
+          }
+        });
+        return;
+      }
+
+      // Atajos de teclado en la pestaña Aprender (Karaoke) cuando no se está escribiendo en un input
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      const isTyping = ['input', 'textarea', 'select'].includes(activeTag) || (document.activeElement && document.activeElement.isContentEditable);
+      const anyModalOpen = document.querySelectorAll('.modal-overlay:not(.hidden)').length > 0;
+      const learnTab = document.getElementById('tab-learn');
+      const isLearnActive = learnTab && !learnTab.classList.contains('hidden');
+
+      if (!isTyping && !anyModalOpen && isLearnActive) {
+        if (e.code === 'Space' || e.key === ' ') {
+          e.preventDefault();
+          playTTS();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          advanceSentence(1);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          advanceSentence(-1);
         }
-      });
-    }
-  });
+      }
+    });
+  }
 
   // 7. Cargar pestaña inicial basada en hash de la URL o por defecto 'learn'
   const initialHash = window.location.hash.replace('#', '');

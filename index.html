@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PolyglotLab - Adquisición de Idiomas por Contexto</title>
   
-  <!-- SEO Meta Tags -->
+  <!-- SEO & PWA Meta Tags -->
   <meta name="description" content="Herramienta PWA local-first para el aprendizaje de idiomas inspirada en las mejores prácticas de políglotas de YouTube. Sin servidores, Text-To-Speech nativo y LLM con tu propia API key (BYOK).">
+  <meta name="theme-color" content="#0061a4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
   
   <!-- Google Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,7 +27,7 @@
   <div id="app" class="app-layout">
     
     <!-- Onboarding Overlay (Hidden if profile exists) -->
-    <div id="onboarding-screen" class="modal-overlay hidden">
+    <div id="onboarding-screen" class="modal-overlay hidden" role="dialog" aria-modal="true">
       <div class="modal-card onboarding-card">
         <div class="card-header text-center" style="display: flex; flex-direction: column; align-items: center;">
           <div style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 16px; position: relative; flex-shrink: 0;">
@@ -250,6 +255,11 @@
                   <div class="karaoke-text" id="karaoke-l2">
                     <!-- Words will be dynamic spans -->
                     <span class="placeholder-text">Choose a language island or technical list from the sidebar.</span>
+                  </div>
+
+                  <!-- Sentence Mastery & Target Word Badge Container -->
+                  <div id="karaoke-sentence-mastery-container" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 12px 24px 8px 24px;">
+                    <!-- Populated dynamically by loadCurrentSentence() -->
                   </div>
                   
                   <!-- Progress Bar & Sentence Counter -->
@@ -1553,7 +1563,7 @@
   </div>
 
   <!-- Modal overlay for editing active island -->
-  <div id="edit-island-screen" class="modal-overlay hidden">
+  <div id="edit-island-screen" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div class="modal-card edit-island-card" style="max-width: 850px; width: 95%; max-height: 90vh; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline)); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; overflow: hidden;">
       <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 12px; margin-bottom: 16px;">
         <h2 id="edit-island-title-heading" style="margin: 0; font-size: 20px;">Editar Isla Lingüística</h2>
@@ -1583,8 +1593,8 @@
             <table class="sentences-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
               <thead>
                 <tr style="background: hsl(var(--md-sys-color-surface-container)); border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant));">
-                  <th style="padding: 10px; font-weight: 600;">L1 (Nativo / Español)</th>
-                  <th style="padding: 10px; font-weight: 600;">L2 (Objetivo)</th>
+                  <th style="padding: 10px; font-weight: 600;">Idioma Nativo (Español)</th>
+                  <th style="padding: 10px; font-weight: 600;">Idioma Objetivo</th>
                   <th style="padding: 10px; font-weight: 600; width: 150px;">Palabra Clave</th>
                   <th style="padding: 10px; font-weight: 600; width: 80px; text-align: center;">Acción</th>
                 </tr>
@@ -1624,7 +1634,7 @@
   </div>
 
   <!-- Diálogo de Confirmación Global -->
-  <div id="confirm-dialog-screen" class="modal-overlay hidden" style="z-index: 20000;">
+  <div id="confirm-dialog-screen" class="modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 20000;">
     <div class="modal-card" style="max-width: 400px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <h3 id="confirm-dialog-title" style="margin: 0; font-size: 22px; font-weight: 500; color: hsl(var(--md-sys-color-on-surface));">¿Eliminar Isla?</h3>
@@ -1642,7 +1652,7 @@
   </div>
 
   <!-- Modal overlay para opciones de exportación -->
-  <div id="export-options-screen" class="modal-overlay hidden" style="z-index: 10002;">
+  <div id="export-options-screen" class="modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10002;">
     <div class="modal-card" style="max-width: 480px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
       
       <div style="display: flex; align-items: center; gap: 12px; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
@@ -1698,7 +1708,7 @@
   </div>
 
   <!-- Modal overlay para selección de Idioma Objetivo -->
-  <div id="target-lang-modal" class="modal-overlay hidden" style="z-index: 10003;">
+  <div id="target-lang-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10003;">
     <div class="modal-card" style="max-width: 500px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -1731,7 +1741,7 @@
   </div>
 
   <!-- Modal overlay para exportar Islas en TXT / DOC -->
-  <div id="export-txt-doc-modal" class="modal-overlay hidden" style="z-index: 10004;">
+  <div id="export-txt-doc-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10004;">
     <div class="modal-card" style="max-width: 520px; width: 90%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 28px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--md-sys-elevation-3); animation: fadeIn var(--transition-normal);">
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 16px;">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -1776,46 +1786,8 @@
 
 
 
-  <!-- Mobile Bottom Navigation Bar (Visible en dispositivos móviles <= 768px) -->
-  <nav class="mobile-bottom-bar" style="display: none;">
-    <a href="#learn" class="nav-link active" data-tab="learn">
-      <span class="material-symbols-rounded">play_circle</span>
-      <span class="nav-label">Karaoke</span>
-    </a>
-    <a href="#practice" class="nav-link" data-tab="practice">
-      <span class="material-symbols-rounded">fitness_center</span>
-      <span class="nav-label">Recall</span>
-    </a>
-    <a href="#generate" class="nav-link" data-tab="generate">
-      <span class="material-symbols-rounded">psychology</span>
-      <span class="nav-label">Generar</span>
-    </a>
-    <a href="#methodology" class="nav-link" data-tab="methodology">
-      <span class="material-symbols-rounded">menu_book</span>
-      <span class="nav-label">Método</span>
-    </a>
-    <a href="#settings" class="nav-link" data-tab="settings">
-      <span class="material-symbols-rounded">settings</span>
-      <span class="nav-label">Ajustes</span>
-    </a>
-    <a href="#about" class="nav-link" data-tab="about">
-      <span class="material-symbols-rounded">info</span>
-      <span class="nav-label">Acerca de</span>
-    </a>
-  </nav>
-
-  <!-- JSZip for exporting MP3s to ZIP -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
-  <!-- Firebase SDKs (compat mode) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-  <!-- Main JavaScript File -->
-  <script src="app.js?v=1.1"></script>
   <!-- Modal para Gestionar y Crear Categorías / Temas -->
-  <div id="topic-manager-modal" class="modal-overlay hidden" style="z-index: 10005;">
+  <div id="topic-manager-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10005;">
     <div class="modal-card" style="max-width: 520px; width: 92%; background-color: hsl(var(--md-sys-color-surface)); border: 1px solid hsl(var(--md-sys-color-outline-variant)); border-radius: 28px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--md-sys-elevation-3);">
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid hsl(var(--md-sys-color-outline-variant)); padding-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1850,7 +1822,7 @@
   </div>
 
   <!-- Modal de Código QR Ampliado -->
-  <div class="modal-overlay hidden" id="qr-code-modal" style="z-index: 9999;">
+  <div class="modal-overlay hidden" id="qr-code-modal" role="dialog" aria-modal="true" style="z-index: 9999;">
     <div class="modal-card" style="max-width: 360px; text-align: center; position: relative; padding: 24px; border-radius: 24px;">
       <!-- Botón de Cierre X -->
       <button type="button" class="btn-icon modal-close-btn" id="btn-close-qr-modal" title="Cerrar ventana QR" style="position: absolute; top: 16px; right: 16px; border: none; background: hsl(var(--md-sys-color-surface-variant)); color: hsl(var(--md-sys-color-on-surface-variant)); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
@@ -1879,5 +1851,16 @@
       </div>
     </div>
   </div>
+
+  <!-- JSZip for exporting MP3s to ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+
+  <!-- Firebase SDKs (compat mode) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js" crossorigin="anonymous"></script>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js?v=1.2"></script>
 </body>
 </html>

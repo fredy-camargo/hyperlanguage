@@ -13,11 +13,23 @@
   "routes": [
     {
       "src": "/api/tts",
-      "dest": "/api/tts.py"
+      "dest": "/api/tts.py",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
+      }
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/$1",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), camera=(), payment=(), usb=()",
+        "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
+      }
     }
   ]
 }
